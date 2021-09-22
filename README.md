@@ -42,3 +42,4 @@ command is installed and is globally available
 
 ## Contributors
 Arie Gurfinkel <arie.gurfinkel@uwaterloo.ca>
+Joseph Tafese <jetafese@uwaterloo.ca>
