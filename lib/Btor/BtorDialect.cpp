@@ -1,4 +1,4 @@
-//===- StandaloneDialect.cpp - Standalone dialect ---------------*- C++ -*-===//
+//===- BtorDialect.cpp - Btor dialect ---------------*- C++ -*-===//
 //
 // This file is licensed under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,21 +6,21 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Standalone/StandaloneDialect.h"
-#include "Standalone/StandaloneOps.h"
+#include "Btor/BtorDialect.h"
+#include "Btor/BtorOps.h"
 
 using namespace mlir;
-using namespace mlir::standalone;
+using namespace mlir::btor;
 
-#include "Standalone/StandaloneOpsDialect.cpp.inc"
+#include "Btor/BtorOpsDialect.cpp.inc"
 
 //===----------------------------------------------------------------------===//
-// Standalone dialect.
+// Btor dialect.
 //===----------------------------------------------------------------------===//
 
-void StandaloneDialect::initialize() {
+void BtorDialect::initialize() {
   addOperations<
 #define GET_OP_LIST
-#include "Standalone/StandaloneOps.cpp.inc"
+#include "Btor/BtorOps.cpp.inc"
       >();
 }
