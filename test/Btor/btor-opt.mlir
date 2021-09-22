@@ -1,4 +1,4 @@
-// RUN: standalone-opt %s | standalone-opt | FileCheck %s
+// RUN: btor-opt %s | btor-opt | FileCheck %s
 
 module {
     // CHECK-LABEL: func @bar()
