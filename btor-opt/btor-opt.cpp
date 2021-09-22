@@ -19,14 +19,14 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/ToolOutputFile.h"
 
-#include "Standalone/StandaloneDialect.h"
+#include "Btor/BtorDialect.h"
 
 int main(int argc, char **argv) {
   mlir::registerAllPasses();
   // TODO: Register standalone passes here.
 
   mlir::DialectRegistry registry;
-  registry.insert<mlir::standalone::StandaloneDialect>();
+  registry.insert<mlir::btor::BtorDialect>();
   registry.insert<mlir::StandardOpsDialect>();
   // Add the following to include *all* MLIR Core dialects, or selectively
   // include what you need like above. You only need to register dialects that
@@ -34,5 +34,5 @@ int main(int argc, char **argv) {
   // registerAllDialects(registry);
 
   return mlir::asMainReturnCode(
-      mlir::MlirOptMain(argc, argv, "Standalone optimizer driver\n", registry));
+      mlir::MlirOptMain(argc, argv, "Btor optimizer driver\n", registry));
 }

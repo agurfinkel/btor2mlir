@@ -15,7 +15,7 @@
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Translation.h"
 
-#include "Standalone/StandaloneDialect.h"
+#include "Btor/BtorDialect.h"
 
 int main(int argc, char **argv) {
   mlir::registerAllTranslations();
