@@ -6,9 +6,9 @@ set(LIBS
         MLIROptLib
         MLIRBtor
         )
-add_llvm_executable(btor-opt btor-opt.cpp)
+add_llvm_executable(btor2mlir-opt btor2mlir-opt.cpp)
 
-llvm_update_compile_flags(btor-opt)
-target_link_libraries(btor-opt PRIVATE ${LIBS})
+llvm_update_compile_flags(btor2mlir-opt)
+target_link_libraries(btor2mlir-opt PRIVATE ${LIBS})
 
-mlir_check_all_link_libraries(btor-opt)
+mlir_check_all_link_libraries(btor2mlir-opt)

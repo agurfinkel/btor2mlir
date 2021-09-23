@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.13.4)
-project(standalone-dialect LANGUAGES CXX C)
+project(btor2-dialect LANGUAGES CXX C)
 
 cmake_policy(SET CMP0116 OLD)
 
@@ -34,5 +34,5 @@ add_definitions(${LLVM_DEFINITIONS})
 add_subdirectory(include)
 add_subdirectory(lib)
 add_subdirectory(test)
-add_subdirectory(btor-opt)
-add_subdirectory(btor-translate)
+add_subdirectory(btor2mlir-opt)
+add_subdirectory(btor2mlir-translate)

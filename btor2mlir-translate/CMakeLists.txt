@@ -5,11 +5,11 @@ set(LLVM_LINK_COMPONENTS
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 get_property(translation_libs GLOBAL PROPERTY MLIR_TRANSLATION_LIBS)
 
-add_llvm_executable(btor-translate
-  btor-translate.cpp
+add_llvm_executable(btor2mlir-translate
+  btor2mlir-translate.cpp
   )
-llvm_update_compile_flags(btor-translate)
-target_link_libraries(btor-translate
+llvm_update_compile_flags(btor2mlir-translate)
+target_link_libraries(btor2mlir-translate
   PRIVATE
   ${dialect_libs}
   ${translation_libs}
@@ -21,4 +21,4 @@ target_link_libraries(btor-translate
   MLIRSupport
   )
 
-mlir_check_link_libraries(btor-translate)
+mlir_check_link_libraries(btor2mlir-translate)
