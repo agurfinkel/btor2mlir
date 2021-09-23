@@ -1,4 +1,4 @@
-// RUN: btor-opt %s | btor-opt | FileCheck %s
+// RUN: btor2mlir-opt %s | btor2mlir-opt | FileCheck %s
 
 module {
     // CHECK-LABEL: func @bar()

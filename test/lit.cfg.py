@@ -54,8 +54,8 @@ llvm_config.with_environment('PATH', config.llvm_tools_dir, append_path=True)
 
 tool_dirs = [config.btor2mlir_tools_dir, config.llvm_tools_dir]
 tools = [
-    'btor-opt',
-    'btor-translate'
+    'btor2mlir-opt',
+    'btor2mlir-translate'
 ]
 
 llvm_config.add_tool_substitutions(tools, tool_dirs)
