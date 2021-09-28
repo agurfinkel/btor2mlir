@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Btor/BtorDialect.h"
-#include "Btor/BtorOps.h"
+#include "Dialect/Btor/IR/BtorDialect.h"
+#include "Dialect/Btor/IR/BtorOps.h"
 
 using namespace mlir;
 using namespace mlir::btor;

@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Btor/BtorOps.h"
-#include "Btor/BtorDialect.h"
+#include "Dialect/Btor/IR/BtorDialect.h"
+#include "Dialect/Btor/IR/BtorOps.h"
 #include "mlir/IR/OpImplementation.h"
 
 #define GET_OP_CLASSES
