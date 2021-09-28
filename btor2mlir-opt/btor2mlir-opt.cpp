@@ -19,7 +19,7 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/ToolOutputFile.h"
 
-#include "Btor/BtorDialect.h"
+#include "Dialect/Btor/IR/BtorDialect.h"
 
 int main(int argc, char **argv) {
   mlir::registerAllPasses();

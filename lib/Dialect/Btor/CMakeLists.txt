@@ -1,9 +1,9 @@
 add_mlir_dialect_library(MLIRBtor
-        BtorDialect.cpp
-        BtorOps.cpp
+        IR/BtorDialect.cpp
+        IR/BtorOps.cpp
 
         ADDITIONAL_HEADER_DIRS
-        ${PROJECT_SOURCE_DIR}/include/Btor
+        ${PROJECT_SOURCE_DIR}/include/Dialect/Btor
 
         DEPENDS
         MLIRBtorOpsIncGen
