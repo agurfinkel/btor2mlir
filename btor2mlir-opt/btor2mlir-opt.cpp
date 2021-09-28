@@ -20,10 +20,11 @@
 #include "llvm/Support/ToolOutputFile.h"
 
 #include "Dialect/Btor/IR/BtorDialect.h"
+#include "Conversion/Passes.h"
 
 int main(int argc, char **argv) {
   mlir::registerAllPasses();
-  // TODO: Register standalone passes here.
+  mlir::btor::registerBtorToStandardPass();
 
   mlir::DialectRegistry registry;
   registry.insert<mlir::btor::BtorDialect>();
