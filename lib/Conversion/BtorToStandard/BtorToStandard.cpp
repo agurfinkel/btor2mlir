@@ -3,6 +3,8 @@
 
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include "mlir/Pass/Pass.h"
+#include "mlir/Transforms/DialectConversion.h"
+#include "mlir/IR/PatternMatch.h"
 
 using namespace mlir;
 using namespace mlir::btor;
@@ -19,7 +21,37 @@ struct BtorToStandardLoweringPass : public PassWrapper<BtorToStandardLoweringPas
 };
 } // end anonymous namespace
 
-void BtorToStandardLoweringPass::runOnOperation() {}
+struct AddLowering : public OpRewritePattern<AddOp> {
+    using OpRewritePattern<AddOp>::OpRewritePattern;
+    LogicalResult matchAndRewrite(AddOp addOp,PatternRewriter &rewriter) const override;
+};
+
+LogicalResult AddLowering::matchAndRewrite(AddOp addOp, PatternRewriter &rewriter) const {
+    Location loc = addOp.getLoc();
+    Value lhs = addOp.lhs();
+    Value rhs = addOp.rhs();
+
+    Value addIOp = rewriter.create<mlir::AddIOp>(loc, lhs, rhs);
+    rewriter.replaceOp(addOp, addIOp);
+    
+    return success();
+}
+
+void mlir::btor::populateBtorToStdConversionPatterns(RewritePatternSet &patterns) {
+  patterns.add<AddLowering>(patterns.getContext());
+}
+
+void BtorToStandardLoweringPass::runOnOperation() {
+    RewritePatternSet patterns(&getContext());
+    populateBtorToStdConversionPatterns(patterns);
+    /// Configure conversion to lower out btor.add; Anything else is fine.
+    ConversionTarget target(getContext());
+    target.addIllegalOp<AddOp>();
+    target.markUnknownOpDynamicallyLegal([](Operation *) { return true; });
+    if (failed(applyPartialConversion(getOperation(), target, std::move(patterns)))) {
+        signalPassFailure();
+    }
+}
 
 /// Create a pass for lowering operations the remaining `Btor` operations
 // to the Standard dialect for codegen.
