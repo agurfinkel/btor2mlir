@@ -22,7 +22,7 @@ def AddOp : Btor_Op<"add", [NoSideEffect, SameOperandsAndResultType, Commutative
         ```mlir
         %0 = constant 2 : i32
         %1 = constant 4 : i32
-        // Apply the foo operation to %0
+        // Apply the add operation to %0 and %1
         %2 = btor.add %0 %1 : i32
         ```
     }];

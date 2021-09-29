@@ -4,11 +4,19 @@
 #include <memory>
 
 namespace mlir {
+struct LogicalResult;
 class Pass;
 
+class RewritePatternSet;
+using OwningRewritePatternList = RewritePatternSet;
+
 namespace btor {
+    /// Collect a set of patterns to lower from btor.add to Standard dialect
+    void populateBtorToStdConversionPatterns(RewritePatternSet &patterns);
+
     /// Creates a pass to convert the Btor dialect into the Standard dialect.
     std::unique_ptr<mlir::Pass> createLowerToStandardPass();
+
     /// Registers said pass
     void registerBtorToStandardPass();
 
