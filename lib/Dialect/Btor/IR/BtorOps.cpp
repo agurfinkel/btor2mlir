@@ -9,6 +9,7 @@
 #include "Dialect/Btor/IR/BtorDialect.h"
 #include "Dialect/Btor/IR/BtorOps.h"
 #include "mlir/IR/OpImplementation.h"
+#include "mlir/IR/Builders.h"
 
 #define GET_OP_CLASSES
 #include "Dialect/Btor/IR/BtorOps.cpp.inc"

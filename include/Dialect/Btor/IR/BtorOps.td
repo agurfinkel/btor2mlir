@@ -81,4 +81,33 @@ def AndOp : Btor_Op<"and", [NoSideEffect, SameOperandsAndResultType, Commutative
     }];
 }
 
+def EqOp : Btor_Op<"eq", [NoSideEffect, SameTypeOperands]> {
+    let summary = "integer binary equality comparison";
+    let description = [{
+        This operation takes two integer arguments and returns an integer (I1).
+
+        Example:
+        
+        ```mlir
+        %0 = constant 2 : i32
+        %1 = constant 4 : i32
+        // Apply the eq operation to %0 and %1
+        %2 = btor.eq %0 %1 : i1
+        ```
+    }];
+
+    let arguments = (ins I32:$lhs, I32:$rhs);
+    let results = (outs I1:$res);
+
+    let assemblyFormat = [{
+        $lhs $rhs attr-dict `:` type($res)
+    }];
+
+    // Allow building an EqOp with from the two input operands.
+    let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs), [{
+      build($_builder, $_state, lhs, rhs);
+    }]>];
+}
+
 #endif // BTOR_OPS
