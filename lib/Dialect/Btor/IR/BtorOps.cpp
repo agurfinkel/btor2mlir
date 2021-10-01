@@ -11,4 +11,4 @@
 #include "mlir/IR/OpImplementation.h"
 
 #define GET_OP_CLASSES
-#include "Btor/BtorOps.cpp.inc"
+#include "Dialect/Btor/IR/BtorOps.cpp.inc"
