@@ -15,6 +15,6 @@
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 
 #define GET_OP_CLASSES
-#include "Btor/BtorOps.h.inc"
+#include "Dialect/Btor/IR/BtorOps.h.inc"
 
 #endif // BTOR_BTOROPS_H

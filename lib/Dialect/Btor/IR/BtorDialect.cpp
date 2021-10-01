@@ -12,7 +12,7 @@
 using namespace mlir;
 using namespace mlir::btor;
 
-#include "Btor/BtorOpsDialect.cpp.inc"
+#include "Dialect/Btor/IR/BtorOpsDialect.cpp.inc"
 
 //===----------------------------------------------------------------------===//
 // Btor dialect.
@@ -21,6 +21,6 @@ using namespace mlir::btor;
 void BtorDialect::initialize() {
   addOperations<
 #define GET_OP_LIST
-#include "Btor/BtorOps.cpp.inc"
+#include "Dialect/Btor/IR/BtorOps.cpp.inc"
       >();
 }

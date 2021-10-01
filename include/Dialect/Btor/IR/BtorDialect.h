@@ -11,6 +11,6 @@
 
 #include "mlir/IR/Dialect.h"
 
-#include "Btor/BtorOpsDialect.h.inc"
+#include "Dialect/Btor/IR/BtorOpsDialect.h.inc"
 
 #endif // BTOR_BTORDIALECT_H
