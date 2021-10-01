@@ -25,39 +25,40 @@ struct BtorToStandardLoweringPass : public PassWrapper<BtorToStandardLoweringPas
 // Lowering Declarations
 //===----------------------------------------------------------------------===//
 
-struct AddLowering : public OpRewritePattern<AddOp> {
-    using OpRewritePattern<AddOp>::OpRewritePattern;
-    LogicalResult matchAndRewrite(AddOp addOp, PatternRewriter &rewriter) const override;
+struct AddLowering : public OpRewritePattern<mlir::btor::AddOp> {
+    using OpRewritePattern<mlir::btor::AddOp>::OpRewritePattern;
+    LogicalResult matchAndRewrite(mlir::btor::AddOp addOp, PatternRewriter &rewriter) const override;
 };
 
-struct MulLowering : public OpRewritePattern<MulOp> {
-    using OpRewritePattern<MulOp>::OpRewritePattern;
-    LogicalResult matchAndRewrite(MulOp mulOp, PatternRewriter &rewriter) const override;
+struct MulLowering : public OpRewritePattern<mlir::btor::MulOp> {
+    using OpRewritePattern<mlir::btor::MulOp>::OpRewritePattern;
+    LogicalResult matchAndRewrite(mlir::btor::MulOp mulOp, PatternRewriter &rewriter) const override;
+};
+
+struct AndLowering : public OpRewritePattern<mlir::btor::AndOp> {
+    using OpRewritePattern<mlir::btor::AndOp>::OpRewritePattern;
+    LogicalResult matchAndRewrite(mlir::btor::AndOp mulOp, PatternRewriter &rewriter) const override;
 };
 
 //===----------------------------------------------------------------------===//
 // Lowering Definitions
 //===----------------------------------------------------------------------===//
 
-LogicalResult AddLowering::matchAndRewrite(AddOp addOp, PatternRewriter &rewriter) const {
-    Location loc = addOp.getLoc();
-    Value lhs = addOp.lhs();
-    Value rhs = addOp.rhs();
-
-    Value addIOp = rewriter.create<mlir::AddIOp>(loc, lhs, rhs);
+LogicalResult AddLowering::matchAndRewrite(mlir::btor::AddOp addOp, PatternRewriter &rewriter) const {
+    Value addIOp = rewriter.create<mlir::AddIOp>(addOp.getLoc(), addOp.lhs(), addOp.rhs());
     rewriter.replaceOp(addOp, addIOp);
-    
     return success();
 }
 
-LogicalResult MulLowering::matchAndRewrite(MulOp mulOp, PatternRewriter &rewriter) const {
-    Location loc = mulOp.getLoc();
-    Value lhs = mulOp.lhs();
-    Value rhs = mulOp.rhs();
-
-    Value mulIOp = rewriter.create<mlir::MulIOp>(loc, lhs, rhs);
+LogicalResult MulLowering::matchAndRewrite(mlir::btor::MulOp mulOp, PatternRewriter &rewriter) const {
+    Value mulIOp = rewriter.create<mlir::MulIOp>(mulOp.getLoc(), mulOp.lhs(), mulOp.rhs());
     rewriter.replaceOp(mulOp, mulIOp);
-    
+    return success();
+}
+
+LogicalResult AndLowering::matchAndRewrite(mlir::btor::AndOp andOp, PatternRewriter &rewriter) const {
+    Value andIOp = rewriter.create<mlir::AndOp>(andOp.getLoc(), andOp.lhs(), andOp.rhs());
+    rewriter.replaceOp(andOp, andIOp);
     return success();
 }
 
@@ -66,7 +67,7 @@ LogicalResult MulLowering::matchAndRewrite(MulOp mulOp, PatternRewriter &rewrite
 //===----------------------------------------------------------------------===//
 
 void mlir::btor::populateBtorToStdConversionPatterns(RewritePatternSet &patterns) {
-  patterns.add<AddLowering, MulLowering>(patterns.getContext());
+  patterns.add<AddLowering, MulLowering, AndLowering>(patterns.getContext());
 }
 
 void BtorToStandardLoweringPass::runOnOperation() {
@@ -74,7 +75,7 @@ void BtorToStandardLoweringPass::runOnOperation() {
     populateBtorToStdConversionPatterns(patterns);
     /// Configure conversion to lower out btor.add; Anything else is fine.
     ConversionTarget target(getContext());
-    target.addIllegalOp<AddOp, MulOp>();
+    target.addIllegalOp<mlir::btor::AddOp, mlir::btor::MulOp, mlir::btor::AndOp>();
     target.markUnknownOpDynamicallyLegal([](Operation *) { return true; });
     if (failed(applyPartialConversion(getOperation(), target, std::move(patterns)))) {
         signalPassFailure();
