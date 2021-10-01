@@ -21,10 +21,23 @@ struct BtorToStandardLoweringPass : public PassWrapper<BtorToStandardLoweringPas
 };
 } // end anonymous namespace
 
+//===----------------------------------------------------------------------===//
+// Lowering Declarations
+//===----------------------------------------------------------------------===//
+
 struct AddLowering : public OpRewritePattern<AddOp> {
     using OpRewritePattern<AddOp>::OpRewritePattern;
-    LogicalResult matchAndRewrite(AddOp addOp,PatternRewriter &rewriter) const override;
+    LogicalResult matchAndRewrite(AddOp addOp, PatternRewriter &rewriter) const override;
 };
+
+struct MulLowering : public OpRewritePattern<MulOp> {
+    using OpRewritePattern<MulOp>::OpRewritePattern;
+    LogicalResult matchAndRewrite(MulOp mulOp, PatternRewriter &rewriter) const override;
+};
+
+//===----------------------------------------------------------------------===//
+// Lowering Definitions
+//===----------------------------------------------------------------------===//
 
 LogicalResult AddLowering::matchAndRewrite(AddOp addOp, PatternRewriter &rewriter) const {
     Location loc = addOp.getLoc();
@@ -37,8 +50,23 @@ LogicalResult AddLowering::matchAndRewrite(AddOp addOp, PatternRewriter &rewrite
     return success();
 }
 
+LogicalResult MulLowering::matchAndRewrite(MulOp mulOp, PatternRewriter &rewriter) const {
+    Location loc = mulOp.getLoc();
+    Value lhs = mulOp.lhs();
+    Value rhs = mulOp.rhs();
+
+    Value mulIOp = rewriter.create<mlir::MulIOp>(loc, lhs, rhs);
+    rewriter.replaceOp(mulOp, mulIOp);
+    
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
+// Populate Lowering Patterns
+//===----------------------------------------------------------------------===//
+
 void mlir::btor::populateBtorToStdConversionPatterns(RewritePatternSet &patterns) {
-  patterns.add<AddLowering>(patterns.getContext());
+  patterns.add<AddLowering, MulLowering>(patterns.getContext());
 }
 
 void BtorToStandardLoweringPass::runOnOperation() {
@@ -46,7 +74,7 @@ void BtorToStandardLoweringPass::runOnOperation() {
     populateBtorToStdConversionPatterns(patterns);
     /// Configure conversion to lower out btor.add; Anything else is fine.
     ConversionTarget target(getContext());
-    target.addIllegalOp<AddOp>();
+    target.addIllegalOp<AddOp, MulOp>();
     target.markUnknownOpDynamicallyLegal([](Operation *) { return true; });
     if (failed(applyPartialConversion(getOperation(), target, std::move(patterns)))) {
         signalPassFailure();

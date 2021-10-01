@@ -35,4 +35,27 @@ def AddOp : Btor_Op<"add", [NoSideEffect, SameOperandsAndResultType, Commutative
     }];
 }
 
+def MulOp : Btor_Op<"mul", [NoSideEffect, SameOperandsAndResultType, Commutative]> {
+    let summary = "integer multiplication operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %0 = constant 2 : i32
+        %1 = constant 4 : i32
+        // Apply the mul operation to %0 and %1
+        %2 = btor.mul %0 %1 : i32
+        ```
+    }];
+
+    let arguments = (ins I32:$lhs, I32:$rhs);
+    let results = (outs I32:$res);
+
+    let assemblyFormat = [{
+        $lhs $rhs attr-dict `:` type($lhs)
+    }];
+}
+
 #endif // BTOR_OPS

@@ -8,6 +8,8 @@ module {
         %1 = constant 42 : i32
         // CHECK: %{{.*}} = btor.add %{{.*}} %{{.*}} : i32
         %2 = btor.add %0 %1: i32
+        // CHECK: %{{.*}} = btor.mul %{{.*}} %{{.*}} : i32
+        %3 = btor.mul %0 %2: i32
         return
     }
 }
