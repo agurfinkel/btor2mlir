@@ -99,6 +99,8 @@ def EqOp : Btor_Op<"eq", [NoSideEffect, SameTypeOperands]> {
     let arguments = (ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs);
     let results = (outs BoolLike:$res);
 
+    // At the moment, we use the assemblyFormat below to say that we 
+    // are going from inputs of type $lhs to an output of type $res.
     let assemblyFormat = [{
         $lhs $rhs attr-dict `:` type($lhs) type($res)
     }];
