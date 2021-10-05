@@ -45,6 +45,11 @@ struct EqLowering : public OpRewritePattern<mlir::btor::EqOp> {
     LogicalResult matchAndRewrite(mlir::btor::EqOp mulOp, PatternRewriter &rewriter) const override;
 };
 
+struct BadLowering : public OpRewritePattern<mlir::btor::BadOp> {
+    using OpRewritePattern<mlir::btor::BadOp>::OpRewritePattern;
+    LogicalResult matchAndRewrite(mlir::btor::BadOp mulOp, PatternRewriter &rewriter) const override;
+};
+
 //===----------------------------------------------------------------------===//
 // Lowering Definitions
 //===----------------------------------------------------------------------===//
@@ -73,13 +78,22 @@ LogicalResult EqLowering::matchAndRewrite(mlir::btor::EqOp eqOp, PatternRewriter
     return success();
 }
 
+LogicalResult BadLowering::matchAndRewrite(mlir::btor::BadOp badOp, PatternRewriter &rewriter) const {
+    Location loc = badOp.getLoc();
+    Type i1Type = rewriter.getI1Type();
+    Value falseVal = rewriter.create<ConstantOp>(loc, i1Type, rewriter.getBoolAttr(false));
+    Value cmpEq = rewriter.create<mlir::CmpIOp>(loc, CmpIPredicate::eq, falseVal, badOp.arg());
+    rewriter.replaceOpWithNewOp<mlir::AssertOp>(badOp, cmpEq, "Expects argument to be true");
+    return success();
+}
+
 //===----------------------------------------------------------------------===//
 // Populate Lowering Patterns
 //===----------------------------------------------------------------------===//
 
 void mlir::btor::populateBtorToStdConversionPatterns(RewritePatternSet &patterns) {
   patterns.add<AddLowering, MulLowering, AndLowering>(patterns.getContext());
-  patterns.add<EqLowering>(patterns.getContext());
+  patterns.add<EqLowering, BadLowering>(patterns.getContext());
 }
 
 void BtorToStandardLoweringPass::runOnOperation() {
@@ -88,7 +102,7 @@ void BtorToStandardLoweringPass::runOnOperation() {
     /// Configure conversion to lower out btor.add; Anything else is fine.
     ConversionTarget target(getContext());
     target.addIllegalOp<mlir::btor::AddOp, mlir::btor::MulOp, mlir::btor::AndOp>();
-    target.addIllegalOp<mlir::btor::EqOp>();
+    target.addIllegalOp<mlir::btor::EqOp, mlir::btor::BadOp>();
     target.markUnknownOpDynamicallyLegal([](Operation *) { return true; });
     if (failed(applyPartialConversion(getOperation(), target, std::move(patterns)))) {
         signalPassFailure();

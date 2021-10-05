@@ -27,8 +27,8 @@ def AddOp : Btor_Op<"add", [NoSideEffect, SameOperandsAndResultType, Commutative
         ```
     }];
 
-    let arguments = (ins I32:$lhs, I32:$rhs);
-    let results = (outs I32:$res);
+    let arguments = (ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs);
+    let results = (outs SignlessIntegerLike:$res);
 
     let assemblyFormat = [{
         $lhs $rhs attr-dict `:` type($lhs)
@@ -50,8 +50,8 @@ def MulOp : Btor_Op<"mul", [NoSideEffect, SameOperandsAndResultType, Commutative
         ```
     }];
 
-    let arguments = (ins I32:$lhs, I32:$rhs);
-    let results = (outs I32:$res);
+    let arguments = (ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs);
+    let results = (outs SignlessIntegerLike:$res);
 
     let assemblyFormat = [{
         $lhs $rhs attr-dict `:` type($lhs)
@@ -73,8 +73,8 @@ def AndOp : Btor_Op<"and", [NoSideEffect, SameOperandsAndResultType, Commutative
         ```
     }];
 
-    let arguments = (ins I32:$lhs, I32:$rhs);
-    let results = (outs I32:$res);
+    let arguments = (ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs);
+    let results = (outs SignlessIntegerLike:$res);
 
     let assemblyFormat = [{
         $lhs $rhs attr-dict `:` type($lhs)
@@ -96,11 +96,11 @@ def EqOp : Btor_Op<"eq", [NoSideEffect, SameTypeOperands]> {
         ```
     }];
 
-    let arguments = (ins I32:$lhs, I32:$rhs);
-    let results = (outs I1:$res);
+    let arguments = (ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs);
+    let results = (outs BoolLike:$res);
 
     let assemblyFormat = [{
-        $lhs $rhs attr-dict `:` type($res)
+        $lhs $rhs attr-dict `:` type($lhs) type($res)
     }];
 
     // Allow building an EqOp with from the two input operands.
@@ -108,6 +108,26 @@ def EqOp : Btor_Op<"eq", [NoSideEffect, SameTypeOperands]> {
     OpBuilder<(ins "Value":$lhs, "Value":$rhs), [{
       build($_builder, $_state, lhs, rhs);
     }]>];
+}
+
+def BadOp : Btor_Op<"bad"> {
+    let summary = "btor assertion";
+    let description = [{
+        This operation takes one boolean argument terminates the 
+        program if the argument is false.
+
+        Example:
+        
+        ```mlir
+        %0 = constant 1 : i1
+        // Apply the bad operation to %0
+        btor.bad %0
+        ```
+    }];
+
+    let arguments = (ins I1:$arg);
+
+    let assemblyFormat = "$arg attr-dict";
 }
 
 #endif // BTOR_OPS
