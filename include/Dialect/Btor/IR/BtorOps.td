@@ -12,7 +12,47 @@
 include "BtorDialect.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
-def AddOp : Btor_Op<"add", [NoSideEffect, SameOperandsAndResultType, Commutative]> {
+//===----------------------------------------------------------------------===//
+// btor binary integer ops definitions
+//===----------------------------------------------------------------------===//
+
+// Base class for btor arithmetic operations.  Requires operands and
+// results to be of the same type, but does not constrain them to specific
+// types.
+class BtorArithmeticOp<string mnemonic, list<OpTrait> traits = []> :
+    Op<Btor_Dialect, mnemonic, traits 
+    #[NoSideEffect, SameOperandsAndResultType] #ElementwiseMappable.traits> {
+
+  let results = (outs AnyType:$result);
+
+  let parser = [{
+    return impl::parseOneResultSameOperandTypeOp(parser, result);
+  }];
+
+  let printer = [{
+    return printBtorBinaryOp(this->getOperation(), p);
+  }];
+}
+
+// This operation takes two operands and returns one result,
+// each of these is required to be of the same type.
+//  The custom assembly form of the operation is as follows
+//
+//     <op>i %0, %1 : i32
+class BtorBinaryOp<string mnemonic, list<OpTrait> traits = []> :
+    BtorArithmeticOp<mnemonic, traits>,
+    Arguments<(ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs)> {
+
+  let parser = [{
+    return impl::parseOneResultSameOperandTypeOp(parser, result);
+  }];
+
+  let printer = [{
+    return printBtorBinaryOp(this->getOperation(), p);
+  }];
+}
+
+def AddOp : BtorBinaryOp<"add", [Commutative]> {
     let summary = "integer addition operation";
     let description = [{
         This operation takes two integer arguments and returns an integer.
@@ -20,22 +60,12 @@ def AddOp : Btor_Op<"add", [NoSideEffect, SameOperandsAndResultType, Commutative
         Example:
         
         ```mlir
-        %0 = constant 2 : i32
-        %1 = constant 4 : i32
-        // Apply the add operation to %0 and %1
-        %2 = btor.add %0 %1 : i32
+        %res = btor.add %lhs, %rhs : i32
         ```
-    }];
-
-    let arguments = (ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs);
-    let results = (outs SignlessIntegerLike:$res);
-
-    let assemblyFormat = [{
-        $lhs $rhs attr-dict `:` type($lhs)
     }];
 }
 
-def MulOp : Btor_Op<"mul", [NoSideEffect, SameOperandsAndResultType, Commutative]> {
+def MulOp : BtorBinaryOp<"mul", [Commutative]> {
     let summary = "integer multiplication operation";
     let description = [{
         This operation takes two integer arguments and returns an integer.
@@ -43,22 +73,12 @@ def MulOp : Btor_Op<"mul", [NoSideEffect, SameOperandsAndResultType, Commutative
         Example:
         
         ```mlir
-        %0 = constant 2 : i32
-        %1 = constant 4 : i32
-        // Apply the mul operation to %0 and %1
-        %2 = btor.mul %0 %1 : i32
+        %res = btor.mul %lhs, %rhs : i32
         ```
-    }];
-
-    let arguments = (ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs);
-    let results = (outs SignlessIntegerLike:$res);
-
-    let assemblyFormat = [{
-        $lhs $rhs attr-dict `:` type($lhs)
     }];
 }
 
-def AndOp : Btor_Op<"and", [NoSideEffect, SameOperandsAndResultType, Commutative]> {
+def OrOp : BtorBinaryOp<"or", [Commutative]> {
     let summary = "integer binary and operation";
     let description = [{
         This operation takes two integer arguments and returns an integer.
@@ -66,57 +86,29 @@ def AndOp : Btor_Op<"and", [NoSideEffect, SameOperandsAndResultType, Commutative
         Example:
         
         ```mlir
-        %0 = constant 2 : i32
-        %1 = constant 4 : i32
-        // Apply the mul operation to %0 and %1
-        %2 = btor.and %0 %1 : i32
+        %res = btor.or %lhs, %rhs : i32
         ```
-    }];
-
-    let arguments = (ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs);
-    let results = (outs SignlessIntegerLike:$res);
-
-    let assemblyFormat = [{
-        $lhs $rhs attr-dict `:` type($lhs)
     }];
 }
 
-def EqOp : Btor_Op<"eq", [NoSideEffect, SameTypeOperands]> {
-    let summary = "integer binary equality comparison";
+def AndOp : BtorBinaryOp<"and", [Commutative]> {
+    let summary = "integer binary and operation";
     let description = [{
-        This operation takes two integer arguments and returns an integer (I1).
+        This operation takes two integer arguments and returns an integer.
 
         Example:
         
         ```mlir
-        %0 = constant 2 : i32
-        %1 = constant 4 : i32
-        // Apply the eq operation to %0 and %1
-        %2 = btor.eq %0 %1 : i1
+        %res = btor.and %lhs, %rhs : i32
         ```
     }];
-
-    let arguments = (ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs);
-    let results = (outs BoolLike:$res);
-
-    // At the moment, we use the assemblyFormat below to say that we 
-    // are going from inputs of type $lhs to an output of type $res.
-    let assemblyFormat = [{
-        $lhs $rhs attr-dict `:` type($lhs) type($res)
-    }];
-
-    // Allow building an EqOp with from the two input operands.
-    let builders = [
-    OpBuilder<(ins "Value":$lhs, "Value":$rhs), [{
-      build($_builder, $_state, lhs, rhs);
-    }]>];
 }
 
 def BadOp : Btor_Op<"bad"> {
     let summary = "btor assertion";
     let description = [{
-        This operation takes one boolean argument terminates the 
-        program if the argument is false.
+        This operation takes one boolean argument and terminates
+        the program if the argument is false.
 
         Example:
         
@@ -130,6 +122,105 @@ def BadOp : Btor_Op<"bad"> {
     let arguments = (ins I1:$arg);
 
     let assemblyFormat = "$arg attr-dict";
+}
+
+def CmpOp : Btor_Op<"cmp", [NoSideEffect, SameTypeOperands,
+     TypesMatchWith<"result type has i1 element type and same shape as operands",
+    "lhs", "result", "getI1SameShape($_self)">] # ElementwiseMappable.traits> {
+  let summary = "integer comparison operation";
+  let description = [{
+    The `cmp` operation is a generic comparison for two arguments 
+    that need to have their types matching.
+
+    Its first argument is an attribute that defines which type of comparison is
+    performed. The following comparisons are supported:
+
+    -   equal (mnemonic: `"eq"`; integer value: `0`)
+    -   not equal (mnemonic: `"ne"`; integer value: `1`)
+    -   signed less than (mnemonic: `"slt"`; integer value: `2`)
+    -   signed less than or equal (mnemonic: `"sle"`; integer value: `3`)
+    -   signed greater than (mnemonic: `"sgt"`; integer value: `4`)
+    -   signed greater than or equal (mnemonic: `"sge"`; integer value: `5`)
+    -   unsigned less than (mnemonic: `"ult"`; integer value: `6`)
+    -   unsigned less than or equal (mnemonic: `"ule"`; integer value: `7`)
+    -   unsigned greater than (mnemonic: `"ugt"`; integer value: `8`)
+    -   unsigned greater than or equal (mnemonic: `"uge"`; integer value: `9`)
+
+    The result is `1` if the comparison is true and `0` otherwise.
+
+    Example:
+
+    ```mlir
+    // Custom form of scalar "signed less than" comparison.
+    %x = cmp "slt", %lhs, %rhs : i32
+    ```
+  }];
+
+  let arguments = (ins
+      BtorPredicateAttr:$predicate,
+      SignlessIntegerLike:$lhs,
+      SignlessIntegerLike:$rhs
+  );
+  let results = (outs BoolLike:$result);
+
+  let builders = [
+    OpBuilder<(ins "BtorPredicate":$predicate, "Value":$lhs,
+                 "Value":$rhs), [{
+      ::buildCmpOp($_builder, $_state, predicate, lhs, rhs);
+    }]>];
+
+  
+  let extraClassDeclaration = [{
+    static StringRef getPredicateAttrName() { return "predicate"; }
+    static BtorPredicate getPredicateByName(StringRef name);
+
+    BtorPredicate getPredicate() {
+      return (BtorPredicate)(*this)->getAttrOfType<IntegerAttr>(
+          getPredicateAttrName()).getInt();
+    }
+  }];
+
+  let verifier = [{ return success(); }];
+
+  let assemblyFormat = "$predicate `,` $lhs `,` $rhs attr-dict `:` type($lhs)";
+} 
+
+//===----------------------------------------------------------------------===//
+// btor unary integer ops definitions
+//===----------------------------------------------------------------------===//
+
+// Base class for unary ops. Requires single operand and result. Individual
+// classes will have `operand` accessor.
+class BtorUnaryOp<string mnemonic, list<OpTrait> traits = []> :
+    Op<Btor_Dialect, mnemonic, !listconcat(traits, [NoSideEffect, SameOperandsAndResultType])>,
+    Arguments<(ins SignlessIntegerLike:$operand)> {
+
+  let results = (outs AnyType);
+
+  let printer = [{
+    return printBtorUnaryOp(this->getOperation(), p);
+  }];
+
+  let parser = [{
+    return impl::parseOneResultSameOperandTypeOp(parser, result);
+  }];
+}
+
+def NotOp : BtorUnaryOp<"not"> {
+  let summary = "integer negation";
+  let description = [{
+    Syntax:
+
+    The `not` operation computes the negation of a given value. It takes one
+    operand and returns one result of the same type. 
+
+    Example:
+
+    ```mlir
+    // Scalar negation value.
+    %a = not %b : i32
+    ```
+  }];
 }
 
 #endif // BTOR_OPS

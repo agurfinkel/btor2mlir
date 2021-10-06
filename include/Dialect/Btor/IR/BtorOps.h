@@ -10,9 +10,11 @@
 #define BTOR_BTOROPS_H
 
 #include "mlir/IR/BuiltinTypes.h"
-#include "mlir/IR/Dialect.h"
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
+
+// Pull in all enum type definitions and utility function declarations.
+#include "Dialect/Btor/IR/BtorOpsEnums.h.inc"
 
 #define GET_OP_CLASSES
 #include "Dialect/Btor/IR/BtorOps.h.inc"

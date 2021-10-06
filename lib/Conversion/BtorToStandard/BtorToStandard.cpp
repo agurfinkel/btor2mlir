@@ -40,14 +40,14 @@ struct AndLowering : public OpRewritePattern<mlir::btor::AndOp> {
     LogicalResult matchAndRewrite(mlir::btor::AndOp mulOp, PatternRewriter &rewriter) const override;
 };
 
-struct EqLowering : public OpRewritePattern<mlir::btor::EqOp> {
-    using OpRewritePattern<mlir::btor::EqOp>::OpRewritePattern;
-    LogicalResult matchAndRewrite(mlir::btor::EqOp mulOp, PatternRewriter &rewriter) const override;
-};
-
 struct BadLowering : public OpRewritePattern<mlir::btor::BadOp> {
     using OpRewritePattern<mlir::btor::BadOp>::OpRewritePattern;
     LogicalResult matchAndRewrite(mlir::btor::BadOp mulOp, PatternRewriter &rewriter) const override;
+};
+
+struct CmpLowering : public OpRewritePattern<mlir::btor::CmpOp> {
+    using OpRewritePattern<mlir::btor::CmpOp>::OpRewritePattern;
+    LogicalResult matchAndRewrite(mlir::btor::CmpOp cmpOp, PatternRewriter &rewriter) const override;
 };
 
 //===----------------------------------------------------------------------===//
@@ -72,12 +72,6 @@ LogicalResult AndLowering::matchAndRewrite(mlir::btor::AndOp andOp, PatternRewri
     return success();
 }
 
-LogicalResult EqLowering::matchAndRewrite(mlir::btor::EqOp eqOp, PatternRewriter &rewriter) const {
-    Value cmpEq = rewriter.create<mlir::CmpIOp>(eqOp.getLoc(), CmpIPredicate::eq, eqOp.lhs(), eqOp.rhs());
-    rewriter.replaceOp(eqOp, cmpEq);
-    return success();
-}
-
 LogicalResult BadLowering::matchAndRewrite(mlir::btor::BadOp badOp, PatternRewriter &rewriter) const {
     Location loc = badOp.getLoc();
     Type i1Type = rewriter.getI1Type();
@@ -87,13 +81,26 @@ LogicalResult BadLowering::matchAndRewrite(mlir::btor::BadOp badOp, PatternRewri
     return success();
 }
 
+// Convert btor.cmp predicate into the Standard dialect CmpIOpPredicate.  The two
+// enums share the numerical values so we just need to cast.
+template <typename StdPredType, typename BtorPredType>
+static StdPredType convertBtorCmpPredicate(BtorPredType pred) {
+  return static_cast<StdPredType>(pred);
+}
+
+LogicalResult CmpLowering::matchAndRewrite(mlir::btor::CmpOp cmpOp, PatternRewriter &rewriter) const {
+    auto btorPred = convertBtorCmpPredicate<mlir::CmpIPredicate>(cmpOp.getPredicate());
+    rewriter.replaceOpWithNewOp<mlir::CmpIOp>(cmpOp, btorPred, cmpOp.lhs(), cmpOp.rhs());
+    return success();
+}
+
 //===----------------------------------------------------------------------===//
 // Populate Lowering Patterns
 //===----------------------------------------------------------------------===//
 
 void mlir::btor::populateBtorToStdConversionPatterns(RewritePatternSet &patterns) {
   patterns.add<AddLowering, MulLowering, AndLowering>(patterns.getContext());
-  patterns.add<EqLowering, BadLowering>(patterns.getContext());
+  patterns.add<CmpLowering, BadLowering>(patterns.getContext());
 }
 
 void BtorToStandardLoweringPass::runOnOperation() {
@@ -102,7 +109,7 @@ void BtorToStandardLoweringPass::runOnOperation() {
     /// Configure conversion to lower out btor.add; Anything else is fine.
     ConversionTarget target(getContext());
     target.addIllegalOp<mlir::btor::AddOp, mlir::btor::MulOp, mlir::btor::AndOp>();
-    target.addIllegalOp<mlir::btor::EqOp, mlir::btor::BadOp>();
+    target.addIllegalOp<mlir::btor::CmpOp, mlir::btor::BadOp>();
     target.markUnknownOpDynamicallyLegal([](Operation *) { return true; });
     if (failed(applyPartialConversion(getOperation(), target, std::move(patterns)))) {
         signalPassFailure();

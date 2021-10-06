@@ -1,3 +1,10 @@
-add_mlir_dialect(BtorOps btor)
-add_mlir_doc(BtorDialect BtorDialect Dialect/ -gen-dialect-doc)
-add_mlir_doc(BtorOps BtorOps Dialect/ -gen-op-doc)
+set(LLVM_TARGET_DEFINITIONS BtorOps.td)
+mlir_tablegen(BtorOps.h.inc -gen-op-decls)
+mlir_tablegen(BtorOps.cpp.inc -gen-op-defs)
+mlir_tablegen(BtorOpsDialect.h.inc -gen-dialect-decls)
+mlir_tablegen(BtorOpsDialect.cpp.inc -gen-dialect-defs)
+mlir_tablegen(BtorOpsEnums.h.inc -gen-enum-decls)
+mlir_tablegen(BtorOpsEnums.cpp.inc -gen-enum-defs)
+add_public_tablegen_target(MLIRBtorOpsIncGen)
+
+add_mlir_doc(BtorOps BtorOps Dialects/ -gen-op-doc)
