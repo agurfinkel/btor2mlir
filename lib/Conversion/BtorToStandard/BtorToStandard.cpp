@@ -50,6 +50,11 @@ struct CmpLowering : public OpRewritePattern<mlir::btor::CmpOp> {
     LogicalResult matchAndRewrite(mlir::btor::CmpOp cmpOp, PatternRewriter &rewriter) const override;
 };
 
+struct NotLowering : public OpRewritePattern<mlir::btor::NotOp> {
+    using OpRewritePattern<mlir::btor::NotOp>::OpRewritePattern;
+    LogicalResult matchAndRewrite(mlir::btor::NotOp notOp, PatternRewriter &rewriter) const override;
+};
+
 //===----------------------------------------------------------------------===//
 // Lowering Definitions
 //===----------------------------------------------------------------------===//
@@ -74,10 +79,8 @@ LogicalResult AndLowering::matchAndRewrite(mlir::btor::AndOp andOp, PatternRewri
 
 LogicalResult BadLowering::matchAndRewrite(mlir::btor::BadOp badOp, PatternRewriter &rewriter) const {
     Location loc = badOp.getLoc();
-    Type i1Type = rewriter.getI1Type();
-    Value falseVal = rewriter.create<ConstantOp>(loc, i1Type, rewriter.getBoolAttr(false));
-    Value cmpEq = rewriter.create<mlir::CmpIOp>(loc, CmpIPredicate::eq, falseVal, badOp.arg());
-    rewriter.replaceOpWithNewOp<mlir::AssertOp>(badOp, cmpEq, "Expects argument to be true");
+    Value notBad = rewriter.create<NotOp>(loc, badOp.arg());
+    rewriter.replaceOpWithNewOp<mlir::AssertOp>(badOp, notBad, "Expects argument to be true");
     return success();
 }
 
@@ -94,13 +97,28 @@ LogicalResult CmpLowering::matchAndRewrite(mlir::btor::CmpOp cmpOp, PatternRewri
     return success();
 }
 
+LogicalResult NotLowering::matchAndRewrite(mlir::btor::NotOp notOp, PatternRewriter &rewriter) const {
+    Value operand = notOp.operand();
+    Location loc = notOp.getLoc();
+    if( operand.getType().isSignlessInteger() ) {
+        Type f16Type = rewriter.getF16Type();
+        Value operandFloat = rewriter.create<mlir::SIToFPOp>(loc, operand, f16Type);
+        Value result = rewriter.create<mlir::NegFOp>(loc, operandFloat);
+        Type i1Type = rewriter.getI1Type();
+        rewriter.replaceOpWithNewOp<mlir::FPToSIOp>(notOp, result, i1Type);
+        return success();
+    }
+    rewriter.replaceOpWithNewOp<mlir::NegFOp>(notOp, operand);
+    return success();
+}
+
 //===----------------------------------------------------------------------===//
 // Populate Lowering Patterns
 //===----------------------------------------------------------------------===//
 
 void mlir::btor::populateBtorToStdConversionPatterns(RewritePatternSet &patterns) {
   patterns.add<AddLowering, MulLowering, AndLowering>(patterns.getContext());
-  patterns.add<CmpLowering, BadLowering>(patterns.getContext());
+  patterns.add<CmpLowering, BadLowering, NotLowering>(patterns.getContext());
 }
 
 void BtorToStandardLoweringPass::runOnOperation() {
@@ -109,7 +127,7 @@ void BtorToStandardLoweringPass::runOnOperation() {
     /// Configure conversion to lower out btor.add; Anything else is fine.
     ConversionTarget target(getContext());
     target.addIllegalOp<mlir::btor::AddOp, mlir::btor::MulOp, mlir::btor::AndOp>();
-    target.addIllegalOp<mlir::btor::CmpOp, mlir::btor::BadOp>();
+    target.addIllegalOp<mlir::btor::CmpOp, mlir::btor::BadOp, mlir::btor::NotOp>();
     target.markUnknownOpDynamicallyLegal([](Operation *) { return true; });
     if (failed(applyPartialConversion(getOperation(), target, std::move(patterns)))) {
         signalPassFailure();
