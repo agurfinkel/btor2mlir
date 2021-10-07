@@ -10,7 +10,7 @@ module {
         %2 = btor.add %0, %1 : i3
         // CHECK: %{{.*}} = btor.mul %{{.*}}, %{{.*}} : i3
         %3 = btor.mul %0, %2 : i3
-        // CHECK: %{{.*}} = btor.eq %{{.*}} %{{.*}}
+        // CHECK: %{{.*}} = btor.cmp %{{.*}}, %{{.*}} : i3
         %4 = btor.cmp "ne", %3, %2 : i3
         // CHECK: %{{.*}} = btor.bad %{{.*}}
         btor.bad %4
