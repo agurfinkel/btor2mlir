@@ -65,20 +65,17 @@ struct NotLowering : public OpRewritePattern<mlir::btor::NotOp> {
 //===----------------------------------------------------------------------===//
 
 LogicalResult AddLowering::matchAndRewrite(mlir::btor::AddOp addOp, PatternRewriter &rewriter) const {
-    Value addIOp = rewriter.create<mlir::AddIOp>(addOp.getLoc(), addOp.lhs(), addOp.rhs());
-    rewriter.replaceOp(addOp, addIOp);
+    rewriter.replaceOpWithNewOp<mlir::AddIOp>(addOp, addOp.lhs(), addOp.rhs());
     return success();
 }
 
 LogicalResult MulLowering::matchAndRewrite(mlir::btor::MulOp mulOp, PatternRewriter &rewriter) const {
-    Value mulIOp = rewriter.create<mlir::MulIOp>(mulOp.getLoc(), mulOp.lhs(), mulOp.rhs());
-    rewriter.replaceOp(mulOp, mulIOp);
+    rewriter.replaceOpWithNewOp<mlir::MulIOp>(mulOp, mulOp.lhs(), mulOp.rhs());
     return success();
 }
 
 LogicalResult AndLowering::matchAndRewrite(mlir::btor::AndOp andOp, PatternRewriter &rewriter) const {
-    Value andIOp = rewriter.create<mlir::AndOp>(andOp.getLoc(), andOp.lhs(), andOp.rhs());
-    rewriter.replaceOp(andOp, andIOp);
+    rewriter.replaceOpWithNewOp<mlir::AndOp>(andOp, andOp.lhs(), andOp.rhs());
     return success();
 }
 
@@ -88,8 +85,7 @@ LogicalResult XOrLowering::matchAndRewrite(mlir::btor::XOrOp xorOp, PatternRewri
 }
 
 LogicalResult BadLowering::matchAndRewrite(mlir::btor::BadOp badOp, PatternRewriter &rewriter) const {
-    Location loc = badOp.getLoc();
-    Value notBad = rewriter.create<NotOp>(loc, badOp.arg());
+    Value notBad = rewriter.create<NotOp>(badOp.getLoc(), badOp.arg());
     rewriter.replaceOpWithNewOp<mlir::AssertOp>(badOp, notBad, "Expects argument to be true");
     return success();
 }
@@ -110,11 +106,10 @@ LogicalResult CmpLowering::matchAndRewrite(mlir::btor::CmpOp cmpOp, PatternRewri
 LogicalResult NotLowering::matchAndRewrite(mlir::btor::NotOp notOp, PatternRewriter &rewriter) const {
     Value operand = notOp.operand(); 
     Type opType = operand.getType(); 
-    Location loc = notOp.getLoc();
 
     int width = opType.getIntOrFloatBitWidth();
     int trueVal = pow(2, width) - 1;
-    Value trueConst = rewriter.create<ConstantOp>(loc, opType, rewriter.getIntegerAttr(opType, trueVal));
+    Value trueConst = rewriter.create<ConstantOp>(notOp.getLoc(), opType, rewriter.getIntegerAttr(opType, trueVal));
     rewriter.replaceOpWithNewOp<mlir::btor::XOrOp>(notOp, operand, trueConst);
     return success();
 }
