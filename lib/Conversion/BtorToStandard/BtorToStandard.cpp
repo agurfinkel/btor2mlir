@@ -37,7 +37,12 @@ struct MulLowering : public OpRewritePattern<mlir::btor::MulOp> {
 
 struct AndLowering : public OpRewritePattern<mlir::btor::AndOp> {
     using OpRewritePattern<mlir::btor::AndOp>::OpRewritePattern;
-    LogicalResult matchAndRewrite(mlir::btor::AndOp mulOp, PatternRewriter &rewriter) const override;
+    LogicalResult matchAndRewrite(mlir::btor::AndOp andOp, PatternRewriter &rewriter) const override;
+};
+
+struct XOrLowering : public OpRewritePattern<mlir::btor::XOrOp> {
+    using OpRewritePattern<mlir::btor::XOrOp>::OpRewritePattern;
+    LogicalResult matchAndRewrite(mlir::btor::XOrOp xorOp, PatternRewriter &rewriter) const override;
 };
 
 struct BadLowering : public OpRewritePattern<mlir::btor::BadOp> {
@@ -77,6 +82,11 @@ LogicalResult AndLowering::matchAndRewrite(mlir::btor::AndOp andOp, PatternRewri
     return success();
 }
 
+LogicalResult XOrLowering::matchAndRewrite(mlir::btor::XOrOp xorOp, PatternRewriter &rewriter) const {
+    rewriter.replaceOpWithNewOp<mlir::XOrOp>(xorOp, xorOp.lhs(), xorOp.rhs());
+    return success();
+}
+
 LogicalResult BadLowering::matchAndRewrite(mlir::btor::BadOp badOp, PatternRewriter &rewriter) const {
     Location loc = badOp.getLoc();
     Value notBad = rewriter.create<NotOp>(loc, badOp.arg());
@@ -98,17 +108,14 @@ LogicalResult CmpLowering::matchAndRewrite(mlir::btor::CmpOp cmpOp, PatternRewri
 }
 
 LogicalResult NotLowering::matchAndRewrite(mlir::btor::NotOp notOp, PatternRewriter &rewriter) const {
-    Value operand = notOp.operand();
+    Value operand = notOp.operand(); 
+    Type opType = operand.getType(); 
     Location loc = notOp.getLoc();
-    if( operand.getType().isSignlessInteger() ) {
-        Type f16Type = rewriter.getF16Type();
-        Value operandFloat = rewriter.create<mlir::SIToFPOp>(loc, operand, f16Type);
-        Value result = rewriter.create<mlir::NegFOp>(loc, operandFloat);
-        Type i1Type = rewriter.getI1Type();
-        rewriter.replaceOpWithNewOp<mlir::FPToSIOp>(notOp, result, i1Type);
-        return success();
-    }
-    rewriter.replaceOpWithNewOp<mlir::NegFOp>(notOp, operand);
+
+    int width = opType.getIntOrFloatBitWidth();
+    int trueVal = pow(2, width) - 1;
+    Value trueConst = rewriter.create<ConstantOp>(loc, opType, rewriter.getIntegerAttr(opType, trueVal));
+    rewriter.replaceOpWithNewOp<mlir::btor::XOrOp>(notOp, operand, trueConst);
     return success();
 }
 
@@ -119,6 +126,7 @@ LogicalResult NotLowering::matchAndRewrite(mlir::btor::NotOp notOp, PatternRewri
 void mlir::btor::populateBtorToStdConversionPatterns(RewritePatternSet &patterns) {
   patterns.add<AddLowering, MulLowering, AndLowering>(patterns.getContext());
   patterns.add<CmpLowering, BadLowering, NotLowering>(patterns.getContext());
+  patterns.add<XOrLowering>(patterns.getContext());
 }
 
 void BtorToStandardLoweringPass::runOnOperation() {
@@ -128,6 +136,7 @@ void BtorToStandardLoweringPass::runOnOperation() {
     ConversionTarget target(getContext());
     target.addIllegalOp<mlir::btor::AddOp, mlir::btor::MulOp, mlir::btor::AndOp>();
     target.addIllegalOp<mlir::btor::CmpOp, mlir::btor::BadOp, mlir::btor::NotOp>();
+    target.addIllegalOp<mlir::btor::XOrOp>();
     target.markUnknownOpDynamicallyLegal([](Operation *) { return true; });
     if (failed(applyPartialConversion(getOperation(), target, std::move(patterns)))) {
         signalPassFailure();
