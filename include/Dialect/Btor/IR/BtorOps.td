@@ -104,6 +104,19 @@ def AndOp : BtorBinaryOp<"and", [Commutative]> {
     }];
 }
 
+def XOrOp : BtorBinaryOp<"xor", [Commutative]> {
+    let summary = "integer binary xor operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.xor %lhs, %rhs : i32
+        ```
+    }];
+}
+
 def BadOp : Btor_Op<"bad"> {
     let summary = "btor assertion";
     let description = [{
