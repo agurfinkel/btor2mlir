@@ -91,6 +91,19 @@ def OrOp : BtorBinaryOp<"or", [Commutative]> {
     }];
 }
 
+def NorOp : BtorBinaryOp<"nor", [Commutative]> {
+    let summary = "integer binary nor operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.nor %lhs, %rhs : i32
+        ```
+    }];
+}
+
 def AndOp : BtorBinaryOp<"and", [Commutative]> {
     let summary = "integer binary and operation";
     let description = [{
@@ -104,6 +117,19 @@ def AndOp : BtorBinaryOp<"and", [Commutative]> {
     }];
 }
 
+def NandOp : BtorBinaryOp<"nand", [Commutative]> {
+    let summary = "integer binary nand operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.nand %lhs, %rhs : i32
+        ```
+    }];
+}
+
 def XOrOp : BtorBinaryOp<"xor", [Commutative]> {
     let summary = "integer binary xor operation";
     let description = [{
@@ -113,6 +139,19 @@ def XOrOp : BtorBinaryOp<"xor", [Commutative]> {
         
         ```mlir
         %res = btor.xor %lhs, %rhs : i32
+        ```
+    }];
+}
+
+def XnorOp : BtorBinaryOp<"xnor", [Commutative]> {
+    let summary = "integer binary xnor operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.xnor %lhs, %rhs : i32
         ```
     }];
 }
@@ -205,7 +244,7 @@ def CmpOp : Btor_Op<"cmp", [NoSideEffect, SameTypeOperands,
 // Base class for unary ops. Requires single operand and result. Individual
 // classes will have `operand` accessor.
 class BtorUnaryOp<string mnemonic, list<OpTrait> traits = []> :
-    Op<Btor_Dialect, mnemonic, !listconcat(traits, [NoSideEffect, SameOperandsAndResultType])>,
+    Op<Btor_Dialect, mnemonic, !listconcat(traits, [NoSideEffect])>,
     Arguments<(ins SignlessIntegerLike:$operand)> {
 
   let results = (outs AnyType);
@@ -219,7 +258,7 @@ class BtorUnaryOp<string mnemonic, list<OpTrait> traits = []> :
   }];
 }
 
-def NotOp : BtorUnaryOp<"not"> {
+def NotOp : BtorUnaryOp<"not", [SameOperandsAndResultType]> {
   let summary = "integer negation";
   let description = [{
     Syntax:
@@ -232,6 +271,23 @@ def NotOp : BtorUnaryOp<"not"> {
     ```mlir
     // Scalar negation value.
     %a = not %b : i32
+    ```
+  }];
+}
+
+def RedAndOp : BtorUnaryOp<"redand"> {
+  let summary = "integer reduction with and operator";
+  let description = [{
+    Syntax:
+
+    The `redand` operation computes the and reduction of a given value. It takes one
+    operand and returns one result of type i1. 
+
+    Example:
+
+    ```mlir
+    // Scalar redand value.
+    %a = redand %b : i32
     ```
   }];
 }
