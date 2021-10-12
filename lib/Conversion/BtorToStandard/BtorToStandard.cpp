@@ -40,9 +40,29 @@ struct AndLowering : public OpRewritePattern<mlir::btor::AndOp> {
     LogicalResult matchAndRewrite(mlir::btor::AndOp andOp, PatternRewriter &rewriter) const override;
 };
 
+struct NandLowering : public OpRewritePattern<mlir::btor::NandOp> {
+    using OpRewritePattern<mlir::btor::NandOp>::OpRewritePattern;
+    LogicalResult matchAndRewrite(mlir::btor::NandOp nandOp, PatternRewriter &rewriter) const override;
+};
+
+struct OrLowering : public OpRewritePattern<mlir::btor::OrOp> {
+    using OpRewritePattern<mlir::btor::OrOp>::OpRewritePattern;
+    LogicalResult matchAndRewrite(mlir::btor::OrOp orOp, PatternRewriter &rewriter) const override;
+};
+
+struct NorLowering : public OpRewritePattern<mlir::btor::NorOp> {
+    using OpRewritePattern<mlir::btor::NorOp>::OpRewritePattern;
+    LogicalResult matchAndRewrite(mlir::btor::NorOp norOp, PatternRewriter &rewriter) const override;
+};
+
 struct XOrLowering : public OpRewritePattern<mlir::btor::XOrOp> {
     using OpRewritePattern<mlir::btor::XOrOp>::OpRewritePattern;
     LogicalResult matchAndRewrite(mlir::btor::XOrOp xorOp, PatternRewriter &rewriter) const override;
+};
+
+struct XnorLowering : public OpRewritePattern<mlir::btor::XnorOp> {
+    using OpRewritePattern<mlir::btor::XnorOp>::OpRewritePattern;
+    LogicalResult matchAndRewrite(mlir::btor::XnorOp xnorOp, PatternRewriter &rewriter) const override;
 };
 
 struct BadLowering : public OpRewritePattern<mlir::btor::BadOp> {
@@ -79,8 +99,31 @@ LogicalResult AndLowering::matchAndRewrite(mlir::btor::AndOp andOp, PatternRewri
     return success();
 }
 
+LogicalResult NandLowering::matchAndRewrite(mlir::btor::NandOp nandOp, PatternRewriter &rewriter) const {
+    Value andOp = rewriter.create<mlir::AndOp>(nandOp.getLoc(), nandOp.lhs(), nandOp.rhs());
+    rewriter.replaceOpWithNewOp<NotOp>(nandOp, andOp);
+    return success();
+}
+
+LogicalResult OrLowering::matchAndRewrite(mlir::btor::OrOp orOp, PatternRewriter &rewriter) const {
+    rewriter.replaceOpWithNewOp<mlir::OrOp>(orOp, orOp.lhs(), orOp.rhs());
+    return success();
+}
+
+LogicalResult NorLowering::matchAndRewrite(mlir::btor::NorOp norOp, PatternRewriter &rewriter) const {
+    Value orOp = rewriter.create<mlir::OrOp>(norOp.getLoc(), norOp.lhs(), norOp.rhs());
+    rewriter.replaceOpWithNewOp<NotOp>(norOp, orOp);
+    return success();
+}
+
 LogicalResult XOrLowering::matchAndRewrite(mlir::btor::XOrOp xorOp, PatternRewriter &rewriter) const {
     rewriter.replaceOpWithNewOp<mlir::XOrOp>(xorOp, xorOp.lhs(), xorOp.rhs());
+    return success();
+}
+
+LogicalResult XnorLowering::matchAndRewrite(mlir::btor::XnorOp xnorOp, PatternRewriter &rewriter) const {
+    Value xorOp = rewriter.create<mlir::XOrOp>(xnorOp.getLoc(), xnorOp.lhs(), xnorOp.rhs());
+    rewriter.replaceOpWithNewOp<NotOp>(xnorOp, xorOp);
     return success();
 }
 
@@ -121,7 +164,8 @@ LogicalResult NotLowering::matchAndRewrite(mlir::btor::NotOp notOp, PatternRewri
 void mlir::btor::populateBtorToStdConversionPatterns(RewritePatternSet &patterns) {
   patterns.add<AddLowering, MulLowering, AndLowering>(patterns.getContext());
   patterns.add<CmpLowering, BadLowering, NotLowering>(patterns.getContext());
-  patterns.add<XOrLowering>(patterns.getContext());
+  patterns.add<XOrLowering, XnorLowering, NandLowering>(patterns.getContext());
+  patterns.add<OrLowering, NorLowering>(patterns.getContext());
 }
 
 void BtorToStandardLoweringPass::runOnOperation() {
@@ -131,7 +175,8 @@ void BtorToStandardLoweringPass::runOnOperation() {
     ConversionTarget target(getContext());
     target.addIllegalOp<mlir::btor::AddOp, mlir::btor::MulOp, mlir::btor::AndOp>();
     target.addIllegalOp<mlir::btor::CmpOp, mlir::btor::BadOp, mlir::btor::NotOp>();
-    target.addIllegalOp<mlir::btor::XOrOp>();
+    target.addIllegalOp<mlir::btor::XOrOp, mlir::btor::XnorOp, mlir::btor::NandOp>();
+    target.addIllegalOp<mlir::btor::OrOp, mlir::btor::NorOp>();
     target.markUnknownOpDynamicallyLegal([](Operation *) { return true; });
     if (failed(applyPartialConversion(getOperation(), target, std::move(patterns)))) {
         signalPassFailure();
