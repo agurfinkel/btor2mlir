@@ -65,6 +65,19 @@ def AddOp : BtorBinaryOp<"add", [Commutative]> {
     }];
 }
 
+def SubOp : BtorBinaryOp<"sub"> {
+    let summary = "integer subtraction operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.sub %lhs, %rhs : i32
+        ```
+    }];
+}
+
 def MulOp : BtorBinaryOp<"mul", [Commutative]> {
     let summary = "integer multiplication operation";
     let description = [{
@@ -204,7 +217,7 @@ def CmpOp : Btor_Op<"cmp", [NoSideEffect, SameTypeOperands,
 
     ```mlir
     // Custom form of scalar "signed less than" comparison.
-    %x = cmp "slt", %lhs, %rhs : i32
+    %x = btor.cmp "slt", %lhs, %rhs : i32
     ```
   }];
 
@@ -270,7 +283,41 @@ def NotOp : BtorUnaryOp<"not", [SameOperandsAndResultType]> {
 
     ```mlir
     // Scalar negation value.
-    %a = not %b : i32
+    %a = btor.not %b : i32
+    ```
+  }];
+}
+
+def IncOp : BtorUnaryOp<"inc", [SameOperandsAndResultType]> {
+  let summary = "integer increment by one";
+  let description = [{
+    Syntax:
+
+    The `inc` operation increments the given value by one. It takes one
+    operand and returns one result of the same type. 
+
+    Example:
+
+    ```mlir
+    // Scalar increment value.
+    %a = btor.inc %b : i32
+    ```
+  }];
+}
+
+def DecOp : BtorUnaryOp<"dec", [SameOperandsAndResultType]> {
+  let summary = "integer decrement by one";
+  let description = [{
+    Syntax:
+
+    The `dec` operation decrements the given value by one. It takes one
+    operand and returns one result of the same type. 
+
+    Example:
+
+    ```mlir
+    // Scalar decrement value.
+    %a = btor.dec %b : i32
     ```
   }];
 }
@@ -287,7 +334,7 @@ def RedAndOp : BtorUnaryOp<"redand"> {
 
     ```mlir
     // Scalar redand value.
-    %a = redand %b : i32
+    %a = btor.redand %b : i32
     ```
   }];
 }
