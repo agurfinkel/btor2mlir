@@ -169,26 +169,6 @@ def XnorOp : BtorBinaryOp<"xnor", [Commutative]> {
     }];
 }
 
-def BadOp : Btor_Op<"bad"> {
-    let summary = "btor assertion";
-    let description = [{
-        This operation takes one boolean argument and terminates
-        the program if the argument is false.
-
-        Example:
-        
-        ```mlir
-        %0 = constant 1 : i1
-        // Apply the bad operation to %0
-        btor.bad %0
-        ```
-    }];
-
-    let arguments = (ins I1:$arg);
-
-    let assemblyFormat = "$arg attr-dict";
-}
-
 def CmpOp : Btor_Op<"cmp", [NoSideEffect, SameTypeOperands,
      TypesMatchWith<"result type has i1 element type and same shape as operands",
     "lhs", "result", "getI1SameShape($_self)">] # ElementwiseMappable.traits> {
@@ -249,6 +229,19 @@ def CmpOp : Btor_Op<"cmp", [NoSideEffect, SameTypeOperands,
 
   let assemblyFormat = "$predicate `,` $lhs `,` $rhs attr-dict `:` type($lhs)";
 } 
+
+def SRemOp : BtorBinaryOp<"srem", [Commutative]> {
+    let summary = "integer binary signed remainder operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.srem %lhs, %rhs : i32
+        ```
+    }];
+}
 
 //===----------------------------------------------------------------------===//
 // btor unary integer ops definitions
@@ -337,6 +330,26 @@ def RedAndOp : BtorUnaryOp<"redand"> {
     %a = btor.redand %b : i32
     ```
   }];
+}
+
+def BadOp : Btor_Op<"bad"> {
+    let summary = "btor assertion";
+    let description = [{
+        This operation takes one boolean argument and terminates
+        the program if the argument is false.
+
+        Example:
+        
+        ```mlir
+        %0 = constant 1 : i1
+        // Apply the bad operation to %0
+        btor.bad %0
+        ```
+    }];
+
+    let arguments = (ins I1:$arg);
+
+    let assemblyFormat = "$arg attr-dict";
 }
 
 #endif // BTOR_OPS
