@@ -231,7 +231,7 @@ def CmpOp : Btor_Op<"cmp", [NoSideEffect, SameTypeOperands,
 } 
 
 def SRemOp : BtorBinaryOp<"srem", [Commutative]> {
-    let summary = "integer binary signed remainder operation";
+    let summary = "integer signed remainder operation";
     let description = [{
         This operation takes two integer arguments and returns an integer.
 
@@ -239,6 +239,84 @@ def SRemOp : BtorBinaryOp<"srem", [Commutative]> {
         
         ```mlir
         %res = btor.srem %lhs, %rhs : i32
+        ```
+    }];
+}
+
+def URemOp : BtorBinaryOp<"urem", [Commutative]> {
+    let summary = "integer unsigned remainder operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.urem %lhs, %rhs : i32
+        ```
+    }];
+}
+
+def SDivOp : BtorBinaryOp<"sdiv", [Commutative]> {
+    let summary = "integer signed division operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.sdiv %lhs, %rhs : i32
+        ```
+    }];
+}
+
+def UDivOp : BtorBinaryOp<"udiv", [Commutative]> {
+    let summary = "integer unsigned division operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.udiv %lhs, %rhs : i32
+        ```
+    }];
+}
+
+def ShiftLLOp : BtorBinaryOp<"sll", [Commutative]> {
+    let summary = "integer left logical shift binary operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.sll %lhs, %rhs : i32
+        ```
+    }];
+}
+
+def ShiftRLOp : BtorBinaryOp<"srl", [Commutative]> {
+    let summary = "integer right logical shift operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.srl %lhs, %rhs : i32
+        ```
+    }];
+}
+
+def ShiftRAOp : BtorBinaryOp<"sra", [Commutative]> {
+    let summary = "integer right arithmetic shift operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.sra %lhs, %rhs : i32
         ```
     }];
 }

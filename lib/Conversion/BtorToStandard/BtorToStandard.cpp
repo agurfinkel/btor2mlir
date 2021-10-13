@@ -5,7 +5,6 @@
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/IR/PatternMatch.h"
-#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 
 using namespace mlir;
 using namespace mlir::btor;
@@ -41,9 +40,24 @@ struct MulLowering : public OpRewritePattern<mlir::btor::MulOp> {
     LogicalResult matchAndRewrite(mlir::btor::MulOp mulOp, PatternRewriter &rewriter) const override;
 };
 
+struct SDivLowering : public OpRewritePattern<mlir::btor::SDivOp> {
+    using OpRewritePattern<mlir::btor::SDivOp>::OpRewritePattern;
+    LogicalResult matchAndRewrite(mlir::btor::SDivOp sdivOp, PatternRewriter &rewriter) const override;
+};
+
+struct UDivLowering : public OpRewritePattern<mlir::btor::UDivOp> {
+    using OpRewritePattern<mlir::btor::UDivOp>::OpRewritePattern;
+    LogicalResult matchAndRewrite(mlir::btor::UDivOp udivOp, PatternRewriter &rewriter) const override;
+};
+
 struct SRemLowering : public OpRewritePattern<mlir::btor::SRemOp> {
     using OpRewritePattern<mlir::btor::SRemOp>::OpRewritePattern;
     LogicalResult matchAndRewrite(mlir::btor::SRemOp sremOp, PatternRewriter &rewriter) const override;
+};
+
+struct URemLowering : public OpRewritePattern<mlir::btor::URemOp> {
+    using OpRewritePattern<mlir::btor::URemOp>::OpRewritePattern;
+    LogicalResult matchAndRewrite(mlir::btor::URemOp uremOp, PatternRewriter &rewriter) const override;
 };
 
 struct AndLowering : public OpRewritePattern<mlir::btor::AndOp> {
@@ -74,6 +88,21 @@ struct XOrLowering : public OpRewritePattern<mlir::btor::XOrOp> {
 struct XnorLowering : public OpRewritePattern<mlir::btor::XnorOp> {
     using OpRewritePattern<mlir::btor::XnorOp>::OpRewritePattern;
     LogicalResult matchAndRewrite(mlir::btor::XnorOp xnorOp, PatternRewriter &rewriter) const override;
+};
+
+struct ShiftLLLowering : public OpRewritePattern<mlir::btor::ShiftLLOp> {
+    using OpRewritePattern<mlir::btor::ShiftLLOp>::OpRewritePattern;
+    LogicalResult matchAndRewrite(mlir::btor::ShiftLLOp sllOp, PatternRewriter &rewriter) const override;
+};
+
+struct ShiftRLLowering : public OpRewritePattern<mlir::btor::ShiftRLOp> {
+    using OpRewritePattern<mlir::btor::ShiftRLOp>::OpRewritePattern;
+    LogicalResult matchAndRewrite(mlir::btor::ShiftRLOp srlOp, PatternRewriter &rewriter) const override;
+};
+
+struct ShiftRALowering : public OpRewritePattern<mlir::btor::ShiftRAOp> {
+    using OpRewritePattern<mlir::btor::ShiftRAOp>::OpRewritePattern;
+    LogicalResult matchAndRewrite(mlir::btor::ShiftRAOp sraOp, PatternRewriter &rewriter) const override;
 };
 
 struct BadLowering : public OpRewritePattern<mlir::btor::BadOp> {
@@ -120,8 +149,23 @@ LogicalResult MulLowering::matchAndRewrite(mlir::btor::MulOp mulOp, PatternRewri
     return success();
 }
 
+LogicalResult SDivLowering::matchAndRewrite(mlir::btor::SDivOp sdivOp, PatternRewriter &rewriter) const {
+    rewriter.replaceOpWithNewOp<mlir::SignedDivIOp>(sdivOp, sdivOp.lhs(), sdivOp.rhs());
+    return success();
+}
+
+LogicalResult UDivLowering::matchAndRewrite(mlir::btor::UDivOp udivOp, PatternRewriter &rewriter) const {
+    rewriter.replaceOpWithNewOp<mlir::UnsignedDivIOp>(udivOp, udivOp.lhs(), udivOp.rhs());
+    return success();
+}
+
 LogicalResult SRemLowering::matchAndRewrite(mlir::btor::SRemOp sremOp, PatternRewriter &rewriter) const {
-    rewriter.replaceOpWithNewOp<mlir::LLVM::SRemOp>(sremOp, sremOp.lhs(), sremOp.rhs());
+    rewriter.replaceOpWithNewOp<mlir::SignedRemIOp>(sremOp, sremOp.lhs(), sremOp.rhs());
+    return success();
+}
+
+LogicalResult URemLowering::matchAndRewrite(mlir::btor::URemOp uremOp, PatternRewriter &rewriter) const {
+    rewriter.replaceOpWithNewOp<mlir::UnsignedRemIOp>(uremOp, uremOp.lhs(), uremOp.rhs());
     return success();
 }
 
@@ -205,6 +249,22 @@ LogicalResult DecLowering::matchAndRewrite(mlir::btor::DecOp decOp, PatternRewri
     rewriter.replaceOpWithNewOp<mlir::SubIOp>(decOp, operand, oneConst);
     return success();
 }
+
+LogicalResult ShiftLLLowering::matchAndRewrite(mlir::btor::ShiftLLOp sllOp, PatternRewriter &rewriter) const {
+    rewriter.replaceOpWithNewOp<mlir::ShiftLeftOp>(sllOp, sllOp.lhs(), sllOp.rhs());
+    return success();
+}
+
+LogicalResult ShiftRLLowering::matchAndRewrite(mlir::btor::ShiftRLOp srlOp, PatternRewriter &rewriter) const {
+    rewriter.replaceOpWithNewOp<mlir::UnsignedShiftRightOp>(srlOp, srlOp.lhs(), srlOp.rhs());
+    return success();
+}
+
+LogicalResult ShiftRALowering::matchAndRewrite(mlir::btor::ShiftRAOp sraOp, PatternRewriter &rewriter) const {
+    rewriter.replaceOpWithNewOp<mlir::SignedShiftRightOp>(sraOp, sraOp.lhs(), sraOp.rhs());
+    return success();
+}
+
 //===----------------------------------------------------------------------===//
 // Populate Lowering Patterns
 //===----------------------------------------------------------------------===//
@@ -215,6 +275,8 @@ void mlir::btor::populateBtorToStdConversionPatterns(RewritePatternSet &patterns
   patterns.add<XOrLowering, XnorLowering, NandLowering>(patterns.getContext());
   patterns.add<OrLowering, NorLowering, IncLowering>(patterns.getContext());
   patterns.add<DecLowering, DecLowering, SRemLowering>(patterns.getContext());
+  patterns.add<URemLowering, ShiftLLLowering, ShiftRLLowering>(patterns.getContext());
+  patterns.add<ShiftRALowering, UDivLowering, SDivLowering>(patterns.getContext());
 }
 
 void BtorToStandardLoweringPass::runOnOperation() {
@@ -227,6 +289,8 @@ void BtorToStandardLoweringPass::runOnOperation() {
     target.addIllegalOp<mlir::btor::XOrOp, mlir::btor::XnorOp, mlir::btor::NandOp>();
     target.addIllegalOp<mlir::btor::OrOp, mlir::btor::NorOp, mlir::btor::IncOp>();
     target.addIllegalOp<mlir::btor::DecOp, mlir::btor::SubOp, mlir::btor::SRemOp>();
+    target.addIllegalOp<mlir::btor::URemOp, mlir::btor::ShiftLLOp, mlir::btor::ShiftRLOp>();
+    target.addIllegalOp<mlir::btor::UDivOp, mlir::btor::SDivOp, mlir::btor::ShiftRAOp>();
     target.markUnknownOpDynamicallyLegal([](Operation *) { return true; });
     if (failed(applyPartialConversion(getOperation(), target, std::move(patterns)))) {
         signalPassFailure();
