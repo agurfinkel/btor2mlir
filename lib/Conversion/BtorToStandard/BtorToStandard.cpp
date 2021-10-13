@@ -135,6 +135,11 @@ struct NegLowering : public OpRewritePattern<mlir::btor::NegOp> {
     LogicalResult matchAndRewrite(mlir::btor::NegOp negOp, PatternRewriter &rewriter) const override;
 };
 
+struct IteLowering : public OpRewritePattern<mlir::btor::IteOp> {
+    using OpRewritePattern<mlir::btor::IteOp>::OpRewritePattern;
+    LogicalResult matchAndRewrite(mlir::btor::IteOp iteOp, PatternRewriter &rewriter) const override;
+};
+
 //===----------------------------------------------------------------------===//
 // Lowering Definitions
 //===----------------------------------------------------------------------===//
@@ -279,6 +284,13 @@ LogicalResult ShiftRALowering::matchAndRewrite(mlir::btor::ShiftRAOp sraOp, Patt
     return success();
 }
 
+LogicalResult IteLowering::matchAndRewrite(mlir::btor::IteOp iteOp, PatternRewriter &rewriter) const {
+    rewriter.replaceOpWithNewOp<mlir::SelectOp>(
+        iteOp, 
+        iteOp.condition(), iteOp.true_value(), iteOp.false_value());
+    return success();
+}
+
 //===----------------------------------------------------------------------===//
 // Populate Lowering Patterns
 //===----------------------------------------------------------------------===//
@@ -291,7 +303,7 @@ void mlir::btor::populateBtorToStdConversionPatterns(RewritePatternSet &patterns
   patterns.add<DecLowering, DecLowering, SRemLowering>(patterns.getContext());
   patterns.add<URemLowering, ShiftLLLowering, ShiftRLLowering>(patterns.getContext());
   patterns.add<ShiftRALowering, UDivLowering, SDivLowering>(patterns.getContext());
-  patterns.add<NegLowering>(patterns.getContext());
+  patterns.add<NegLowering, IteLowering>(patterns.getContext());
 }
 
 void BtorToStandardLoweringPass::runOnOperation() {
@@ -306,7 +318,7 @@ void BtorToStandardLoweringPass::runOnOperation() {
     target.addIllegalOp<mlir::btor::DecOp, mlir::btor::SubOp, mlir::btor::SRemOp>();
     target.addIllegalOp<mlir::btor::URemOp, mlir::btor::ShiftLLOp, mlir::btor::ShiftRLOp>();
     target.addIllegalOp<mlir::btor::UDivOp, mlir::btor::SDivOp, mlir::btor::ShiftRAOp>();
-    target.addIllegalOp<mlir::btor::NegOp>();
+    target.addIllegalOp<mlir::btor::NegOp, mlir::btor::IteOp>();
     target.markUnknownOpDynamicallyLegal([](Operation *) { return true; });
     if (failed(applyPartialConversion(getOperation(), target, std::move(patterns)))) {
         signalPassFailure();

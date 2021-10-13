@@ -13,6 +13,54 @@ include "BtorDialect.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
 //===----------------------------------------------------------------------===//
+// btor ternary integer ops definitions
+//===----------------------------------------------------------------------===//
+
+def IteOp : Btor_Op<"ite", [NoSideEffect,
+    AllTypesMatch<["true_value", "false_value", "result"]>]
+    #ElementwiseMappable.traits> {
+    
+    let summary = "integer if-then-else operation";
+    let description = [{
+        This operation takes a condition and two integer 
+        arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.ite %cond, %true, %false : i32
+        ```
+    }];
+
+  let arguments = (ins BoolLike:$condition,
+                      SignlessIntegerLike:$true_value,
+                      SignlessIntegerLike:$false_value);
+  let results = (outs AnyType:$result);
+
+  let builders = [
+    OpBuilder<(ins "Value":$condition, "Value":$trueValue, "Value":$falseValue),
+     [{
+       $_state.addOperands({condition, trueValue, falseValue});
+       $_state.addTypes(trueValue.getType());
+      }]>
+    ];
+  
+  let extraClassDeclaration = [{
+    Value getCondition() { return condition(); }
+    Value getTrueValue() { return true_value(); }
+    Value getFalseValue() { return false_value(); }
+  }];
+
+  let parser = [{
+    return parseIteOp(parser, result);
+  }];
+
+  let printer = [{
+    return printIteOp(p, this);
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // btor binary integer ops definitions
 //===----------------------------------------------------------------------===//
 
@@ -38,7 +86,7 @@ class BtorArithmeticOp<string mnemonic, list<OpTrait> traits = []> :
 // each of these is required to be of the same type.
 //  The custom assembly form of the operation is as follows
 //
-//     <op>i %0, %1 : i32
+//     <op> %0, %1 : i32
 class BtorBinaryOp<string mnemonic, list<OpTrait> traits = []> :
     BtorArithmeticOp<mnemonic, traits>,
     Arguments<(ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs)> {

@@ -69,5 +69,40 @@ static void buildCmpOp(OpBuilder &build, OperationState &result,
                       build.getI64IntegerAttr(static_cast<int64_t>(predicate)));
 }
 
+//===----------------------------------------------------------------------===//
+// IteOp
+//===----------------------------------------------------------------------===//
+
+static void printIteOp(OpAsmPrinter &p, IteOp *op) {
+  p << " " << op->getOperands();
+  p << " : ";
+  if (ShapedType condType = op->getCondition().getType().dyn_cast<ShapedType>())
+    p << condType << ", ";
+  p << op->getType();
+}
+
+static ParseResult parseIteOp(OpAsmParser &parser, OperationState &result) {
+  Type conditionType, resultType;
+  SmallVector<OpAsmParser::OperandType, 3> operands;
+  if (parser.parseOperandList(operands, /*requiredOperandCount=*/3) ||
+      parser.parseOptionalAttrDict(result.attributes) ||
+      parser.parseColonType(resultType))
+    return failure();
+
+  // Check for the explicit condition type if this is a masked tensor or vector.
+  if (succeeded(parser.parseOptionalComma())) {
+    conditionType = resultType;
+    if (parser.parseType(resultType))
+      return failure();
+  } else {
+    conditionType = parser.getBuilder().getI1Type();
+  }
+
+  result.addTypes(resultType);
+  return parser.resolveOperands(operands,
+                                {conditionType, resultType, resultType},
+                                parser.getNameLoc(), result.operands);
+}
+
 #define GET_OP_CLASSES
 #include "Dialect/Btor/IR/BtorOps.cpp.inc"
