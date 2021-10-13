@@ -393,6 +393,23 @@ def DecOp : BtorUnaryOp<"dec", [SameOperandsAndResultType]> {
   }];
 }
 
+def NegOp : BtorUnaryOp<"neg", [SameOperandsAndResultType]> {
+  let summary = "integer negation";
+  let description = [{
+    Syntax:
+
+    The `neg` operation flips the sign of a given value. It takes one
+    operand and returns one result of the same type. 
+
+    Example:
+
+    ```mlir
+    // Scalar decrement value.
+    %a = btor.neg %b : i32
+    ```
+  }];
+}
+
 def RedAndOp : BtorUnaryOp<"redand"> {
   let summary = "integer reduction with and operator";
   let description = [{
