@@ -105,6 +105,16 @@ struct ShiftRALowering : public OpRewritePattern<mlir::btor::ShiftRAOp> {
     LogicalResult matchAndRewrite(mlir::btor::ShiftRAOp sraOp, PatternRewriter &rewriter) const override;
 };
 
+struct RotateLLowering : public OpRewritePattern<mlir::btor::RotateLOp> {
+    using OpRewritePattern<mlir::btor::RotateLOp>::OpRewritePattern;
+    LogicalResult matchAndRewrite(mlir::btor::RotateLOp rolOp, PatternRewriter &rewriter) const override;
+};
+
+struct RotateRLowering : public OpRewritePattern<mlir::btor::RotateROp> {
+    using OpRewritePattern<mlir::btor::RotateROp>::OpRewritePattern;
+    LogicalResult matchAndRewrite(mlir::btor::RotateROp rorOp, PatternRewriter &rewriter) const override;
+};
+
 struct BadLowering : public OpRewritePattern<mlir::btor::BadOp> {
     using OpRewritePattern<mlir::btor::BadOp>::OpRewritePattern;
     LogicalResult matchAndRewrite(mlir::btor::BadOp mulOp, PatternRewriter &rewriter) const override;
@@ -291,6 +301,48 @@ LogicalResult IteLowering::matchAndRewrite(mlir::btor::IteOp iteOp, PatternRewri
     return success();
 }
 
+LogicalResult RotateLLowering::matchAndRewrite(mlir::btor::RotateLOp rolOp, PatternRewriter &rewriter) const {
+    // We convert using the following paradigm: given lhs, rhs, width
+    // shiftBy = rhs % width
+    // (lhs << shiftBy) or (lhs >> (width - shiftBy))   
+    Location loc = rolOp.getLoc();
+    Value lhs = rolOp.lhs();
+    Value rhs = rolOp.rhs();
+    Type opType = lhs.getType(); 
+
+    int width = opType.getIntOrFloatBitWidth();
+    Value widthVal = rewriter.create<ConstantOp>(loc, opType, rewriter.getIntegerAttr(opType, width));
+    Value shiftBy = rewriter.create<mlir::UnsignedRemIOp>(loc, rhs, widthVal);
+    Value shiftRightBy = rewriter.create<mlir::SubIOp>(loc, widthVal, shiftBy);
+
+    Value leftValue = rewriter.create<mlir::ShiftLeftOp>(loc, lhs, shiftBy);
+    Value rightValue = rewriter.create<mlir::UnsignedShiftRightOp>(loc, lhs, shiftRightBy);
+
+    rewriter.replaceOpWithNewOp<mlir::OrOp>(rolOp, leftValue, rightValue);
+    return success();
+}
+
+LogicalResult RotateRLowering::matchAndRewrite(mlir::btor::RotateROp rorOp, PatternRewriter &rewriter) const {
+    // We convert using the following paradigm: given lhs, rhs, width
+    // shiftBy = rhs % width
+    // (lhs >> shiftBy) or (lhs << (width - shiftBy))   
+    Location loc = rorOp.getLoc();
+    Value lhs = rorOp.lhs();
+    Value rhs = rorOp.rhs();
+    Type opType = lhs.getType(); 
+
+    int width = opType.getIntOrFloatBitWidth();
+    Value widthVal = rewriter.create<ConstantOp>(loc, opType, rewriter.getIntegerAttr(opType, width));
+    Value shiftBy = rewriter.create<mlir::UnsignedRemIOp>(loc, rhs, widthVal);
+    Value shiftLeftBy = rewriter.create<mlir::SubIOp>(loc, widthVal, shiftBy);
+
+    Value leftValue = rewriter.create<mlir::UnsignedShiftRightOp>(loc, lhs, shiftBy);
+    Value rightValue = rewriter.create<mlir::ShiftLeftOp>(loc, lhs, shiftLeftBy);
+
+    rewriter.replaceOpWithNewOp<mlir::OrOp>(rorOp, leftValue, rightValue);
+    return success();
+}
+
 //===----------------------------------------------------------------------===//
 // Populate Lowering Patterns
 //===----------------------------------------------------------------------===//
@@ -303,7 +355,8 @@ void mlir::btor::populateBtorToStdConversionPatterns(RewritePatternSet &patterns
   patterns.add<DecLowering, DecLowering, SRemLowering>(patterns.getContext());
   patterns.add<URemLowering, ShiftLLLowering, ShiftRLLowering>(patterns.getContext());
   patterns.add<ShiftRALowering, UDivLowering, SDivLowering>(patterns.getContext());
-  patterns.add<NegLowering, IteLowering>(patterns.getContext());
+  patterns.add<NegLowering, IteLowering, RotateRLowering>(patterns.getContext());
+  patterns.add<RotateLLowering>(patterns.getContext());
 }
 
 void BtorToStandardLoweringPass::runOnOperation() {
@@ -318,7 +371,8 @@ void BtorToStandardLoweringPass::runOnOperation() {
     target.addIllegalOp<mlir::btor::DecOp, mlir::btor::SubOp, mlir::btor::SRemOp>();
     target.addIllegalOp<mlir::btor::URemOp, mlir::btor::ShiftLLOp, mlir::btor::ShiftRLOp>();
     target.addIllegalOp<mlir::btor::UDivOp, mlir::btor::SDivOp, mlir::btor::ShiftRAOp>();
-    target.addIllegalOp<mlir::btor::NegOp, mlir::btor::IteOp>();
+    target.addIllegalOp<mlir::btor::NegOp, mlir::btor::IteOp, mlir::btor::RotateLOp>();
+    target.addIllegalOp<mlir::btor::RotateROp>();
     target.markUnknownOpDynamicallyLegal([](Operation *) { return true; });
     if (failed(applyPartialConversion(getOperation(), target, std::move(patterns)))) {
         signalPassFailure();
