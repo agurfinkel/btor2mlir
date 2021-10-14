@@ -369,6 +369,32 @@ def ShiftRAOp : BtorBinaryOp<"sra"> {
     }];
 }
 
+def RotateLOp : BtorBinaryOp<"rol"> {
+    let summary = "integer left rotate operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.rol %lhs, %rhs : i32
+        ```
+    }];
+}
+
+def RotateROp : BtorBinaryOp<"ror"> {
+    let summary = "integer right rotate operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.ror %lhs, %rhs : i32
+        ```
+    }];
+}
+
 //===----------------------------------------------------------------------===//
 // btor unary integer ops definitions
 //===----------------------------------------------------------------------===//
