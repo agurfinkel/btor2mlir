@@ -104,5 +104,31 @@ static ParseResult parseIteOp(OpAsmParser &parser, OperationState &result) {
                                 parser.getNameLoc(), result.operands);
 }
 
+//===----------------------------------------------------------------------===//
+// ConstantOp
+//===----------------------------------------------------------------------===//
+
+static void printConstantOp(OpAsmPrinter &p, mlir::btor::ConstantOp &op) {
+  p << " ";
+  p.printOptionalAttrDict(op->getAttrs(), /*elidedAttrs=*/{"value"});
+  p << op.getValue();
+}
+
+static ParseResult parseConstantOp(OpAsmParser &parser,
+                                   OperationState &result) {
+  Attribute valueAttr;
+  if (parser.parseOptionalAttrDict(result.attributes) ||
+      parser.parseAttribute(valueAttr, "value", result.attributes))
+    return failure();
+
+  // Add the attribute type to the list.
+  return parser.addTypeToList(valueAttr.getType(), result.types);
+}
+
+OpFoldResult ConstantOp::fold(ArrayRef<Attribute> operands) {
+  assert(operands.empty() && "constant has no operands");
+  return getValue();
+}
+
 #define GET_OP_CLASSES
 #include "Dialect/Btor/IR/BtorOps.cpp.inc"

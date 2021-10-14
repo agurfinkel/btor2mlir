@@ -1,7 +1,6 @@
 #include "Conversion/BtorToStandard/ConvertBtorToStandardPass.h"
 #include "Dialect/Btor/IR/BtorOps.h"
 
-#include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/IR/PatternMatch.h"
@@ -10,7 +9,7 @@
 using namespace mlir;
 using namespace mlir::btor;
 
-#define PASS_NAME "convert-btor-to-llvm"
+#define PASS_NAME "convert-btor-to-std"
 
 namespace {
 struct BtorToStandardLoweringPass : public PassWrapper<BtorToStandardLoweringPass, OperationPass<ModuleOp>> {
@@ -25,6 +24,11 @@ struct BtorToStandardLoweringPass : public PassWrapper<BtorToStandardLoweringPas
 //===----------------------------------------------------------------------===//
 // Lowering Declarations
 //===----------------------------------------------------------------------===//
+
+struct ConstantLowering : public OpRewritePattern<mlir::btor::ConstantOp> {
+    using OpRewritePattern<mlir::btor::ConstantOp>::OpRewritePattern;
+    LogicalResult matchAndRewrite(mlir::btor::ConstantOp constantOp, PatternRewriter &rewriter) const override;
+};
 
 struct AddLowering : public OpRewritePattern<mlir::btor::AddOp> {
     using OpRewritePattern<mlir::btor::AddOp>::OpRewritePattern;
@@ -372,6 +376,11 @@ LogicalResult RotateRLowering::matchAndRewrite(mlir::btor::RotateROp rorOp, Patt
     return success();
 }
 
+LogicalResult ConstantLowering::matchAndRewrite(mlir::btor::ConstantOp constOp, PatternRewriter &rewriter) const {
+    rewriter.replaceOpWithNewOp<LLVM::ConstantOp>(constOp, constOp.getType(), constOp.value());
+    return success();
+}
+
 //===----------------------------------------------------------------------===//
 // Populate Lowering Patterns
 //===----------------------------------------------------------------------===//
@@ -385,7 +394,7 @@ void mlir::btor::populateBtorToStdConversionPatterns(RewritePatternSet &patterns
   patterns.add<URemLowering, ShiftLLLowering, ShiftRLLowering>(patterns.getContext());
   patterns.add<ShiftRALowering, UDivLowering, SDivLowering>(patterns.getContext());
   patterns.add<NegLowering, IteLowering, RotateRLowering>(patterns.getContext());
-  patterns.add<RotateLLowering>(patterns.getContext());
+  patterns.add<RotateLLowering, ConstantLowering>(patterns.getContext());
 }
 
 void BtorToStandardLoweringPass::runOnOperation() {
@@ -401,7 +410,7 @@ void BtorToStandardLoweringPass::runOnOperation() {
     target.addIllegalOp<mlir::btor::URemOp, mlir::btor::ShiftLLOp, mlir::btor::ShiftRLOp>();
     target.addIllegalOp<mlir::btor::UDivOp, mlir::btor::SDivOp, mlir::btor::ShiftRAOp>();
     target.addIllegalOp<mlir::btor::NegOp, mlir::btor::IteOp, mlir::btor::RotateLOp>();
-    target.addIllegalOp<mlir::btor::RotateROp>();
+    target.addIllegalOp<mlir::btor::RotateROp, mlir::btor::ConstantOp>();
     target.markUnknownOpDynamicallyLegal([](Operation *) { return true; });
     if (failed(applyPartialConversion(getOperation(), target, std::move(patterns)))) {
         signalPassFailure();
