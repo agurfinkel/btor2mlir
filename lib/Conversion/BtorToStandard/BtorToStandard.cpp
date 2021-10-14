@@ -5,16 +5,17 @@
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/IR/PatternMatch.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 
 using namespace mlir;
 using namespace mlir::btor;
 
-#define PASS_NAME "convert-btor-to-std"
+#define PASS_NAME "convert-btor-to-llvm"
 
 namespace {
 struct BtorToStandardLoweringPass : public PassWrapper<BtorToStandardLoweringPass, OperationPass<ModuleOp>> {
     void getDependentDialects(DialectRegistry &registry) const override {
-        registry.insert<StandardOpsDialect>();
+        registry.insert<LLVM::LLVMDialect>();
     }
     StringRef getArgument() const final { return PASS_NAME; }
     void runOnOperation() override;
@@ -155,89 +156,117 @@ struct IteLowering : public OpRewritePattern<mlir::btor::IteOp> {
 //===----------------------------------------------------------------------===//
 
 LogicalResult AddLowering::matchAndRewrite(mlir::btor::AddOp addOp, PatternRewriter &rewriter) const {
-    rewriter.replaceOpWithNewOp<mlir::AddIOp>(addOp, addOp.lhs(), addOp.rhs());
+    rewriter.replaceOpWithNewOp<LLVM::AddOp>(addOp, addOp.lhs(), addOp.rhs());
     return success();
 }
 
 LogicalResult SubLowering::matchAndRewrite(mlir::btor::SubOp subOp, PatternRewriter &rewriter) const {
-    rewriter.replaceOpWithNewOp<mlir::SubIOp>(subOp, subOp.lhs(), subOp.rhs());
+    rewriter.replaceOpWithNewOp<LLVM::SubOp>(subOp, subOp.lhs(), subOp.rhs());
     return success();
 }
 
 LogicalResult MulLowering::matchAndRewrite(mlir::btor::MulOp mulOp, PatternRewriter &rewriter) const {
-    rewriter.replaceOpWithNewOp<mlir::MulIOp>(mulOp, mulOp.lhs(), mulOp.rhs());
+    rewriter.replaceOpWithNewOp<LLVM::MulOp>(mulOp, mulOp.lhs(), mulOp.rhs());
     return success();
 }
 
 LogicalResult SDivLowering::matchAndRewrite(mlir::btor::SDivOp sdivOp, PatternRewriter &rewriter) const {
-    rewriter.replaceOpWithNewOp<mlir::SignedDivIOp>(sdivOp, sdivOp.lhs(), sdivOp.rhs());
+    rewriter.replaceOpWithNewOp<LLVM::SDivOp>(sdivOp, sdivOp.lhs(), sdivOp.rhs());
     return success();
 }
 
 LogicalResult UDivLowering::matchAndRewrite(mlir::btor::UDivOp udivOp, PatternRewriter &rewriter) const {
-    rewriter.replaceOpWithNewOp<mlir::UnsignedDivIOp>(udivOp, udivOp.lhs(), udivOp.rhs());
+    rewriter.replaceOpWithNewOp<LLVM::UDivOp>(udivOp, udivOp.lhs(), udivOp.rhs());
     return success();
 }
 
 LogicalResult SRemLowering::matchAndRewrite(mlir::btor::SRemOp sremOp, PatternRewriter &rewriter) const {
-    rewriter.replaceOpWithNewOp<mlir::SignedRemIOp>(sremOp, sremOp.lhs(), sremOp.rhs());
+    rewriter.replaceOpWithNewOp<LLVM::SRemOp>(sremOp, sremOp.lhs(), sremOp.rhs());
     return success();
 }
 
 LogicalResult URemLowering::matchAndRewrite(mlir::btor::URemOp uremOp, PatternRewriter &rewriter) const {
-    rewriter.replaceOpWithNewOp<mlir::UnsignedRemIOp>(uremOp, uremOp.lhs(), uremOp.rhs());
+    rewriter.replaceOpWithNewOp<LLVM::URemOp>(uremOp, uremOp.lhs(), uremOp.rhs());
     return success();
 }
 
 LogicalResult AndLowering::matchAndRewrite(mlir::btor::AndOp andOp, PatternRewriter &rewriter) const {
-    rewriter.replaceOpWithNewOp<mlir::AndOp>(andOp, andOp.lhs(), andOp.rhs());
+    rewriter.replaceOpWithNewOp<LLVM::AndOp>(andOp, andOp.lhs(), andOp.rhs());
     return success();
 }
 
 LogicalResult NandLowering::matchAndRewrite(mlir::btor::NandOp nandOp, PatternRewriter &rewriter) const {
-    Value andOp = rewriter.create<mlir::AndOp>(nandOp.getLoc(), nandOp.lhs(), nandOp.rhs());
+    Value andOp = rewriter.create<LLVM::AndOp>(nandOp.getLoc(), nandOp.lhs(), nandOp.rhs());
     rewriter.replaceOpWithNewOp<NotOp>(nandOp, andOp);
     return success();
 }
 
 LogicalResult OrLowering::matchAndRewrite(mlir::btor::OrOp orOp, PatternRewriter &rewriter) const {
-    rewriter.replaceOpWithNewOp<mlir::OrOp>(orOp, orOp.lhs(), orOp.rhs());
+    rewriter.replaceOpWithNewOp<LLVM::OrOp>(orOp, orOp.lhs(), orOp.rhs());
     return success();
 }
 
 LogicalResult NorLowering::matchAndRewrite(mlir::btor::NorOp norOp, PatternRewriter &rewriter) const {
-    Value orOp = rewriter.create<mlir::OrOp>(norOp.getLoc(), norOp.lhs(), norOp.rhs());
+    Value orOp = rewriter.create<LLVM::OrOp>(norOp.getLoc(), norOp.lhs(), norOp.rhs());
     rewriter.replaceOpWithNewOp<NotOp>(norOp, orOp);
     return success();
 }
 
 LogicalResult XOrLowering::matchAndRewrite(mlir::btor::XOrOp xorOp, PatternRewriter &rewriter) const {
-    rewriter.replaceOpWithNewOp<mlir::XOrOp>(xorOp, xorOp.lhs(), xorOp.rhs());
+    rewriter.replaceOpWithNewOp<LLVM::XOrOp>(xorOp, xorOp.lhs(), xorOp.rhs());
     return success();
 }
 
 LogicalResult XnorLowering::matchAndRewrite(mlir::btor::XnorOp xnorOp, PatternRewriter &rewriter) const {
-    Value xorOp = rewriter.create<mlir::XOrOp>(xnorOp.getLoc(), xnorOp.lhs(), xnorOp.rhs());
+    Value xorOp = rewriter.create<LLVM::XOrOp>(xnorOp.getLoc(), xnorOp.lhs(), xnorOp.rhs());
     rewriter.replaceOpWithNewOp<NotOp>(xnorOp, xorOp);
     return success();
 }
 
 LogicalResult BadLowering::matchAndRewrite(mlir::btor::BadOp badOp, PatternRewriter &rewriter) const {
     Value notBad = rewriter.create<NotOp>(badOp.getLoc(), badOp.arg());
-    rewriter.replaceOpWithNewOp<mlir::AssertOp>(badOp, notBad, "Expects argument to be true");
+
+    auto loc = badOp.getLoc();
+
+    // Insert the `abort` declaration if necessary.
+    auto module = badOp->getParentOfType<ModuleOp>();
+    auto abortFunc = module.lookupSymbol<LLVM::LLVMFuncOp>("abort");
+    if (!abortFunc) {
+      OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPointToStart(module.getBody());
+      auto abortFuncTy = LLVM::LLVMFunctionType::get(LLVM::LLVMVoidType::get(getContext()), {});
+      abortFunc = rewriter.create<LLVM::LLVMFuncOp>(rewriter.getUnknownLoc(),
+                                                    "abort", abortFuncTy);
+    }
+
+    // Split block at `assert` operation.
+    Block *opBlock = rewriter.getInsertionBlock();
+    auto opPosition = rewriter.getInsertionPoint();
+    Block *continuationBlock = rewriter.splitBlock(opBlock, opPosition);
+
+    // Generate IR to call `abort`.
+    Block *failureBlock = rewriter.createBlock(opBlock->getParent());
+    rewriter.create<LLVM::CallOp>(loc, abortFunc, llvm::None);
+    rewriter.create<LLVM::UnreachableOp>(loc);
+
+    // Generate assertion test.
+    rewriter.setInsertionPointToEnd(opBlock);
+    rewriter.replaceOpWithNewOp<LLVM::CondBrOp>(
+        badOp, notBad, continuationBlock, failureBlock);
+
     return success();
 }
 
-// Convert btor.cmp predicate into the Standard dialect CmpIOpPredicate.  The two
+// Convert btor.cmp predicate into the LLVM dialect ICmpOpPredicate.  The two
 // enums share the numerical values so we just need to cast.
-template <typename StdPredType, typename BtorPredType>
-static StdPredType convertBtorCmpPredicate(BtorPredType pred) {
-  return static_cast<StdPredType>(pred);
+template <typename LLVMPredType, typename BtorPredType>
+static LLVMPredType convertBtorCmpPredicate(BtorPredType pred) {
+  return static_cast<LLVMPredType>(pred);
 }
 
 LogicalResult CmpLowering::matchAndRewrite(mlir::btor::CmpOp cmpOp, PatternRewriter &rewriter) const {
-    auto btorPred = convertBtorCmpPredicate<mlir::CmpIPredicate>(cmpOp.getPredicate());
-    rewriter.replaceOpWithNewOp<mlir::CmpIOp>(cmpOp, btorPred, cmpOp.lhs(), cmpOp.rhs());
+    auto btorPred = convertBtorCmpPredicate<LLVM::ICmpPredicate>(cmpOp.getPredicate());
+    rewriter.replaceOpWithNewOp<LLVM::ICmpOp>(cmpOp, btorPred, cmpOp.lhs(), cmpOp.rhs());
     return success();
 }
 
@@ -247,8 +276,8 @@ LogicalResult NotLowering::matchAndRewrite(mlir::btor::NotOp notOp, PatternRewri
 
     int width = opType.getIntOrFloatBitWidth();
     int trueVal = pow(2, width) - 1;
-    Value trueConst = rewriter.create<ConstantOp>(notOp.getLoc(), opType, rewriter.getIntegerAttr(opType, trueVal));
-    rewriter.replaceOpWithNewOp<mlir::btor::XOrOp>(notOp, operand, trueConst);
+    Value trueConst = rewriter.create<LLVM::ConstantOp>(notOp.getLoc(), opType, rewriter.getIntegerAttr(opType, trueVal));
+    rewriter.replaceOpWithNewOp<LLVM::XOrOp>(notOp, operand, trueConst);
     return success();
 }
 
@@ -256,8 +285,8 @@ LogicalResult IncLowering::matchAndRewrite(mlir::btor::IncOp incOp, PatternRewri
     Value operand = incOp.operand(); 
     Type opType = operand.getType(); 
 
-    Value oneConst = rewriter.create<ConstantOp>(incOp.getLoc(), opType, rewriter.getIntegerAttr(opType, 1));
-    rewriter.replaceOpWithNewOp<mlir::AddIOp>(incOp, operand, oneConst);
+    Value oneConst = rewriter.create<LLVM::ConstantOp>(incOp.getLoc(), opType, rewriter.getIntegerAttr(opType, 1));
+    rewriter.replaceOpWithNewOp<LLVM::AddOp>(incOp, operand, oneConst);
     return success();
 }
 
@@ -265,8 +294,8 @@ LogicalResult DecLowering::matchAndRewrite(mlir::btor::DecOp decOp, PatternRewri
     Value operand = decOp.operand(); 
     Type opType = operand.getType(); 
 
-    Value oneConst = rewriter.create<ConstantOp>(decOp.getLoc(), opType, rewriter.getIntegerAttr(opType, 1));
-    rewriter.replaceOpWithNewOp<mlir::SubIOp>(decOp, operand, oneConst);
+    Value oneConst = rewriter.create<LLVM::ConstantOp>(decOp.getLoc(), opType, rewriter.getIntegerAttr(opType, 1));
+    rewriter.replaceOpWithNewOp<LLVM::SubOp>(decOp, operand, oneConst);
     return success();
 }
 
@@ -274,28 +303,28 @@ LogicalResult NegLowering::matchAndRewrite(mlir::btor::NegOp negOp, PatternRewri
     Value operand = negOp.operand(); 
     Type opType = operand.getType(); 
 
-    Value zeroConst = rewriter.create<ConstantOp>(negOp.getLoc(), opType, rewriter.getIntegerAttr(opType, 0));
-    rewriter.replaceOpWithNewOp<mlir::SubIOp>(negOp, zeroConst, operand);
+    Value zeroConst = rewriter.create<LLVM::ConstantOp>(negOp.getLoc(), opType, rewriter.getIntegerAttr(opType, 0));
+    rewriter.replaceOpWithNewOp<LLVM::SubOp>(negOp, zeroConst, operand);
     return success();
 }
 
 LogicalResult ShiftLLLowering::matchAndRewrite(mlir::btor::ShiftLLOp sllOp, PatternRewriter &rewriter) const {
-    rewriter.replaceOpWithNewOp<mlir::ShiftLeftOp>(sllOp, sllOp.lhs(), sllOp.rhs());
+    rewriter.replaceOpWithNewOp<LLVM::ShlOp>(sllOp, sllOp.lhs(), sllOp.rhs());
     return success();
 }
 
 LogicalResult ShiftRLLowering::matchAndRewrite(mlir::btor::ShiftRLOp srlOp, PatternRewriter &rewriter) const {
-    rewriter.replaceOpWithNewOp<mlir::UnsignedShiftRightOp>(srlOp, srlOp.lhs(), srlOp.rhs());
+    rewriter.replaceOpWithNewOp<LLVM::LShrOp>(srlOp, srlOp.lhs(), srlOp.rhs());
     return success();
 }
 
 LogicalResult ShiftRALowering::matchAndRewrite(mlir::btor::ShiftRAOp sraOp, PatternRewriter &rewriter) const {
-    rewriter.replaceOpWithNewOp<mlir::SignedShiftRightOp>(sraOp, sraOp.lhs(), sraOp.rhs());
+    rewriter.replaceOpWithNewOp<LLVM::AShrOp>(sraOp, sraOp.lhs(), sraOp.rhs());
     return success();
 }
 
 LogicalResult IteLowering::matchAndRewrite(mlir::btor::IteOp iteOp, PatternRewriter &rewriter) const {
-    rewriter.replaceOpWithNewOp<mlir::SelectOp>(
+    rewriter.replaceOpWithNewOp<LLVM::SelectOp>(
         iteOp, 
         iteOp.condition(), iteOp.true_value(), iteOp.false_value());
     return success();
@@ -311,14 +340,14 @@ LogicalResult RotateLLowering::matchAndRewrite(mlir::btor::RotateLOp rolOp, Patt
     Type opType = lhs.getType(); 
 
     int width = opType.getIntOrFloatBitWidth();
-    Value widthVal = rewriter.create<ConstantOp>(loc, opType, rewriter.getIntegerAttr(opType, width));
-    Value shiftBy = rewriter.create<mlir::UnsignedRemIOp>(loc, rhs, widthVal);
-    Value shiftRightBy = rewriter.create<mlir::SubIOp>(loc, widthVal, shiftBy);
+    Value widthVal = rewriter.create<LLVM::ConstantOp>(loc, opType, rewriter.getIntegerAttr(opType, width));
+    Value shiftBy = rewriter.create<LLVM::URemOp>(loc, rhs, widthVal);
+    Value shiftRightBy = rewriter.create<LLVM::SubOp>(loc, widthVal, shiftBy);
 
-    Value leftValue = rewriter.create<mlir::ShiftLeftOp>(loc, lhs, shiftBy);
-    Value rightValue = rewriter.create<mlir::UnsignedShiftRightOp>(loc, lhs, shiftRightBy);
+    Value leftValue = rewriter.create<LLVM::ShlOp>(loc, lhs, shiftBy);
+    Value rightValue = rewriter.create<LLVM::LShrOp>(loc, lhs, shiftRightBy);
 
-    rewriter.replaceOpWithNewOp<mlir::OrOp>(rolOp, leftValue, rightValue);
+    rewriter.replaceOpWithNewOp<LLVM::OrOp>(rolOp, leftValue, rightValue);
     return success();
 }
 
@@ -332,14 +361,14 @@ LogicalResult RotateRLowering::matchAndRewrite(mlir::btor::RotateROp rorOp, Patt
     Type opType = lhs.getType(); 
 
     int width = opType.getIntOrFloatBitWidth();
-    Value widthVal = rewriter.create<ConstantOp>(loc, opType, rewriter.getIntegerAttr(opType, width));
-    Value shiftBy = rewriter.create<mlir::UnsignedRemIOp>(loc, rhs, widthVal);
-    Value shiftLeftBy = rewriter.create<mlir::SubIOp>(loc, widthVal, shiftBy);
+    Value widthVal = rewriter.create<LLVM::ConstantOp>(loc, opType, rewriter.getIntegerAttr(opType, width));
+    Value shiftBy = rewriter.create<LLVM::URemOp>(loc, rhs, widthVal);
+    Value shiftLeftBy = rewriter.create<LLVM::SubOp>(loc, widthVal, shiftBy);
 
-    Value leftValue = rewriter.create<mlir::UnsignedShiftRightOp>(loc, lhs, shiftBy);
-    Value rightValue = rewriter.create<mlir::ShiftLeftOp>(loc, lhs, shiftLeftBy);
+    Value leftValue = rewriter.create<LLVM::LShrOp>(loc, lhs, shiftBy);
+    Value rightValue = rewriter.create<LLVM::ShlOp>(loc, lhs, shiftLeftBy);
 
-    rewriter.replaceOpWithNewOp<mlir::OrOp>(rorOp, leftValue, rightValue);
+    rewriter.replaceOpWithNewOp<LLVM::OrOp>(rorOp, leftValue, rightValue);
     return success();
 }
 
