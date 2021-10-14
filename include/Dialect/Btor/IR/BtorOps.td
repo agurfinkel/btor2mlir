@@ -278,7 +278,7 @@ def CmpOp : Btor_Op<"cmp", [NoSideEffect, SameTypeOperands,
   let assemblyFormat = "$predicate `,` $lhs `,` $rhs attr-dict `:` type($lhs)";
 } 
 
-def SRemOp : BtorBinaryOp<"srem", [Commutative]> {
+def SRemOp : BtorBinaryOp<"srem"> {
     let summary = "integer signed remainder operation";
     let description = [{
         This operation takes two integer arguments and returns an integer.
@@ -291,7 +291,7 @@ def SRemOp : BtorBinaryOp<"srem", [Commutative]> {
     }];
 }
 
-def URemOp : BtorBinaryOp<"urem", [Commutative]> {
+def URemOp : BtorBinaryOp<"urem"> {
     let summary = "integer unsigned remainder operation";
     let description = [{
         This operation takes two integer arguments and returns an integer.
@@ -304,7 +304,7 @@ def URemOp : BtorBinaryOp<"urem", [Commutative]> {
     }];
 }
 
-def SDivOp : BtorBinaryOp<"sdiv", [Commutative]> {
+def SDivOp : BtorBinaryOp<"sdiv"> {
     let summary = "integer signed division operation";
     let description = [{
         This operation takes two integer arguments and returns an integer.
@@ -317,7 +317,7 @@ def SDivOp : BtorBinaryOp<"sdiv", [Commutative]> {
     }];
 }
 
-def UDivOp : BtorBinaryOp<"udiv", [Commutative]> {
+def UDivOp : BtorBinaryOp<"udiv"> {
     let summary = "integer unsigned division operation";
     let description = [{
         This operation takes two integer arguments and returns an integer.
@@ -330,7 +330,7 @@ def UDivOp : BtorBinaryOp<"udiv", [Commutative]> {
     }];
 }
 
-def ShiftLLOp : BtorBinaryOp<"sll", [Commutative]> {
+def ShiftLLOp : BtorBinaryOp<"sll"> {
     let summary = "integer left logical shift binary operation";
     let description = [{
         This operation takes two integer arguments and returns an integer.
@@ -343,7 +343,7 @@ def ShiftLLOp : BtorBinaryOp<"sll", [Commutative]> {
     }];
 }
 
-def ShiftRLOp : BtorBinaryOp<"srl", [Commutative]> {
+def ShiftRLOp : BtorBinaryOp<"srl"> {
     let summary = "integer right logical shift operation";
     let description = [{
         This operation takes two integer arguments and returns an integer.
@@ -356,7 +356,7 @@ def ShiftRLOp : BtorBinaryOp<"srl", [Commutative]> {
     }];
 }
 
-def ShiftRAOp : BtorBinaryOp<"sra", [Commutative]> {
+def ShiftRAOp : BtorBinaryOp<"sra"> {
     let summary = "integer right arithmetic shift operation";
     let description = [{
         This operation takes two integer arguments and returns an integer.
