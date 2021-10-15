@@ -68,8 +68,17 @@ def IteOp : Btor_Op<"ite", [NoSideEffect,
 // results to be of the same type, but does not constrain them to specific
 // types.
 class BtorArithmeticOp<string mnemonic, list<OpTrait> traits = []> :
-    Op<Btor_Dialect, mnemonic, traits 
-    #[NoSideEffect, SameOperandsAndResultType] #ElementwiseMappable.traits> {
+    Op<Btor_Dialect, mnemonic, traits #[NoSideEffect]
+    #ElementwiseMappable.traits> { }
+
+// This operation takes two operands and returns one result,
+// each of these is required to be of the same type.
+//  The custom assembly form of the operation is as follows
+//
+//     <op> %0, %1 : i32
+class BtorBinaryOp<string mnemonic, list<OpTrait> traits = []> :
+    BtorArithmeticOp<mnemonic, !listconcat(traits, [SameOperandsAndResultType])>,
+    Arguments<(ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs)> {
 
   let results = (outs AnyType:$result);
 
@@ -82,21 +91,22 @@ class BtorArithmeticOp<string mnemonic, list<OpTrait> traits = []> :
   }];
 }
 
-// This operation takes two operands and returns one result,
-// each of these is required to be of the same type.
-//  The custom assembly form of the operation is as follows
+// This operation takes two operands or the same type
+// and returns one result of type I1
 //
-//     <op> %0, %1 : i32
-class BtorBinaryOp<string mnemonic, list<OpTrait> traits = []> :
+//     <op> %0, %1 : i1
+class BtorBinaryDifferentResultTypeOp<string mnemonic, list<OpTrait> traits = []> :
     BtorArithmeticOp<mnemonic, traits>,
     Arguments<(ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs)> {
 
+  let results = (outs BoolLike:$result);
+
   let parser = [{
-    return impl::parseOneResultSameOperandTypeOp(parser, result);
+    return parseBinaryOverflowOp(parser, result);
   }];
 
   let printer = [{
-    return printBtorBinaryOp(this->getOperation(), p);
+    return printBtorBinaryDifferentResultTypeOp(this->getOperation(), p);
   }];
 }
 
@@ -113,6 +123,32 @@ def AddOp : BtorBinaryOp<"add", [Commutative]> {
     }];
 }
 
+def SAddOverflowOp : BtorBinaryDifferentResultTypeOp<"saddo", [Commutative]> {
+    let summary = "signed integer addition with overflow flag";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.saddo %lhs, %rhs : i32
+        ```
+    }];  
+}
+
+def UAddOverflowOp : BtorBinaryDifferentResultTypeOp<"uaddo", [Commutative]> {
+    let summary = "unsigned integer addition with overflow flag";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.uaddo %lhs, %rhs : i32
+        ```
+    }];  
+}
+
 def SubOp : BtorBinaryOp<"sub"> {
     let summary = "integer subtraction operation";
     let description = [{
@@ -126,6 +162,32 @@ def SubOp : BtorBinaryOp<"sub"> {
     }];
 }
 
+def SSubOverflowOp : BtorBinaryDifferentResultTypeOp<"ssubo"> {
+    let summary = "signed integer subtraction with overflow flag";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.ssubo %lhs, %rhs : i32
+        ```
+    }];  
+}
+
+def USubOverflowOp : BtorBinaryDifferentResultTypeOp<"usubo"> {
+    let summary = "unsigned integer subtraction with overflow flag";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.usubo %lhs, %rhs : i32
+        ```
+    }];  
+}
+
 def MulOp : BtorBinaryOp<"mul", [Commutative]> {
     let summary = "integer multiplication operation";
     let description = [{
@@ -137,6 +199,110 @@ def MulOp : BtorBinaryOp<"mul", [Commutative]> {
         %res = btor.mul %lhs, %rhs : i32
         ```
     }];
+}
+
+def SMulOverflowOp : BtorBinaryDifferentResultTypeOp<"smulo"> {
+    let summary = "signed integer multiplication with overflow flag";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.smulo %lhs, %rhs : i32
+        ```
+    }];  
+}
+
+def UMulOverflowOp : BtorBinaryDifferentResultTypeOp<"umulo"> {
+    let summary = "unsigned integer multiplication with overflow flag";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.umulo %lhs, %rhs : i32
+        ```
+    }];  
+}
+
+def SRemOp : BtorBinaryOp<"srem"> {
+    let summary = "integer signed remainder operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.srem %lhs, %rhs : i32
+        ```
+    }];
+}
+
+def URemOp : BtorBinaryOp<"urem"> {
+    let summary = "integer unsigned remainder operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.urem %lhs, %rhs : i32
+        ```
+    }];
+}
+
+def SDivOp : BtorBinaryOp<"sdiv"> {
+    let summary = "integer signed division operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.sdiv %lhs, %rhs : i32
+        ```
+    }];
+}
+
+def SDivOverflowOp : BtorBinaryDifferentResultTypeOp<"sdivo"> {
+    let summary = "signed integer division with overflow flag";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.sdivo %lhs, %rhs : i32
+        ```
+    }];  
+}
+
+def UDivOp : BtorBinaryOp<"udiv"> {
+    let summary = "integer unsigned division operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.udiv %lhs, %rhs : i32
+        ```
+    }];
+}
+
+def UDivOverflowOp : BtorBinaryDifferentResultTypeOp<"udivo"> {
+    let summary = "unsigned integer division with overflow flag";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.udivo %lhs, %rhs : i32
+        ```
+    }];  
 }
 
 def OrOp : BtorBinaryOp<"or", [Commutative]> {
@@ -277,58 +443,6 @@ def CmpOp : Btor_Op<"cmp", [NoSideEffect, SameTypeOperands,
 
   let assemblyFormat = "$predicate `,` $lhs `,` $rhs attr-dict `:` type($lhs)";
 } 
-
-def SRemOp : BtorBinaryOp<"srem"> {
-    let summary = "integer signed remainder operation";
-    let description = [{
-        This operation takes two integer arguments and returns an integer.
-
-        Example:
-        
-        ```mlir
-        %res = btor.srem %lhs, %rhs : i32
-        ```
-    }];
-}
-
-def URemOp : BtorBinaryOp<"urem"> {
-    let summary = "integer unsigned remainder operation";
-    let description = [{
-        This operation takes two integer arguments and returns an integer.
-
-        Example:
-        
-        ```mlir
-        %res = btor.urem %lhs, %rhs : i32
-        ```
-    }];
-}
-
-def SDivOp : BtorBinaryOp<"sdiv"> {
-    let summary = "integer signed division operation";
-    let description = [{
-        This operation takes two integer arguments and returns an integer.
-
-        Example:
-        
-        ```mlir
-        %res = btor.sdiv %lhs, %rhs : i32
-        ```
-    }];
-}
-
-def UDivOp : BtorBinaryOp<"udiv"> {
-    let summary = "integer unsigned division operation";
-    let description = [{
-        This operation takes two integer arguments and returns an integer.
-
-        Example:
-        
-        ```mlir
-        %res = btor.udiv %lhs, %rhs : i32
-        ```
-    }];
-}
 
 def ShiftLLOp : BtorBinaryOp<"sll"> {
     let summary = "integer left logical shift binary operation";

@@ -130,5 +130,35 @@ OpFoldResult ConstantOp::fold(ArrayRef<Attribute> operands) {
   return getValue();
 }
 
+//===----------------------------------------------------------------------===//
+// Overflow Operations
+//===----------------------------------------------------------------------===//
+
+static ParseResult parseBinaryOverflowOp(OpAsmParser &parser,
+                                  OperationState &result) {  
+  Type operandType, resultType;
+  SmallVector<OpAsmParser::OperandType, 2> operands;
+  if (parser.parseOperandList(operands, /*requiredOperandCount=*/2) ||
+      parser.parseOptionalAttrDict(result.attributes) ||
+      parser.parseColonType(operandType))
+    return failure();
+  
+  result.addTypes(parser.getBuilder().getI1Type());
+  return parser.resolveOperands(operands,
+                                {operandType, operandType},
+                                parser.getNameLoc(), result.operands);
+}
+
+static void printBtorBinaryDifferentResultTypeOp(Operation *op, OpAsmPrinter &p) {
+  assert(op->getNumOperands() == 2 && "binary op should have two operands");
+  assert(op->getNumResults() == 1 && "binary op should have one result");
+
+  p << ' ' << op->getOperand(0) << ", " << op->getOperand(1);
+  p.printOptionalAttrDict(op->getAttrs());
+
+  // Now we can output only one type for all operands and the result.
+  p << " : " << op->getResult(0).getType();
+}
+
 #define GET_OP_CLASSES
 #include "Dialect/Btor/IR/BtorOps.cpp.inc"
