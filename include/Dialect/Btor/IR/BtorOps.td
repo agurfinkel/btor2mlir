@@ -227,6 +227,19 @@ def UMulOverflowOp : BtorBinaryDifferentResultTypeOp<"umulo"> {
     }];  
 }
 
+def SModOp : BtorBinaryOp<"smod"> {
+    let summary = "integer signed modulus operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.smod %lhs, %rhs : i32
+        ```
+    }];
+}
+
 def SRemOp : BtorBinaryOp<"srem"> {
     let summary = "integer signed remainder operation";
     let description = [{
