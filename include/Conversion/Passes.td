@@ -20,4 +20,17 @@ def ConvertBtorToStandard : Pass<"convert-btor-to-std", "ModuleOp"> {
   let dependentDialects = ["StandardOpsDialect"];
 }
 
+//===----------------------------------------------------------------------===//
+// BtorToLLVM
+//===----------------------------------------------------------------------===//
+
+def ConvertBtorToLLVM : Pass<"convert-btor-to-llvm", "ModuleOp"> {
+  let summary = "Convert Btor Dialect to LLVM dialect";
+  let description = [{
+    Convert btor operations into LLVM instructions
+  }];
+  let constructor = "mlir::btor::createLowerToLLVMPass()";
+  let dependentDialects = ["LLVM::LLVMDialect"];
+}
+
 #endif // BTOR_CONVERSION_PASSES

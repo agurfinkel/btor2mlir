@@ -17,9 +17,6 @@ namespace btor {
     /// Creates a pass to convert the Btor dialect into the Standard dialect.
     std::unique_ptr<mlir::Pass> createLowerToStandardPass();
 
-    /// Registers said pass
-    void registerBtorToStandardPass();
-
 } // namespace btor
 } // namespace mlir
 

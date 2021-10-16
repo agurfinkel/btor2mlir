@@ -24,7 +24,7 @@
 
 int main(int argc, char **argv) {
   mlir::registerAllPasses();
-  mlir::btor::registerBtorToStandardPass();
+  mlir::btor::registerBtorConversionPasses();
 
   mlir::DialectRegistry registry;
   registry.insert<mlir::btor::BtorDialect>();

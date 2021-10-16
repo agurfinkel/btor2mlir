@@ -1,1 +1,2 @@
 add_subdirectory(BtorToStandard)
+add_subdirectory(BtorToLLVM)
