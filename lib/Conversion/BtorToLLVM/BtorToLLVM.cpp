@@ -2,7 +2,6 @@
 #include "Dialect/Btor/IR/BtorOps.h"
 
 #include "../PassDetail.h"
-#include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Conversion/LLVMCommon/ConversionTarget.h"
 #include "mlir/Conversion/LLVMCommon/VectorPattern.h"
@@ -35,16 +34,66 @@ using ShiftRAOpLowering = VectorConvertToLLVMPattern<btor::ShiftRAOp, LLVM::AShr
 // Lowering Declarations
 //===----------------------------------------------------------------------===//
 
+struct ConstantOpLowering : public ConvertOpToLLVMPattern<btor::ConstantOp> {
+    using ConvertOpToLLVMPattern<btor::ConstantOp>::ConvertOpToLLVMPattern;
+    LogicalResult matchAndRewrite(btor::ConstantOp op, OpAdaptor adaptor,
+                                ConversionPatternRewriter &rewriter) const override;
+};
+
+struct CmpOpLowering : public ConvertOpToLLVMPattern<btor::CmpOp> {
+    using ConvertOpToLLVMPattern<btor::CmpOp>::ConvertOpToLLVMPattern;
+    LogicalResult matchAndRewrite(btor::CmpOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override;
+};
 
 } // end anonymous namespace
+
+//===----------------------------------------------------------------------===//
+// ConstantOpLowering
+//===----------------------------------------------------------------------===//
+
+LogicalResult ConstantOpLowering::matchAndRewrite(btor::ConstantOp op, OpAdaptor adaptor,
+                                    ConversionPatternRewriter &rewriter) const {
+    return LLVM::detail::oneToOneRewrite(op, LLVM::ConstantOp::getOperationName(),
+                                       adaptor.getOperands(),
+                                       *getTypeConverter(), rewriter);
+}
+
+//===----------------------------------------------------------------------===//
+// CmpIOpLowering
+//===----------------------------------------------------------------------===//
+
+// Convert btor.cmp predicate into the LLVM dialect CmpPredicate. The two enums
+// share numerical values so just cast.
+template <typename LLVMPredType, typename PredType>
+static LLVMPredType convertBtorCmpPredicate(PredType pred) {
+  return static_cast<LLVMPredType>(pred);
+}
+
+LogicalResult CmpOpLowering::matchAndRewrite(btor::CmpOp op, OpAdaptor adaptor,
+                                ConversionPatternRewriter &rewriter) const {
+    auto resultType = op.getResult().getType();
+
+    rewriter.replaceOpWithNewOp<LLVM::ICmpOp>(op, 
+                            typeConverter->convertType(resultType),
+                            convertBtorCmpPredicate<LLVM::ICmpPredicate>(op.getPredicate()),
+                            adaptor.lhs(), adaptor.rhs());
+
+  return success();
+}
 
 //===----------------------------------------------------------------------===//
 // Pass Definition
 //===----------------------------------------------------------------------===//
 
 namespace {
-struct BtorToLLVMLoweringPass : 
-    public PassWrapper<BtorToLLVMLoweringPass, OperationPass<ModuleOp>> {
+
+// struct BtorToLLVMLoweringPass : 
+//     public PassWrapper<BtorToLLVMLoweringPass, OperationPass<ModuleOp>> {
+struct BtorToLLVMLoweringPass
+    : public ConvertBtorToLLVMBase<BtorToLLVMLoweringPass> {
+        
+    BtorToLLVMLoweringPass() = default;
 
     void getDependentDialects(DialectRegistry &registry) const override {
         registry.insert<LLVM::LLVMDialect>();
@@ -96,6 +145,7 @@ void BtorToLLVMLoweringPass::runOnOperation() {
 void mlir::btor::populateBtorToLLVMConversionPatterns(LLVMTypeConverter &converter,
                                          RewritePatternSet &patterns) {
   patterns.add<
+    ConstantOpLowering,
     AddOpLowering,
     SubOpLowering,
     MulOpLowering,
@@ -108,7 +158,8 @@ void mlir::btor::populateBtorToLLVMConversionPatterns(LLVMTypeConverter &convert
     XOrOpLowering,
     ShiftLLOpLowering,
     ShiftRLOpLowering,
-    ShiftRAOpLowering
+    ShiftRAOpLowering,
+    CmpOpLowering
   >(converter);       
 }
 
