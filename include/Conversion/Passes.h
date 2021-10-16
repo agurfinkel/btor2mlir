@@ -2,11 +2,12 @@
 #define BTOR_CONVERSION_PASSES_H
 
 #include "Conversion/BtorToStandard/ConvertBtorToStandardPass.h"
+#include "Conversion/BtorToLLVM/ConvertBtorToLLVMPass.h"
 
 namespace mlir {
 namespace btor {
     /// Generate the code for registering conversion passes.
-    #define BTOR_PASS_REGISTRATION
+    #define GEN_PASS_REGISTRATION
     #include "Conversion/Passes.h.inc"
 } // namespace btor
 } // namespace mlir

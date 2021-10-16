@@ -1,9 +1,9 @@
 #include "Conversion/BtorToStandard/ConvertBtorToStandardPass.h"
 #include "Dialect/Btor/IR/BtorOps.h"
 
+#include "../PassDetail.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/DialectConversion.h"
-#include "mlir/IR/PatternMatch.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 
 using namespace mlir;
@@ -422,7 +422,3 @@ void BtorToStandardLoweringPass::runOnOperation() {
 std::unique_ptr<mlir::Pass> mlir::btor::createLowerToStandardPass() {
     return std::make_unique<BtorToStandardLoweringPass>(); 
 }
-
-void mlir::btor::registerBtorToStandardPass() {
-    PassRegistration<BtorToStandardLoweringPass>();
-} 
