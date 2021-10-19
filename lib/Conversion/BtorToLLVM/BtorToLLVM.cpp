@@ -12,6 +12,31 @@ using namespace mlir;
 
 namespace {
 
+template <typename SourceOp, typename BaseOp>
+class ConvertNotOpToBtorPattern : public ConvertOpToLLVMPattern<SourceOp> {
+    public:
+        using ConvertOpToLLVMPattern<SourceOp>::ConvertOpToLLVMPattern;
+        // using Super = VectorConvertToLLVMPattern<SourceOp, TargetOp>;
+
+        LogicalResult matchAndRewrite(SourceOp op, 
+                    typename SourceOp::Adaptor adaptor,
+                    ConversionPatternRewriter &rewriter) const override {
+            static_assert(
+                std::is_base_of<
+                        OpTrait::OneResult<SourceOp>, SourceOp>::value,
+                        "expected single result op");
+
+            Value baseOp = rewriter.create<BaseOp>(op.getLoc(),
+                                     adaptor.lhs(), adaptor.rhs());
+            rewriter.replaceOpWithNewOp<btor::NotOp>(op, baseOp);
+
+            return success();
+    // return LLVM::detail::vectorOneToOneRewrite(
+    //     op, TargetOp::getOperationName(), adaptor.getOperands(),
+    //     *this->getTypeConverter(), rewriter);
+  }
+};
+
 //===----------------------------------------------------------------------===//
 // Straightforward Op Lowerings
 //===----------------------------------------------------------------------===//
@@ -44,6 +69,9 @@ using UMulOverflowOpLowering =
 // using SDivOverflowOpLowering = 
 //       VectorConvertToLLVMPattern<btor::SDivOverflowOp, LLVM::SDivWithOverflowOp>;
 using IteOpLowering = VectorConvertToLLVMPattern<btor::IteOp, LLVM::SelectOp>;
+using XnorOpLowering = ConvertNotOpToBtorPattern<btor::XnorOp, btor::XOrOp>;
+using NandOpLowering = ConvertNotOpToBtorPattern<btor::NandOp, btor::AndOp>;
+using NorOpLowering = ConvertNotOpToBtorPattern<btor::NorOp, btor::OrOp>;
 
 //===----------------------------------------------------------------------===//
 // Lowering Declarations
@@ -95,8 +123,8 @@ struct RotateROpLowering : public ConvertOpToLLVMPattern<btor::RotateROp> {
     using ConvertOpToLLVMPattern<btor::RotateROp>::ConvertOpToLLVMPattern;
     LogicalResult matchAndRewrite(btor::RotateROp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override;
-};
 
+};
 } // end anonymous namespace
 
 //===----------------------------------------------------------------------===//
@@ -305,8 +333,8 @@ void BtorToLLVMLoweringPass::runOnOperation() {
     /// binary operators
     // logical 
     target.addIllegalOp<btor::IffOp, btor::ImpliesOp, btor::CmpOp>(); // done
-    target.addIllegalOp<btor::AndOp, btor::NandOp, btor::NorOp, btor::OrOp>(); // and, or
-    target.addIllegalOp<btor::XnorOp, btor::XOrOp, btor::RotateLOp, btor::RotateROp>(); // xor, ror, rol
+    target.addIllegalOp<btor::AndOp, btor::NandOp, btor::NorOp, btor::OrOp>(); // done
+    target.addIllegalOp<btor::XnorOp, btor::XOrOp, btor::RotateLOp, btor::RotateROp>(); // done
     target.addIllegalOp<btor::ShiftLLOp, btor::ShiftRAOp, btor::ShiftRLOp>(); // done
     // arithmetic
     target.addIllegalOp<btor::AddOp, btor::MulOp, btor::SDivOp, btor::UDivOp>(); // done
@@ -357,7 +385,10 @@ void mlir::btor::populateBtorToLLVMConversionPatterns(LLVMTypeConverter &convert
     BadOpLowering,
     IteOpLowering,
     IffOpLowering,
-    ImpliesOpLowering
+    ImpliesOpLowering,
+    XnorOpLowering,
+    NandOpLowering,
+    NorOpLowering
   >(converter);       
 }
 
