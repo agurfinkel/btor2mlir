@@ -10,6 +10,7 @@
 #include "Dialect/Btor/IR/BtorOps.h"
 #include "mlir/IR/OpImplementation.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/TypeUtilities.h"
 
 using namespace mlir;
 using namespace mlir::btor;
@@ -158,6 +159,22 @@ static void printBtorBinaryDifferentResultTypeOp(Operation *op, OpAsmPrinter &p)
 
   // Now we can output only one type for all operands and the result.
   p << " : " << op->getResult(0).getType();
+}
+
+//===----------------------------------------------------------------------===//
+// Extension Operations
+//===----------------------------------------------------------------------===//
+
+template <typename ValType, typename Op>
+static LogicalResult verifyExtOp(Op op) {
+  Type srcType = getElementTypeOrSelf(op.in().getType());
+  Type dstType = getElementTypeOrSelf(op.getType());
+
+  if (srcType.cast<ValType>().getWidth() >= dstType.cast<ValType>().getWidth())
+    return op.emitError("result type ")
+           << dstType << " must be wider than operand type " << srcType;
+
+  return success();
 }
 
 #define GET_OP_CLASSES
