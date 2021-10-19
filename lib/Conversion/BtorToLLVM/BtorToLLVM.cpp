@@ -5,6 +5,7 @@
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Conversion/LLVMCommon/ConversionTarget.h"
 #include "mlir/Conversion/LLVMCommon/VectorPattern.h"
+#include "mlir/IR/TypeRange.h"
 
 using namespace mlir;
 
@@ -373,6 +374,21 @@ LogicalResult NegOpLowering::matchAndRewrite(mlir::btor::NegOp negOp, OpAdaptor 
 
 LogicalResult SliceOpLowering::matchAndRewrite(mlir::btor::SliceOp sliceOp, OpAdaptor adaptor,
                                     ConversionPatternRewriter &rewriter) const {
+    // The idea here is to shift right until the bit indexed by the upperbound is 
+    // the last bit on the right. Then we truncate to the type needed
+    auto loc = sliceOp.getLoc();
+    Value input = adaptor.in(); 
+    Type opType = input.getType(); 
+
+    int inputWidth = opType.getIntOrFloatBitWidth();
+    Value widthVal = rewriter.create<LLVM::ConstantOp>(loc, opType, 
+                            rewriter.getIntegerAttr(opType, inputWidth));
+    Value shiftRightBy = rewriter.create<LLVM::SubOp>(loc, widthVal, adaptor.upper_bound());
+
+    Value valToTruncate = rewriter.create<LLVM::LShrOp>(sliceOp.getLoc(), input, shiftRightBy);
+    rewriter.replaceOpWithNewOp<LLVM::TruncOp>(sliceOp, 
+                                            TypeRange({sliceOp.result.getType()}), 
+                                            valToTruncate);
     return success();
 }
 
@@ -406,7 +422,7 @@ void BtorToLLVMLoweringPass::runOnOperation() {
 
     /// Configure conversion to lower out btor; Anything else is fine.
     // indexed operators
-    target.addIllegalOp<btor::UExtOp, btor::SExtOp>();
+    target.addIllegalOp<btor::UExtOp, btor::SExtOp, btor::SliceOp>();
 
     /// unary operators
     target.addIllegalOp<btor::NotOp, btor::IncOp, btor::DecOp, btor::NegOp>();
@@ -479,7 +495,8 @@ void mlir::btor::populateBtorToLLVMConversionPatterns(LLVMTypeConverter &convert
     RedAndOpLowering,
     RedXorOpLowering,
     UExtOpLowering,
-    SExtOpLowering
+    SExtOpLowering,
+    SliceOpLowering
   >(converter);       
 }
 
