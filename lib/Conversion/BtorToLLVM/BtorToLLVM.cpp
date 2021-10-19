@@ -123,8 +123,26 @@ struct RotateROpLowering : public ConvertOpToLLVMPattern<btor::RotateROp> {
     using ConvertOpToLLVMPattern<btor::RotateROp>::ConvertOpToLLVMPattern;
     LogicalResult matchAndRewrite(btor::RotateROp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override;
-
 };
+
+struct IncOpLowering : public ConvertOpToLLVMPattern<btor::IncOp> {
+    using ConvertOpToLLVMPattern<btor::IncOp>::ConvertOpToLLVMPattern;
+    LogicalResult matchAndRewrite(btor::IncOp op, OpAdaptor adaptor,
+                                ConversionPatternRewriter &rewriter) const override;
+};
+
+struct DecOpLowering : public ConvertOpToLLVMPattern<btor::DecOp> {
+    using ConvertOpToLLVMPattern<btor::DecOp>::ConvertOpToLLVMPattern;
+    LogicalResult matchAndRewrite(btor::DecOp op, OpAdaptor adaptor,
+                                ConversionPatternRewriter &rewriter) const override;
+};
+
+struct NegOpLowering : public ConvertOpToLLVMPattern<btor::NegOp> {
+    using ConvertOpToLLVMPattern<btor::NegOp>::ConvertOpToLLVMPattern;
+    LogicalResult matchAndRewrite(btor::NegOp op, OpAdaptor adaptor,
+                                ConversionPatternRewriter &rewriter) const override;
+};
+
 } // end anonymous namespace
 
 //===----------------------------------------------------------------------===//
@@ -273,6 +291,10 @@ LogicalResult RotateLOpLowering::matchAndRewrite(btor::RotateLOp rolOp, OpAdapto
     return success();
 }
 
+//===----------------------------------------------------------------------===//
+// RotateROpLowering
+//===----------------------------------------------------------------------===//
+
 LogicalResult RotateROpLowering::matchAndRewrite(btor::RotateROp rorOp, OpAdaptor adaptor,
                                     ConversionPatternRewriter &rewriter) const {
     // We convert using the following paradigm: given lhs, rhs, width
@@ -292,6 +314,48 @@ LogicalResult RotateROpLowering::matchAndRewrite(btor::RotateROp rorOp, OpAdapto
     Value rightValue = rewriter.create<LLVM::ShlOp>(loc, lhs, shiftLeftBy);
 
     rewriter.replaceOpWithNewOp<LLVM::OrOp>(rorOp, leftValue, rightValue);
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
+// IncOpLowering
+//===----------------------------------------------------------------------===//
+
+LogicalResult IncOpLowering::matchAndRewrite(mlir::btor::IncOp incOp, OpAdaptor adaptor,
+                                    ConversionPatternRewriter &rewriter) const {
+    Value operand = adaptor.operand(); 
+    Type opType = operand.getType(); 
+
+    Value oneConst = rewriter.create<LLVM::ConstantOp>(incOp.getLoc(), opType, rewriter.getIntegerAttr(opType, 1));
+    rewriter.replaceOpWithNewOp<LLVM::AddOp>(incOp, operand, oneConst);
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
+// DecOpLowering
+//===----------------------------------------------------------------------===//
+
+LogicalResult DecOpLowering::matchAndRewrite(mlir::btor::DecOp decOp, OpAdaptor adaptor,
+                                    ConversionPatternRewriter &rewriter) const {
+    Value operand = adaptor.operand(); 
+    Type opType = operand.getType(); 
+
+    Value oneConst = rewriter.create<LLVM::ConstantOp>(decOp.getLoc(), opType, rewriter.getIntegerAttr(opType, 1));
+    rewriter.replaceOpWithNewOp<LLVM::SubOp>(decOp, operand, oneConst);
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
+// NegOpLowering
+//===----------------------------------------------------------------------===//
+
+LogicalResult NegOpLowering::matchAndRewrite(mlir::btor::NegOp negOp, OpAdaptor adaptor,
+                                    ConversionPatternRewriter &rewriter) const {
+    Value operand = adaptor.operand(); 
+    Type opType = operand.getType(); 
+
+    Value zeroConst = rewriter.create<LLVM::ConstantOp>(negOp.getLoc(), opType, rewriter.getIntegerAttr(opType, 0));
+    rewriter.replaceOpWithNewOp<LLVM::SubOp>(negOp, zeroConst, operand);
     return success();
 }
 
@@ -388,7 +452,10 @@ void mlir::btor::populateBtorToLLVMConversionPatterns(LLVMTypeConverter &convert
     ImpliesOpLowering,
     XnorOpLowering,
     NandOpLowering,
-    NorOpLowering
+    NorOpLowering,
+    IncOpLowering,
+    DecOpLowering,
+    NegOpLowering
   >(converter);       
 }
 
