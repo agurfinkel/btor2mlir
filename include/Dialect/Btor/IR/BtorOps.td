@@ -128,6 +128,45 @@ def IteOp : Btor_Op<"ite", [NoSideEffect,
   }];
 }
 
+def SliceOp : Btor_Op<"slice", [NoSideEffect,
+    AllTypesMatch<["in", "upper_bound", "lower_bound"]>]
+    #ElementwiseMappable.traits> {
+    
+    let summary = "integer slice operation";
+    let description = [{
+        This operation takes an input of size N and two integer 
+        arguments, U and L, and returns an integer of size:
+                U - L + 1, where L <= U < N.
+
+        Example:
+        
+        ```mlir
+        %res = btor.slice %in, %upper, %lower : iN, i(upper-lower+1)
+        ```
+    }];
+
+  let arguments = (ins SignlessIntegerLike:$in,
+                      SignlessIntegerLike:$upper_bound,
+                      SignlessIntegerLike:$lower_bound);
+  let results = (outs AnyType:$result);
+
+  let builders = [
+    OpBuilder<(ins "Value":$in, 
+                   "Value":$upper_bound, 
+                   "Value":$lower_bound),
+     [{
+       $_state.addOperands({in, upper_bound, lower_bound});
+       //$_state.addTypes(trueValue.getType());
+      }]>
+    ];
+
+  let parser = [{
+    return parseSliceOp(parser, result);
+  }];
+
+  let verifier = [{ return verifySliceOp<IntegerType>(*this); }];
+}
+
 //===----------------------------------------------------------------------===//
 // btor binary integer ops definitions
 //===----------------------------------------------------------------------===//

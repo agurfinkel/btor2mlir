@@ -145,6 +145,12 @@ struct NegOpLowering : public ConvertOpToLLVMPattern<btor::NegOp> {
                                 ConversionPatternRewriter &rewriter) const override;
 };
 
+struct SliceOpLowering : public ConvertOpToLLVMPattern<btor::SliceOp> {
+    using ConvertOpToLLVMPattern<btor::SliceOp>::ConvertOpToLLVMPattern;
+    LogicalResult matchAndRewrite(btor::SliceOp op, OpAdaptor adaptor,
+                                ConversionPatternRewriter &rewriter) const override;
+};
+
 } // end anonymous namespace
 
 //===----------------------------------------------------------------------===//
@@ -358,6 +364,15 @@ LogicalResult NegOpLowering::matchAndRewrite(mlir::btor::NegOp negOp, OpAdaptor 
 
     Value zeroConst = rewriter.create<LLVM::ConstantOp>(negOp.getLoc(), opType, rewriter.getIntegerAttr(opType, 0));
     rewriter.replaceOpWithNewOp<LLVM::SubOp>(negOp, zeroConst, operand);
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
+// SliceOpLowering
+//===----------------------------------------------------------------------===//
+
+LogicalResult SliceOpLowering::matchAndRewrite(mlir::btor::SliceOp sliceOp, OpAdaptor adaptor,
+                                    ConversionPatternRewriter &rewriter) const {
     return success();
 }
 
