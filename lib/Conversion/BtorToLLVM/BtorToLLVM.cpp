@@ -71,6 +71,9 @@ using UMulOverflowOpLowering =
 using UExtOpLowering = VectorConvertToLLVMPattern<btor::UExtOp, LLVM::ZExtOp>;
 using SExtOpLowering = VectorConvertToLLVMPattern<btor::SExtOp, LLVM::SExtOp>;
 using IteOpLowering = VectorConvertToLLVMPattern<btor::IteOp, LLVM::SelectOp>;
+using RedOrOpLowering = VectorConvertToLLVMPattern<btor::RedOrOp, LLVM::vector_reduce_or>;
+using RedXorOpLowering = VectorConvertToLLVMPattern<btor::RedXorOp, LLVM::vector_reduce_xor>;
+using RedAndOpLowering = VectorConvertToLLVMPattern<btor::RedAndOp, LLVM::vector_reduce_and>;
 using XnorOpLowering = ConvertNotOpToBtorPattern<btor::XnorOp, btor::XOrOp>;
 using NandOpLowering = ConvertNotOpToBtorPattern<btor::NandOp, btor::AndOp>;
 using NorOpLowering = ConvertNotOpToBtorPattern<btor::NorOp, btor::OrOp>;
@@ -395,6 +398,7 @@ void BtorToLLVMLoweringPass::runOnOperation() {
 
     /// unary operators
     target.addIllegalOp<btor::NotOp, btor::IncOp, btor::DecOp, btor::NegOp>();
+    target.addIllegalOp<btor::RedAndOp, btor::RedXorOp, btor::RedOrOp>();
     target.addIllegalOp<btor::BadOp, btor::ConstantOp>();
 
     /// binary operators
@@ -459,6 +463,9 @@ void mlir::btor::populateBtorToLLVMConversionPatterns(LLVMTypeConverter &convert
     IncOpLowering,
     DecOpLowering,
     NegOpLowering,
+    RedOrOpLowering,
+    RedAndOpLowering,
+    RedXorOpLowering,
     UExtOpLowering,
     SExtOpLowering
   >(converter);       

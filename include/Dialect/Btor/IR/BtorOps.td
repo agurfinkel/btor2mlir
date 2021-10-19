@@ -624,7 +624,7 @@ class BtorUnaryOp<string mnemonic, list<OpTrait> traits = []> :
   }];
 
   let parser = [{
-    return impl::parseOneResultSameOperandTypeOp(parser, result);
+    return parseUnaryOp(parser, result);
   }];
 }
 
@@ -711,6 +711,46 @@ def RedAndOp : BtorUnaryOp<"redand"> {
     %a = btor.redand %b : i32
     ```
   }];
+
+  let results = (outs BoolLike);
+}
+
+def RedOrOp : BtorUnaryOp<"redor"> {
+  let summary = "integer reduction with or operator";
+  let description = [{
+    Syntax:
+
+    This operation computes the or reduction of a given value. It takes one
+    operand and returns one result of type i1. 
+
+    Example:
+
+    ```mlir
+    // Scalar redand value.
+    %a = btor.redand %b : i32
+    ```
+  }];
+
+  let results = (outs BoolLike);
+}
+
+def RedXorOp : BtorUnaryOp<"redxor"> {
+  let summary = "integer reduction with and operator";
+  let description = [{
+    Syntax:
+
+    This operation computes the xor reduction of a given value. It takes one
+    operand and returns one result of type i1. 
+
+    Example:
+
+    ```mlir
+    // Scalar redand value.
+    %a = btor.redand %b : i32
+    ```
+  }];
+
+  let results = (outs BoolLike);
 }
 
 def BadOp : Btor_Op<"bad"> {
