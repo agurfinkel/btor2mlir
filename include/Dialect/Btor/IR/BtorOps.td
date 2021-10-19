@@ -13,6 +13,74 @@ include "BtorDialect.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
 //===----------------------------------------------------------------------===//
+// btor integer bit cast ops definitions
+//===----------------------------------------------------------------------===//
+
+// Base class for Btor Cast operations Requires a single operand and result. 
+class Btor_CastOp<string mnemonic, TypeConstraint From, TypeConstraint To,
+                   list<OpTrait> traits = []> :
+    Btor_Op<mnemonic, traits # [SameOperandsAndResultShape]>,
+    Arguments<(ins From:$in)>,
+    Results<(outs To:$out)> {
+  let builders = [
+    OpBuilder<(ins "Value":$source, "Type":$destType), [{
+      impl::buildCastOp($_builder, $_state, source, destType);
+    }]>
+  ];
+
+  let assemblyFormat = "$in attr-dict `:` type($in) `to` type($out)";
+}
+
+def SignlessFixedWidthIntegerLike : TypeConstraint<Or<[
+        AnySignlessInteger.predicate,
+        VectorOf<[AnySignlessInteger]>.predicate,
+        TensorOf<[AnySignlessInteger]>.predicate]>,
+    "signless-fixed-width-integer-like">;
+
+// Cast from an integer type to another integer type.
+class BtorCastOp<string mnemonic, list<OpTrait> traits = []> :
+    Btor_CastOp<mnemonic, SignlessFixedWidthIntegerLike,
+                          SignlessFixedWidthIntegerLike>;
+
+
+def UExtOp : BtorCastOp<"uext"> {
+  let summary = "integer zero extension operation";
+  let description = [{
+    The integer zero extension operation takes an integer input of
+    width M and an integer destination type of width N. The destination
+    bit-width must be larger than the input bit-width (N > M).
+    The top-most (N - M) bits of the output are filled with zeros.
+
+    Example:
+
+    ```mlir
+      %2 = btor.uext %1 : i3 to i6
+    ```
+  }];
+
+  let verifier = [{ return verifyExtOp<IntegerType>(*this); }];
+}
+
+def SExtOp : BtorCastOp<"sext"> {
+  let summary = "integer zero extension operation";
+  let description = [{
+    The integer zero extension operation takes an integer input of
+    width M and an integer destination type of width N. The destination
+    bit-width must be larger than the input bit-width (N > M).
+    The top-most (N - M) bits of the output are filled with
+    copies of the most-significant bit of the input.
+
+    Example:
+
+    ```mlir
+      %2 = btor.sext %1 : i3 to i6
+    ```
+  }];
+
+  let verifier = [{ return verifyExtOp<IntegerType>(*this); }];
+}
+
+//===----------------------------------------------------------------------===//
 // btor ternary integer ops definitions
 //===----------------------------------------------------------------------===//
 

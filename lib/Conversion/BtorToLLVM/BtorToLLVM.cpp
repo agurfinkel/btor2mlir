@@ -68,6 +68,8 @@ using UMulOverflowOpLowering =
       VectorConvertToLLVMPattern<btor::UMulOverflowOp, LLVM::UMulWithOverflowOp>;
 // using SDivOverflowOpLowering = 
 //       VectorConvertToLLVMPattern<btor::SDivOverflowOp, LLVM::SDivWithOverflowOp>;
+using UExtOpLowering = VectorConvertToLLVMPattern<btor::UExtOp, LLVM::ZExtOp>;
+using SExtOpLowering = VectorConvertToLLVMPattern<btor::SExtOp, LLVM::SExtOp>;
 using IteOpLowering = VectorConvertToLLVMPattern<btor::IteOp, LLVM::SelectOp>;
 using XnorOpLowering = ConvertNotOpToBtorPattern<btor::XnorOp, btor::XOrOp>;
 using NandOpLowering = ConvertNotOpToBtorPattern<btor::NandOp, btor::AndOp>;
@@ -389,26 +391,27 @@ void BtorToLLVMLoweringPass::runOnOperation() {
 
     /// Configure conversion to lower out btor; Anything else is fine.
     // indexed operators
+    target.addIllegalOp<btor::UExtOp, btor::SExtOp>();
 
     /// unary operators
-    target.addIllegalOp<btor::NotOp, btor::IncOp, btor::DecOp, btor::NegOp>(); // not 
-    target.addIllegalOp<btor::BadOp, btor::ConstantOp>(); // done
+    target.addIllegalOp<btor::NotOp, btor::IncOp, btor::DecOp, btor::NegOp>();
+    target.addIllegalOp<btor::BadOp, btor::ConstantOp>();
 
     /// binary operators
     // logical 
-    target.addIllegalOp<btor::IffOp, btor::ImpliesOp, btor::CmpOp>(); // done
-    target.addIllegalOp<btor::AndOp, btor::NandOp, btor::NorOp, btor::OrOp>(); // done
-    target.addIllegalOp<btor::XnorOp, btor::XOrOp, btor::RotateLOp, btor::RotateROp>(); // done
-    target.addIllegalOp<btor::ShiftLLOp, btor::ShiftRAOp, btor::ShiftRLOp>(); // done
+    target.addIllegalOp<btor::IffOp, btor::ImpliesOp, btor::CmpOp>();
+    target.addIllegalOp<btor::AndOp, btor::NandOp, btor::NorOp, btor::OrOp>();
+    target.addIllegalOp<btor::XnorOp, btor::XOrOp, btor::RotateLOp, btor::RotateROp>();
+    target.addIllegalOp<btor::ShiftLLOp, btor::ShiftRAOp, btor::ShiftRLOp>();
     // arithmetic
-    target.addIllegalOp<btor::AddOp, btor::MulOp, btor::SDivOp, btor::UDivOp>(); // done
+    target.addIllegalOp<btor::AddOp, btor::MulOp, btor::SDivOp, btor::UDivOp>();
     target.addIllegalOp<btor::SModOp, btor::SRemOp, btor::URemOp, btor::SubOp>(); // srem, urem, sub
     target.addIllegalOp<btor::SAddOverflowOp, btor::UAddOverflowOp, btor::SDivOverflowOp>(); // saddo, uaddo
-    target.addIllegalOp<btor::SMulOverflowOp, btor::UMulOverflowOp>(); // done
-    target.addIllegalOp<btor::SSubOverflowOp, btor::USubOverflowOp>(); // done
+    target.addIllegalOp<btor::SMulOverflowOp, btor::UMulOverflowOp>();
+    target.addIllegalOp<btor::SSubOverflowOp, btor::USubOverflowOp>();
 
     /// ternary operators
-    target.addIllegalOp<btor::IteOp>(); // ite
+    target.addIllegalOp<btor::IteOp>();
 
     if (failed(applyPartialConversion(getOperation(), target, std::move(patterns)))) {
         signalPassFailure();
@@ -455,7 +458,9 @@ void mlir::btor::populateBtorToLLVMConversionPatterns(LLVMTypeConverter &convert
     NorOpLowering,
     IncOpLowering,
     DecOpLowering,
-    NegOpLowering
+    NegOpLowering,
+    UExtOpLowering,
+    SExtOpLowering
   >(converter);       
 }
 
