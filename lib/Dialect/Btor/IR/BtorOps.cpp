@@ -26,6 +26,19 @@ static void printBtorUnaryOp(Operation *op, OpAsmPrinter &p) {
   p << " : " << op->getOperand(0).getType();
 }
 
+static ParseResult parseUnaryOp(OpAsmParser &parser, OperationState &result) {  
+  Type operandType, resultType;
+  SmallVector<OpAsmParser::OperandType, 1> operands;
+  if (parser.parseOperandList(operands, /*requiredOperandCount=*/1) ||
+      parser.parseOptionalAttrDict(result.attributes) ||
+      parser.parseColonType(operandType))
+    return failure();
+  
+  result.addTypes(parser.getBuilder().getI1Type());
+  return parser.resolveOperands(operands, {operandType},
+                                parser.getNameLoc(), result.operands);
+}
+
 /// A custom binary operation printer that omits the "btor." prefix from the
 /// operation names.
 static void printBtorBinaryOp(Operation *op, OpAsmPrinter &p) {
