@@ -222,5 +222,41 @@ static LogicalResult verifyExtOp(Op op) {
   return success();
 }
 
+//===----------------------------------------------------------------------===//
+// ConcatOp
+//===----------------------------------------------------------------------===//
+
+static ParseResult parseConcatOp(OpAsmParser &parser, OperationState &result) {
+  
+  Type resultType, firstOperandType, secondOperandType;
+  SmallVector<OpAsmParser::OperandType, 1> operands;
+  if (parser.parseOperandList(operands, /*requiredOperandCount=*/2) ||
+      parser.parseOptionalAttrDict(result.attributes) || parser.parseColon() ||
+      parser.parseType(firstOperandType) || parser.parseOptionalComma() || 
+      parser.parseType(secondOperandType) || parser.parseOptionalComma() || 
+      parser.parseType(resultType))
+    return failure();
+
+  result.addTypes(resultType);
+  return parser.resolveOperands(operands,
+                                {firstOperandType, secondOperandType},
+                                parser.getNameLoc(), result.operands);
+}
+
+template <typename ValType, typename Op>
+static LogicalResult verifyConcatOp(Op op) {
+  Type firstType = getElementTypeOrSelf(op.lhs().getType());
+  Type secondType = getElementTypeOrSelf(op.rhs().getType());
+  Type dstType = getElementTypeOrSelf(op.getType());
+
+  auto sumOfTypes = firstType.cast<ValType>().getWidth() + 
+              secondType.cast<ValType>().getWidth();
+  if ( sumOfTypes != dstType.cast<ValType>().getWidth())
+    return op.emitError("sum of ") << firstType << " and "
+         << secondType << " must be equal to operand type " << dstType;
+
+  return success();
+}
+
 #define GET_OP_CLASSES
 #include "Dialect/Btor/IR/BtorOps.cpp.inc"
