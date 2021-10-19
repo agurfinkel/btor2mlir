@@ -85,6 +85,18 @@ struct ImpliesOpLowering : public ConvertOpToLLVMPattern<btor::ImpliesOp> {
                   ConversionPatternRewriter &rewriter) const override;
 };
 
+struct RotateLOpLowering : public ConvertOpToLLVMPattern<btor::RotateLOp> {
+    using ConvertOpToLLVMPattern<btor::RotateLOp>::ConvertOpToLLVMPattern;
+    LogicalResult matchAndRewrite(btor::RotateLOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override;
+};
+
+struct RotateROpLowering : public ConvertOpToLLVMPattern<btor::RotateROp> {
+    using ConvertOpToLLVMPattern<btor::RotateROp>::ConvertOpToLLVMPattern;
+    LogicalResult matchAndRewrite(btor::RotateROp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override;
+};
+
 } // end anonymous namespace
 
 //===----------------------------------------------------------------------===//
@@ -208,6 +220,54 @@ LogicalResult ImpliesOpLowering::matchAndRewrite(btor::ImpliesOp impOp, OpAdapto
 }
 
 //===----------------------------------------------------------------------===//
+// RotateLOpLowering
+//===----------------------------------------------------------------------===//
+
+LogicalResult RotateLOpLowering::matchAndRewrite(btor::RotateLOp rolOp, OpAdaptor adaptor,
+                                    ConversionPatternRewriter &rewriter) const {
+    // We convert using the following paradigm: given lhs, rhs, width
+    // shiftBy = rhs % width
+    // (lhs << shiftBy) or (lhs >> (width - shiftBy))   
+    auto loc = rolOp.getLoc();
+    Value lhs = adaptor.lhs();
+    Value rhs = adaptor.rhs();
+    Type opType = lhs.getType(); 
+
+    int width = opType.getIntOrFloatBitWidth();
+    Value widthVal = rewriter.create<LLVM::ConstantOp>(loc, opType, rewriter.getIntegerAttr(opType, width));
+    Value shiftBy = rewriter.create<LLVM::URemOp>(loc, rhs, widthVal);
+    Value shiftRightBy = rewriter.create<LLVM::SubOp>(loc, widthVal, shiftBy);
+
+    Value leftValue = rewriter.create<LLVM::ShlOp>(loc, lhs, shiftBy);
+    Value rightValue = rewriter.create<LLVM::LShrOp>(loc, lhs, shiftRightBy);
+
+    rewriter.replaceOpWithNewOp<LLVM::OrOp>(rolOp, leftValue, rightValue);
+    return success();
+}
+
+LogicalResult RotateROpLowering::matchAndRewrite(btor::RotateROp rorOp, OpAdaptor adaptor,
+                                    ConversionPatternRewriter &rewriter) const {
+    // We convert using the following paradigm: given lhs, rhs, width
+    // shiftBy = rhs % width
+    // (lhs >> shiftBy) or (lhs << (width - shiftBy))   
+    Location loc = rorOp.getLoc();
+    Value lhs = adaptor.lhs();
+    Value rhs = adaptor.rhs();
+    Type opType = lhs.getType(); 
+
+    int width = opType.getIntOrFloatBitWidth();
+    Value widthVal = rewriter.create<LLVM::ConstantOp>(loc, opType, rewriter.getIntegerAttr(opType, width));
+    Value shiftBy = rewriter.create<LLVM::URemOp>(loc, rhs, widthVal);
+    Value shiftLeftBy = rewriter.create<LLVM::SubOp>(loc, widthVal, shiftBy);
+
+    Value leftValue = rewriter.create<LLVM::LShrOp>(loc, lhs, shiftBy);
+    Value rightValue = rewriter.create<LLVM::ShlOp>(loc, lhs, shiftLeftBy);
+
+    rewriter.replaceOpWithNewOp<LLVM::OrOp>(rorOp, leftValue, rightValue);
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
 // Pass Definition
 //===----------------------------------------------------------------------===//
 
@@ -246,7 +306,7 @@ void BtorToLLVMLoweringPass::runOnOperation() {
     // logical 
     target.addIllegalOp<btor::IffOp, btor::ImpliesOp, btor::CmpOp>(); // done
     target.addIllegalOp<btor::AndOp, btor::NandOp, btor::NorOp, btor::OrOp>(); // and, or
-    target.addIllegalOp<btor::XnorOp, btor::XOrOp, btor::RotateLOp, btor::RotateROp>(); // xor
+    target.addIllegalOp<btor::XnorOp, btor::XOrOp, btor::RotateLOp, btor::RotateROp>(); // xor, ror, rol
     target.addIllegalOp<btor::ShiftLLOp, btor::ShiftRAOp, btor::ShiftRLOp>(); // done
     // arithmetic
     target.addIllegalOp<btor::AddOp, btor::MulOp, btor::SDivOp, btor::UDivOp>(); // done
@@ -284,6 +344,8 @@ void mlir::btor::populateBtorToLLVMConversionPatterns(LLVMTypeConverter &convert
     ShiftLLOpLowering,
     ShiftRLOpLowering,
     ShiftRAOpLowering,
+    RotateLOpLowering,
+    RotateROpLowering,
     CmpOpLowering,
     SAddOverflowOpLowering,
     UAddOverflowOpLowering,
