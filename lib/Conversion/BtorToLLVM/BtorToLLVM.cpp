@@ -152,6 +152,12 @@ struct SliceOpLowering : public ConvertOpToLLVMPattern<btor::SliceOp> {
                                 ConversionPatternRewriter &rewriter) const override;
 };
 
+struct ConcatOpLowering : public ConvertOpToLLVMPattern<btor::ConcatOp> {
+    using ConvertOpToLLVMPattern<btor::ConcatOp>::ConvertOpToLLVMPattern;
+    LogicalResult matchAndRewrite(btor::ConcatOp op, OpAdaptor adaptor,
+                                ConversionPatternRewriter &rewriter) const override;
+};
+
 } // end anonymous namespace
 
 //===----------------------------------------------------------------------===//
@@ -387,8 +393,35 @@ LogicalResult SliceOpLowering::matchAndRewrite(mlir::btor::SliceOp sliceOp, OpAd
 
     Value valToTruncate = rewriter.create<LLVM::LShrOp>(sliceOp.getLoc(), input, shiftRightBy);
     rewriter.replaceOpWithNewOp<LLVM::TruncOp>(sliceOp, 
-                                            TypeRange({sliceOp.result.getType()}), 
+                                            TypeRange({sliceOp.result().getType()}), 
                                             valToTruncate);
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
+// ConcatOpLowering
+//===----------------------------------------------------------------------===//
+
+LogicalResult ConcatOpLowering::matchAndRewrite(mlir::btor::ConcatOp concatOp, OpAdaptor adaptor,
+                                    ConversionPatternRewriter &rewriter) const {
+
+    auto loc = concatOp.getLoc();
+    Value lhs = adaptor.lhs(); 
+    Value rhs = adaptor.rhs(); 
+
+
+    int lhsWidth = lhs.getType().getIntOrFloatBitWidth();
+    int rhsWidth = rhs.getType().getIntOrFloatBitWidth();
+    auto resultWidthType = rewriter.getIntegerType(lhsWidth + rhsWidth);
+    Value resultWidthVal = rewriter.create<LLVM::ConstantOp>(loc, resultWidthType, 
+                            rewriter.getIntegerAttr(resultWidthType, lhsWidth + rhsWidth));
+    Value rhsWidthVal = rewriter.create<LLVM::ConstantOp>(loc, resultWidthType, 
+                            rewriter.getIntegerAttr(resultWidthType, rhsWidth));
+
+    Value lhsZeroExtend = rewriter.create<LLVM::ZExtOp>(loc, resultWidthVal.getType(), lhs);
+    Value lhsShiftLeft = rewriter.create<LLVM::ShlOp>(loc, lhsZeroExtend, rhsWidthVal);
+    Value rhsZeroExtend = rewriter.create<LLVM::ZExtOp>(loc, resultWidthVal.getType(), rhs);
+    rewriter.replaceOpWithNewOp<LLVM::OrOp>(concatOp, lhsShiftLeft, rhsZeroExtend);
     return success();
 }
 
@@ -434,7 +467,7 @@ void BtorToLLVMLoweringPass::runOnOperation() {
     target.addIllegalOp<btor::IffOp, btor::ImpliesOp, btor::CmpOp>();
     target.addIllegalOp<btor::AndOp, btor::NandOp, btor::NorOp, btor::OrOp>();
     target.addIllegalOp<btor::XnorOp, btor::XOrOp, btor::RotateLOp, btor::RotateROp>();
-    target.addIllegalOp<btor::ShiftLLOp, btor::ShiftRAOp, btor::ShiftRLOp>();
+    target.addIllegalOp<btor::ShiftLLOp, btor::ShiftRAOp, btor::ShiftRLOp, btor::ConcatOp>();
     // arithmetic
     target.addIllegalOp<btor::AddOp, btor::MulOp, btor::SDivOp, btor::UDivOp>();
     target.addIllegalOp<btor::SModOp, btor::SRemOp, btor::URemOp, btor::SubOp>(); // srem, urem, sub
@@ -496,7 +529,8 @@ void mlir::btor::populateBtorToLLVMConversionPatterns(LLVMTypeConverter &convert
     RedXorOpLowering,
     UExtOpLowering,
     SExtOpLowering,
-    SliceOpLowering
+    SliceOpLowering,
+    ConcatOpLowering
   >(converter);       
 }
 

@@ -646,6 +646,30 @@ def RotateROp : BtorBinaryOp<"ror"> {
     }];
 }
 
+def ConcatOp : Btor_Op<"concat"> {
+    let summary = "integer concatenation operation";
+    let description = [{
+        This operation takes two integer arguments of length N and M
+        and eturns an integer of length N+M
+
+        Example:
+        
+        ```mlir
+        %res = btor.concat %lhs, %rhs : i3, i2, i5
+        ```
+    }];  
+
+    let arguments = (ins SignlessIntegerLike:$lhs,
+                      SignlessIntegerLike:$rhs);
+    let results = (outs SignlessIntegerLike:$result);
+
+    let parser = [{
+      return parseConcatOp(parser, result);
+    }];
+
+    let verifier = [{ return verifyConcatOp<IntegerType>(*this); }];
+}
+
 //===----------------------------------------------------------------------===//
 // btor unary integer ops definitions
 //===----------------------------------------------------------------------===//
