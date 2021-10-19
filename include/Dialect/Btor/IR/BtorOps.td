@@ -305,19 +305,6 @@ def UDivOp : BtorBinaryOp<"udiv"> {
     }];
 }
 
-def UDivOverflowOp : BtorBinaryDifferentResultTypeOp<"udivo"> {
-    let summary = "unsigned integer division with overflow flag";
-    let description = [{
-        This operation takes two integer arguments and returns an integer.
-
-        Example:
-        
-        ```mlir
-        %res = btor.udivo %lhs, %rhs : i32
-        ```
-    }];  
-}
-
 def OrOp : BtorBinaryOp<"or", [Commutative]> {
     let summary = "integer binary and operation";
     let description = [{
@@ -456,6 +443,36 @@ def CmpOp : Btor_Op<"cmp", [NoSideEffect, SameTypeOperands,
 
   let assemblyFormat = "$predicate `,` $lhs `,` $rhs attr-dict `:` type($lhs)";
 } 
+
+def IffOp : BtorBinaryOp<"iff"> {
+    let summary = "integer if-and-only-if operation";
+    let description = [{
+        This operation takes two i1 arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.ror %lhs, %rhs : i1
+        ```
+    }];
+
+    let arguments = (ins I1:$lhs, I1:$rhs);
+}
+
+def ImpliesOp : BtorBinaryOp<"implies"> {
+    let summary = "integer implication operation";
+    let description = [{
+        This operation takes two i1 arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = btor.ror %lhs, %rhs : i1
+        ```
+    }];
+    
+    let arguments = (ins I1:$lhs, I1:$rhs);
+}
 
 def ShiftLLOp : BtorBinaryOp<"sll"> {
     let summary = "integer left logical shift binary operation";
