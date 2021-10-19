@@ -84,6 +84,38 @@ static void buildCmpOp(OpBuilder &build, OperationState &result,
 }
 
 //===----------------------------------------------------------------------===//
+// SliceOp
+//===----------------------------------------------------------------------===//
+
+static ParseResult parseSliceOp(OpAsmParser &parser, OperationState &result) {
+  
+  Type resultType, operandType;
+  SmallVector<OpAsmParser::OperandType, 3> operands;
+  if (parser.parseOperandList(operands, /*requiredOperandCount=*/3) ||
+      parser.parseOptionalAttrDict(result.attributes) || parser.parseColon() ||
+      parser.parseType(operandType) || parser.parseOptionalComma() || 
+      parser.parseType(resultType))
+    return failure();
+
+  result.addTypes(resultType);
+  return parser.resolveOperands(operands,
+                                {operandType, operandType, operandType},
+                                parser.getNameLoc(), result.operands);
+}
+
+template <typename ValType, typename Op>
+static LogicalResult verifySliceOp(Op op) {
+  Type srcType = getElementTypeOrSelf(op.in().getType());
+  Type dstType = getElementTypeOrSelf(op.getType());
+
+  if (srcType.cast<ValType>().getWidth() <= dstType.cast<ValType>().getWidth())
+    return op.emitError("result type ")
+           << dstType << " must be less than operand type " << srcType;
+
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
 // IteOp
 //===----------------------------------------------------------------------===//
 
