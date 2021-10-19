@@ -31,9 +31,6 @@ class ConvertNotOpToBtorPattern : public ConvertOpToLLVMPattern<SourceOp> {
             rewriter.replaceOpWithNewOp<btor::NotOp>(op, baseOp);
 
             return success();
-    // return LLVM::detail::vectorOneToOneRewrite(
-    //     op, TargetOp::getOperationName(), adaptor.getOperands(),
-    //     *this->getTypeConverter(), rewriter);
   }
 };
 
