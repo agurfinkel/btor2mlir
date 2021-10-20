@@ -64,8 +64,6 @@ using SMulOverflowOpLowering =
       VectorConvertToLLVMPattern<btor::SMulOverflowOp, LLVM::SMulWithOverflowOp>;
 using UMulOverflowOpLowering = 
       VectorConvertToLLVMPattern<btor::UMulOverflowOp, LLVM::UMulWithOverflowOp>;
-// using SDivOverflowOpLowering = 
-//       VectorConvertToLLVMPattern<btor::SDivOverflowOp, LLVM::SDivWithOverflowOp>;
 using UExtOpLowering = VectorConvertToLLVMPattern<btor::UExtOp, LLVM::ZExtOp>;
 using SExtOpLowering = VectorConvertToLLVMPattern<btor::SExtOp, LLVM::SExtOp>;
 using IteOpLowering = VectorConvertToLLVMPattern<btor::IteOp, LLVM::SelectOp>;
@@ -155,6 +153,12 @@ struct SliceOpLowering : public ConvertOpToLLVMPattern<btor::SliceOp> {
 struct ConcatOpLowering : public ConvertOpToLLVMPattern<btor::ConcatOp> {
     using ConvertOpToLLVMPattern<btor::ConcatOp>::ConvertOpToLLVMPattern;
     LogicalResult matchAndRewrite(btor::ConcatOp op, OpAdaptor adaptor,
+                                ConversionPatternRewriter &rewriter) const override;
+};
+
+struct SDivOverflowOpLowering : public ConvertOpToLLVMPattern<btor::SDivOverflowOp> {
+    using ConvertOpToLLVMPattern<btor::SDivOverflowOp>::ConvertOpToLLVMPattern;
+    LogicalResult matchAndRewrite(btor::SDivOverflowOp op, OpAdaptor adaptor,
                                 ConversionPatternRewriter &rewriter) const override;
 };
 
@@ -426,6 +430,25 @@ LogicalResult ConcatOpLowering::matchAndRewrite(mlir::btor::ConcatOp concatOp, O
 }
 
 //===----------------------------------------------------------------------===//
+// SDivOverflowOpLowering
+//===----------------------------------------------------------------------===//
+
+LogicalResult SDivOverflowOpLowering::matchAndRewrite(mlir::btor::SDivOverflowOp sdivOverflowOp, 
+                                                    OpAdaptor adaptor,
+                                                    ConversionPatternRewriter &rewriter) const {
+    auto loc = sdivOverflowOp.getLoc();
+    auto rhs = adaptor.rhs(), lhs = adaptor.lhs();
+
+    Value sdiv = rewriter.create<LLVM::SDivOp>(loc, lhs, rhs);
+    Value product = rewriter.create<LLVM::MulOp>(loc, lhs, sdiv);
+
+    rewriter.replaceOpWithNewOp<LLVM::ICmpOp>(sdivOverflowOp, 
+                                            LLVM::ICmpPredicate::ne,
+                                            rhs, product);
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
 // Pass Definition
 //===----------------------------------------------------------------------===//
 
@@ -513,6 +536,7 @@ void mlir::btor::populateBtorToLLVMConversionPatterns(LLVMTypeConverter &convert
     USubOverflowOpLowering,
     SMulOverflowOpLowering,
     UMulOverflowOpLowering,
+    SDivOverflowOpLowering,
     NotOpLowering,
     BadOpLowering,
     IteOpLowering,
