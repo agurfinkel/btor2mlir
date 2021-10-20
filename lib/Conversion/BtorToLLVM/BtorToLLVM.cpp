@@ -162,6 +162,12 @@ struct SDivOverflowOpLowering : public ConvertOpToLLVMPattern<btor::SDivOverflow
                                 ConversionPatternRewriter &rewriter) const override;
 };
 
+struct SModOpLowering : public ConvertOpToLLVMPattern<btor::SModOp> {
+    using ConvertOpToLLVMPattern<btor::SModOp>::ConvertOpToLLVMPattern;
+    LogicalResult matchAndRewrite(btor::SModOp op, OpAdaptor adaptor,
+                                ConversionPatternRewriter &rewriter) const override;
+};
+
 } // end anonymous namespace
 
 //===----------------------------------------------------------------------===//
@@ -449,6 +455,35 @@ LogicalResult SDivOverflowOpLowering::matchAndRewrite(mlir::btor::SDivOverflowOp
 }
 
 //===----------------------------------------------------------------------===//
+// SModOpLowering
+//===----------------------------------------------------------------------===//
+
+LogicalResult SModOpLowering::matchAndRewrite(mlir::btor::SModOp smodOp, 
+                                            OpAdaptor adaptor,
+                                            ConversionPatternRewriter &rewriter) const {
+    // since srem(a, b) = sign_of(a) * smod(a, b),
+    // we have smod(a, b) =  sign_of(b) * |srem(a, b)|
+    auto loc = smodOp.getLoc();
+    auto rhs = adaptor.rhs(), lhs = adaptor.lhs();
+    auto opType = rhs.getType();
+
+    Value zeroConst = rewriter.create<LLVM::ConstantOp>(loc, opType, 
+                                                    rewriter.getIntegerAttr(opType, 0));
+    Value srem = rewriter.create<LLVM::SRemOp>(loc, lhs, rhs);
+    Value remLessThanZero = rewriter.create<LLVM::ICmpOp>(loc, 
+                                                        LLVM::ICmpPredicate::sle,
+                                                        srem, zeroConst);
+    Value rhsLessThanZero = rewriter.create<LLVM::ICmpOp>(loc, 
+                                                        LLVM::ICmpPredicate::sle,
+                                                        rhs, zeroConst);
+    Value xorOp = rewriter.create<LLVM::XOrOp>(loc, remLessThanZero, rhsLessThanZero);
+    Value negOp = rewriter.create<btor::NegOp>(loc, srem);
+    rewriter.replaceOpWithNewOp<LLVM::SelectOp>(smodOp, xorOp,
+                                                negOp, srem);
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
 // Pass Definition
 //===----------------------------------------------------------------------===//
 
@@ -521,6 +556,7 @@ void mlir::btor::populateBtorToLLVMConversionPatterns(LLVMTypeConverter &convert
     SDivOpLowering,
     URemOpLowering,
     SRemOpLowering,
+    SModOpLowering,
     AndOpLowering,
     OrOpLowering,
     XOrOpLowering,
