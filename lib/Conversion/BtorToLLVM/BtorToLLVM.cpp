@@ -489,8 +489,6 @@ LogicalResult SModOpLowering::matchAndRewrite(mlir::btor::SModOp smodOp,
 
 namespace {
 
-// struct BtorToLLVMLoweringPass : 
-//     public PassWrapper<BtorToLLVMLoweringPass, OperationPass<ModuleOp>> {
 struct BtorToLLVMLoweringPass
     : public ConvertBtorToLLVMBase<BtorToLLVMLoweringPass> {
         
