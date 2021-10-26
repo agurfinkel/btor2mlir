@@ -816,7 +816,7 @@ def RedXorOp : BtorUnaryOp<"redxor"> {
   let results = (outs BoolLike);
 }
 
-def BadOp : Btor_Op<"bad"> {
+def AssertOp : Btor_Op<"assert"> {
     let summary = "btor assertion";
     let description = [{
         This operation takes one boolean argument and terminates
@@ -826,14 +826,14 @@ def BadOp : Btor_Op<"bad"> {
         
         ```mlir
         %0 = constant 1 : i1
-        // Apply the bad operation to %0
-        btor.bad %0
+        // Apply the assert operation to %0
+        btor.assert ( %0 )
         ```
     }];
 
     let arguments = (ins I1:$arg);
 
-    let assemblyFormat = "$arg attr-dict";
+    let assemblyFormat = "`(` $arg `)` attr-dict";
 }
 
 def ConstantOp : Btor_Op<"const", [ConstantLike, NoSideEffect]> {
@@ -873,6 +873,26 @@ def ConstantOp : Btor_Op<"const", [ConstantLike, NoSideEffect]> {
   }];
 
   let hasFolder = 1;
+}
+
+def AssumeOp : Btor_Op<"assume"> {
+    let summary = "btor assumption";
+    let description = [{
+        This operation takes one boolean argument and assumes 
+        it holds for the program.
+
+        Example:
+        
+        ```mlir
+        %0 = constant 1 : i1
+        // Apply the assume operation to %0
+        btor.assume ( %0 )
+        ```
+    }];
+
+    let arguments = (ins I1:$arg);
+
+    let assemblyFormat = "`(` $arg `)` attr-dict";
 }
 
 #endif // BTOR_OPS

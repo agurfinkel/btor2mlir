@@ -96,9 +96,9 @@ struct NotOpLowering : public ConvertOpToLLVMPattern<btor::NotOp> {
                   ConversionPatternRewriter &rewriter) const override;
 };
 
-struct BadOpLowering : public ConvertOpToLLVMPattern<btor::BadOp> {
-    using ConvertOpToLLVMPattern<btor::BadOp>::ConvertOpToLLVMPattern;
-    LogicalResult matchAndRewrite(btor::BadOp op, OpAdaptor adaptor,
+struct AssertOpLowering : public ConvertOpToLLVMPattern<btor::AssertOp> {
+    using ConvertOpToLLVMPattern<btor::AssertOp>::ConvertOpToLLVMPattern;
+    LogicalResult matchAndRewrite(btor::AssertOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override;
 };
 
@@ -221,18 +221,18 @@ LogicalResult NotOpLowering::matchAndRewrite(btor::NotOp notOp, OpAdaptor adapto
 }
 
 //===----------------------------------------------------------------------===//
-// BadOpLowering
+// AssertOpLowering
 //===----------------------------------------------------------------------===//
 
-LogicalResult BadOpLowering::matchAndRewrite(btor::BadOp badOp, OpAdaptor adaptor,
+LogicalResult AssertOpLowering::matchAndRewrite(btor::AssertOp assertOp, OpAdaptor adaptor,
                                     ConversionPatternRewriter &rewriter) const {
 
-    auto loc = badOp.getLoc();
+    auto loc = assertOp.getLoc();
 
     Value notBad = rewriter.create<btor::NotOp>(loc, adaptor.arg());
 
     // Insert the `abort` declaration if necessary.
-    auto module = badOp->getParentOfType<ModuleOp>();
+    auto module = assertOp->getParentOfType<ModuleOp>();
     auto abortFunc = module.lookupSymbol<LLVM::LLVMFuncOp>("abort");
     if (!abortFunc) {
       OpBuilder::InsertionGuard guard(rewriter);
@@ -255,7 +255,7 @@ LogicalResult BadOpLowering::matchAndRewrite(btor::BadOp badOp, OpAdaptor adapto
     // Generate assertion test.
     rewriter.setInsertionPointToEnd(opBlock);
     rewriter.replaceOpWithNewOp<LLVM::CondBrOp>(
-        badOp, notBad, continuationBlock, failureBlock);
+        assertOp, notBad, continuationBlock, failureBlock);
 
     return success();
 }
@@ -516,7 +516,7 @@ void BtorToLLVMLoweringPass::runOnOperation() {
     /// unary operators
     target.addIllegalOp<btor::NotOp, btor::IncOp, btor::DecOp, btor::NegOp>();
     target.addIllegalOp<btor::RedAndOp, btor::RedXorOp, btor::RedOrOp>();
-    target.addIllegalOp<btor::BadOp, btor::ConstantOp>();
+    target.addIllegalOp<btor::AssertOp, btor::ConstantOp>();
 
     /// binary operators
     // logical 
@@ -572,7 +572,7 @@ void mlir::btor::populateBtorToLLVMConversionPatterns(LLVMTypeConverter &convert
     UMulOverflowOpLowering,
     SDivOverflowOpLowering,
     NotOpLowering,
-    BadOpLowering,
+    AssertOpLowering,
     IteOpLowering,
     IffOpLowering,
     ImpliesOpLowering,
