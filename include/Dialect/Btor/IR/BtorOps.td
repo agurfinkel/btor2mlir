@@ -895,4 +895,23 @@ def AssumeOp : Btor_Op<"assume"> {
     let assemblyFormat = "`(` $arg `)` attr-dict";
 }
 
+def InputOp : Btor_Op<"input"> {
+    let summary = "btor input";
+    let description = [{
+        This operation takes no argument and returns a value
+        of type: SignlessIntegerLike
+
+        Example:
+        
+        ```mlir
+        // invoke the input operation to %0
+        %0 = btor.input : i3
+        ```
+    }];
+
+    let results = (outs SignlessIntegerLike:$res);
+
+    let assemblyFormat = "attr-dict `:` type($res)";
+}
+
 #endif // BTOR_OPS
