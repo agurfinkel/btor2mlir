@@ -1,19 +1,18 @@
 // RUN: btor2mlir-opt %s | btor2mlir-opt | FileCheck %s
 
 module {
-    // CHECK-LABEL: func @bar()
-    func @bar() {
-        %0 = constant 7 : i3
-        // CHECK: %{{.*}} = constant {{.*}} : i3
-        %1 = constant 3 : i3
-        // CHECK: %{{.*}} = btor.add %{{.*}}, %{{.*}} : i3
-        %2 = btor.add %0, %1 : i3
-        // CHECK: %{{.*}} = btor.mul %{{.*}}, %{{.*}} : i3
-        %3 = btor.mul %0, %2 : i3
-        // CHECK: %{{.*}} = btor.cmp %{{.*}}, %{{.*}} : i3
-        %4 = btor.cmp "ne", %3, %2 : i3
-        // CHECK: %{{.*}} = btor.bad %{{.*}}
-        btor.bad %4
-        return
+    func @next( %arg0: i3, %arg1: i3 ) -> (i3, i3) {
+        // create assumption
+        %cmp_ne = btor.cmp "ne", %arg0, %arg1 : i3
+        btor.assume ( %cmp_ne )
+        // apply transition relation
+        %c_0 = btor.const 1 : i3
+        %add_1 = btor.add %arg0, %c_0 : i3
+        %sub_1 = btor.sub %arg1, %c_0 : i3
+        // create assertion
+        %bad = btor.cmp "ne", %add_1, %sub_1 : i3
+        %notbad = btor.not %bad : i1
+        btor.assert ( %notbad )
+        return %add_1, %sub_1 : i3, i3
     }
 }

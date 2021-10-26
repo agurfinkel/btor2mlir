@@ -120,9 +120,9 @@ struct RotateRLowering : public OpRewritePattern<mlir::btor::RotateROp> {
     LogicalResult matchAndRewrite(mlir::btor::RotateROp rorOp, PatternRewriter &rewriter) const override;
 };
 
-struct BadLowering : public OpRewritePattern<mlir::btor::BadOp> {
-    using OpRewritePattern<mlir::btor::BadOp>::OpRewritePattern;
-    LogicalResult matchAndRewrite(mlir::btor::BadOp mulOp, PatternRewriter &rewriter) const override;
+struct AssertLowering : public OpRewritePattern<mlir::btor::AssertOp> {
+    using OpRewritePattern<mlir::btor::AssertOp>::OpRewritePattern;
+    LogicalResult matchAndRewrite(mlir::btor::AssertOp mulOp, PatternRewriter &rewriter) const override;
 };
 
 struct CmpLowering : public OpRewritePattern<mlir::btor::CmpOp> {
@@ -227,13 +227,13 @@ LogicalResult XnorLowering::matchAndRewrite(mlir::btor::XnorOp xnorOp, PatternRe
     return success();
 }
 
-LogicalResult BadLowering::matchAndRewrite(mlir::btor::BadOp badOp, PatternRewriter &rewriter) const {
-    Value notBad = rewriter.create<NotOp>(badOp.getLoc(), badOp.arg());
+LogicalResult AssertLowering::matchAndRewrite(mlir::btor::AssertOp assertOp, PatternRewriter &rewriter) const {
+    Value notBad = rewriter.create<NotOp>(assertOp.getLoc(), assertOp.arg());
 
-    auto loc = badOp.getLoc();
+    auto loc = assertOp.getLoc();
 
     // Insert the `abort` declaration if necessary.
-    auto module = badOp->getParentOfType<ModuleOp>();
+    auto module = assertOp->getParentOfType<ModuleOp>();
     auto abortFunc = module.lookupSymbol<LLVM::LLVMFuncOp>("abort");
     if (!abortFunc) {
       OpBuilder::InsertionGuard guard(rewriter);
@@ -256,7 +256,7 @@ LogicalResult BadLowering::matchAndRewrite(mlir::btor::BadOp badOp, PatternRewri
     // Generate assertion test.
     rewriter.setInsertionPointToEnd(opBlock);
     rewriter.replaceOpWithNewOp<LLVM::CondBrOp>(
-        badOp, notBad, continuationBlock, failureBlock);
+        assertOp, notBad, continuationBlock, failureBlock);
 
     return success();
 }
@@ -387,7 +387,7 @@ LogicalResult ConstantLowering::matchAndRewrite(mlir::btor::ConstantOp constOp, 
 
 void mlir::btor::populateBtorToStdConversionPatterns(RewritePatternSet &patterns) {
   patterns.add<AddLowering, MulLowering, AndLowering>(patterns.getContext());
-  patterns.add<CmpLowering, BadLowering, NotLowering>(patterns.getContext());
+  patterns.add<CmpLowering, AssertLowering, NotLowering>(patterns.getContext());
   patterns.add<XOrLowering, XnorLowering, NandLowering>(patterns.getContext());
   patterns.add<OrLowering, NorLowering, IncLowering>(patterns.getContext());
   patterns.add<DecLowering, DecLowering, SRemLowering>(patterns.getContext());
@@ -403,7 +403,7 @@ void BtorToStandardLoweringPass::runOnOperation() {
     /// Configure conversion to lower out btor.add; Anything else is fine.
     ConversionTarget target(getContext());
     target.addIllegalOp<mlir::btor::AddOp, mlir::btor::MulOp, mlir::btor::AndOp>();
-    target.addIllegalOp<mlir::btor::CmpOp, mlir::btor::BadOp, mlir::btor::NotOp>();
+    target.addIllegalOp<mlir::btor::CmpOp, mlir::btor::AssertOp, mlir::btor::NotOp>();
     target.addIllegalOp<mlir::btor::XOrOp, mlir::btor::XnorOp, mlir::btor::NandOp>();
     target.addIllegalOp<mlir::btor::OrOp, mlir::btor::NorOp, mlir::btor::IncOp>();
     target.addIllegalOp<mlir::btor::DecOp, mlir::btor::SubOp, mlir::btor::SRemOp>();
