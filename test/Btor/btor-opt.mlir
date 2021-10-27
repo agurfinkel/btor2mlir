@@ -1,15 +1,16 @@
 // RUN: btor2mlir-opt %s | btor2mlir-opt | FileCheck %s
 
 module {
-    // two latches, arg_{0, 1}, and the two inputs
-    // we want them to be equal to, arg_{2, 3}
-    func @init( %arg0: i3, %arg1: i3, %arg2: i3, %arg3: i3 ) -> (i3,i3) {
-        return %arg2, %arg3 : i3, i3
+    func @init( ) -> (i3,i3) {
+        %0 = btor.const 0 : i3
+        %1 = btor.const 0 : i3
+        return %0, %1 : i3, i3
     }
 
-    func @in_i() -> (i3, i3) {
-        %0 = btor.input : i3
-        %1 = btor.input : i3
+    func @input() -> (i3, i3) {
+        %const = btor.const 7 : i3
+        %0 = btor.input 0, %const :  i3
+        %1 = btor.input 9, %const : i3
         return %0, %1 : i3, i3
     }
 
