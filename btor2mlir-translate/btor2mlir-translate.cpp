@@ -16,12 +16,12 @@
 #include "mlir/Translation.h"
 
 #include "Dialect/Btor/IR/BtorDialect.h"
+#include "Target/Btor/BtorToBtorIRTranslation.h"
 
 int main(int argc, char **argv) {
   mlir::registerAllTranslations();
-
-  // TODO: Register standalone translations here.
-
+  mlir::btor::registerFromBtorTranslation();
+  
   return failed(
       mlir::mlirTranslateMain(argc, argv, "MLIR Translation Testing Tool"));
 }
