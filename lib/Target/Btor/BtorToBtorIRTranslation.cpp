@@ -171,13 +171,6 @@ static void parse_model () {
     }
 }
 
-namespace {
-
-struct Btor2Operation {
-    Btor2Line * line;
-    Operation * init, next;
-};
-
 void filterInits() {
     std::vector<Btor2Line *> filteredInits;
     for( auto it = inits.begin(); it != inits.end(); ++it ) {
@@ -200,39 +193,141 @@ void filterNexts() {
     nexts = filteredNexts;
 }
 
-} // end namespace
 
-// assume an array exists that 
-// tells us if a line has been read
-std::unordered_map<int, std::unique_ptr<OperationState>> mlirOps;
-
-
-Operation * createMLIR( Btor2Line * line, OpBuilder builder, SmallVector<Value> kids ) {
-    // auto lineno = line->lineno;
-    // mlirOps.find( (*it)->lineno ) != mlirOps.end()
-    std::cout << line->id << " op has " << kids.size() << " kids \n";
+Operation * createMLIR( Btor2Line * line, 
+                    OpBuilder builder,
+                    std::vector<Value> cache,
+                    int64_t * kids  ) {
     Location unknownLoc = UnknownLoc::get(builder.getContext());
+    Operation * res = nullptr;
 
-    if( line->tag == BTOR2_TAG_one ) {
-        auto opType = builder.getIntegerType( line->sort.bitvec.width );
-        Operation * constOp = builder.create<btor::ConstantOp>(unknownLoc, opType, 
-                                                    builder.getIntegerAttr(opType, 1));
-        std::cout << "  created constant op for line: " << line->id << "\n";
-        return constOp;
-    } else if( line->tag == BTOR2_TAG_zero ) {
-        auto opType = builder.getIntegerType( line->sort.bitvec.width );
-        Operation * constOp = builder.create<btor::ConstantOp>(unknownLoc, opType, 
-                                                    builder.getIntegerAttr(opType, 0));
-        std::cout << "  created constant op for line: " << line->id << "\n";
-        return constOp;
-    } else if( line->tag == BTOR2_TAG_add ) {
-        Operation * addOp = builder.create<btor::AddOp>(unknownLoc, 
-                                                    kids[0], 
-                                                    kids[1]);
-        std::cout << "  created add op for line: " << line->id << "\n";
-        return addOp;
+    switch (line->tag) {
+        case BTOR2_TAG_bad: {
+            res = builder.create<btor::AssertOp>(unknownLoc, 
+                                        cache.at(kids[0]));
+        }
+        break;
+        case BTOR2_TAG_constraint: break;
+        case BTOR2_TAG_init: break;
+        case BTOR2_TAG_input: break;
+        case BTOR2_TAG_next: break;
+        case BTOR2_TAG_sort: break;
+        case BTOR2_TAG_state: break;
+        case BTOR2_TAG_fair: break;
+        case BTOR2_TAG_justice: break;
+        case BTOR2_TAG_output: break;
+
+        // binary ops
+        case BTOR2_TAG_add: 
+            res = builder.create<btor::AddOp>(unknownLoc, 
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_and:
+             res = builder.create<btor::AndOp>(unknownLoc, 
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_concat: break;
+        case BTOR2_TAG_eq: 
+            res = builder.create<btor::CmpOp>(unknownLoc, 
+                                        btor::BtorPredicate::eq,
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_implies: break;
+        case BTOR2_TAG_nand: break;
+        case BTOR2_TAG_nor: break;
+        case BTOR2_TAG_neq: break;
+        case BTOR2_TAG_or: break;
+        case BTOR2_TAG_redand: break;
+        case BTOR2_TAG_redor: break;
+        case BTOR2_TAG_redxor: break;
+        case BTOR2_TAG_sdiv: break;
+        case BTOR2_TAG_sgt: break;
+        case BTOR2_TAG_sgte: break;
+        case BTOR2_TAG_sll: break;
+        case BTOR2_TAG_slt: break;
+        case BTOR2_TAG_slte: break;
+        case BTOR2_TAG_sra: break;
+        case BTOR2_TAG_srem: break;
+        case BTOR2_TAG_srl: break;
+        case BTOR2_TAG_sub: break;
+        case BTOR2_TAG_udiv: break;
+        case BTOR2_TAG_ugt: break;
+        case BTOR2_TAG_ugte: break;
+        case BTOR2_TAG_ult: break;
+        case BTOR2_TAG_ulte: break;
+        case BTOR2_TAG_urem: break;
+        case BTOR2_TAG_xnor: break;
+        case BTOR2_TAG_xor: break;
+        case BTOR2_TAG_rol: break;
+        case BTOR2_TAG_ror: break;
+        case BTOR2_TAG_saddo: break;
+        case BTOR2_TAG_sdivo: break;
+        case BTOR2_TAG_smod: break;
+        case BTOR2_TAG_smulo: break;
+        case BTOR2_TAG_ssubo: break;
+        case BTOR2_TAG_uaddo: break;
+        case BTOR2_TAG_umulo: break;
+        case BTOR2_TAG_usubo: break;
+        case BTOR2_TAG_mul:
+             res = builder.create<btor::MulOp>(unknownLoc, 
+                                            cache.at(kids[0]), 
+                                            cache.at(kids[1]));
+        break;
+
+        // unary ops
+        case BTOR2_TAG_const: break;
+        case BTOR2_TAG_constd: break;
+        case BTOR2_TAG_consth: break;
+        case BTOR2_TAG_dec: 
+            res = builder.create<btor::DecOp>(unknownLoc, 
+                                            cache.at(kids[0]));
+        break;
+        case BTOR2_TAG_inc: 
+            res = builder.create<btor::IncOp>(unknownLoc, 
+                                            cache.at(kids[0]));
+        break;
+        case BTOR2_TAG_neg: break;
+        case BTOR2_TAG_not: break;
+        case BTOR2_TAG_one: {
+            auto opType = builder.getIntegerType( line->sort.bitvec.width );
+            res = builder.create<btor::ConstantOp>(unknownLoc, opType, 
+                                                builder.getIntegerAttr(opType, 1));
+        } 
+        break;
+        case BTOR2_TAG_ones: {
+            auto width = line->sort.bitvec.width;
+            auto opType = builder.getIntegerType( width );
+            auto value = pow(2, width) - 1;
+            res = builder.create<btor::ConstantOp>(unknownLoc, opType, 
+                                                builder.getIntegerAttr(opType, value));
+        }
+        break;
+
+
+        // indexed ops
+        case BTOR2_TAG_slice: break;
+        case BTOR2_TAG_sext: break;
+        case BTOR2_TAG_uext: break;
+        
+        case BTOR2_TAG_zero: {
+             auto opType = builder.getIntegerType( line->sort.bitvec.width );
+             res = builder.create<btor::ConstantOp>(unknownLoc, opType, 
+                                                builder.getIntegerAttr(opType, 0));
+        }
+        break;
+        case BTOR2_TAG_read: break;
+
+        // ternary ops
+        case BTOR2_TAG_ite: break;
+        case BTOR2_TAG_write: break;
+
+        default:
+        break;
     }
-    return nullptr;
+    return res;
 }
 
 bool isValidChild( uint32_t line ) {
@@ -241,64 +336,43 @@ bool isValidChild( uint32_t line ) {
     ||  tag == BTOR2_TAG_next 
     ||  tag == BTOR2_TAG_state
     ||  tag == BTOR2_TAG_sort ) {
-        std::cout << "   false for tag value = " << tag << "\n";
         return false;
     }
-    std::cout << "   true for tag value = " << tag << "\n";
     return true;
 }
 
 void toOp( Btor2Line * line, 
            OpBuilder builder, 
            std::vector<Value> &cache) {
-    std::cout << "toOp called with id: " << line->id << "\n";
-    if( cache[ line->id ] != nullptr ) { 
-        // return cache.at( btorLine.id )
-        std::cout << "inserting: " << line->id << "\n";
-        // builder.insert( cache[ line->id ] );
-    } else {
-        Operation * res = nullptr; 
-        std::vector<Btor2Line *> todo;
-        todo.push_back( line );
-        while( !todo.empty() ) {
-            auto cur = todo.back();
-            uint32_t oldsize = todo.size();
-            // mlirOp[] kids; // use smallvector
-            std::cout << "working on: " << cur->id << "\n";
-            SmallVector<Value> kids;
-            for( uint32_t i = 0; i < cur->nargs; ++i ) {
-                if( !isValidChild( cur->args[i] ) ) {
-                    std::cout << "    ignore line " << cur->args[i] << "\n";
-                    continue;
-                }
+    if( cache[ line->id ] != nullptr ) 
+        return;
 
-                if( cache[ cur->args[i] ] ) {
-                    std::cout << "   add to kids line " << cur->args[i] << "\n";
-                    kids.push_back( cache.at( cur->args[i] ) );
-                } else {
-                    std::cout << "   add to todo line " << cur->args[i] << "\n";
-                    todo.push_back( reached_lines.at( cur->args[i] ) );
-                }
-            } 
-            std::cout << "  kids ready for: " << cur->id << "\n";
-            std::cout << std::flush;
-            if( todo.size() != oldsize ) {
-                std::cout << " reset kids for line " << cur->id << "\n";
+    Operation * res = nullptr; 
+    std::vector<Btor2Line *> todo;
+    todo.push_back( line );
+    while( !todo.empty() ) {
+        auto cur = todo.back();
+        uint32_t oldsize = todo.size();
+        for( uint32_t i = 0; i < cur->nargs; ++i ) {
+            if( !isValidChild( cur->args[i] ) ) {
                 continue;
             }
-            if( !isValidChild( cur->id ) ) {
-                std::cout << " invalid line " << cur->id << "\n";
-                todo.pop_back();
-                continue;
+
+            if( cache[ cur->args[i] ] == nullptr ) {
+                todo.push_back( reached_lines.at( cur->args[i] ) );
             }
-            res = createMLIR( cur, builder, kids );
-            assert( res );
-            cache[ cur->id ] = res->getResult(0);
-            std::cout << " finished line " << cur->id << "\n";
-            todo.pop_back();
+        } 
+        if( todo.size() != oldsize ) {
+            continue;
         }
-        // // assert( res )
-        // // return res
+        if( !isValidChild( cur->id ) ) {
+            todo.pop_back();
+            continue;
+        }
+        res = createMLIR( cur, builder, cache, cur->args );
+        assert( res );
+        cache[ cur->id ] = res->getResult(0);
+        todo.pop_back();
     }
 }
 
@@ -309,47 +383,40 @@ OwningOpRef<FuncOp> buildInitFunction(MLIRContext *context) {
     // collect the return types for our init function
     std::vector<Type> returnTypes( inits.size(), nullptr); 
     for( uint32_t i = 0; i < inits.size(); ++i ) {
-        std::cout << "get type for line " << inits.at( i )->id << "\n";
         returnTypes[i] = builder.getIntegerType( 
                                 inits.at( i )->sort.bitvec.width );
 
         assert( returnTypes[i] );
-        std::cout << "added result for line " << inits.at( i )->id << "\n";
     }
     ArrayRef<Type> outputs( returnTypes );
     
     // create init function signature
     OperationState state(unknownLoc, FuncOp::getOperationName());
     FuncOp::build(builder, state, "init",
-                    FunctionType::get(context, {}, outputs));
-    OwningOpRef<FuncOp> funcOp = cast<FuncOp>(Operation::create(state));
+                    FunctionType::get( context, {}, outputs ));
+    OwningOpRef<FuncOp> funcOp = cast<FuncOp>( Operation::create(state) );
 
     // create basic block and accompanying builder
     Region &region = funcOp->getBody();
-    OpBuilder::InsertionGuard guard(builder);
-    auto *body = builder.createBlock(&region);
-    builder.setInsertionPointToStart(body);
+    OpBuilder::InsertionGuard guard( builder );
+    auto *body = builder.createBlock( &region );
+    builder.setInsertionPointToStart( body );
 
     std::vector<Value> cache( reached_lines.size(), nullptr );
-    // std::cout << "cache has size: " << cache.size() << "\n";
     for( auto it = inits.begin(); it != inits.end(); ++it ) {
         toOp( *it, builder, cache );
     }
 
     // close with a fitting returnOp
-    // std::cout << "\n" << "create return op " << "\n";
     std::vector<Value> testResults( inits.size(), nullptr); 
     for( uint32_t i = 0; i < inits.size(); ++i ) {
-        // std::cout << "get result for line " << inits.at( i )->args[1] << "\n";
         testResults[i] = cache.at( inits.at( i )->args[1] );
         assert( testResults[i] );
-        // std::cout << "added result for line " << inits.at( i )->args[1] << "\n";
     }
-    // std::cout << "itereate return value " << "\n";
     ArrayRef<Value> results( testResults );
 
-    builder.create<ReturnOp>(unknownLoc, ValueRange({ results }));
-    // std::cout << "done" << "\n";
+    builder.create<ReturnOp>( unknownLoc, ValueRange({ results }) );
+
     return funcOp;
 }
 
@@ -358,23 +425,20 @@ OwningOpRef<FuncOp> buildNextFunction(MLIRContext *context) {
     OpBuilder builder(context);
 
     // collect the return types for our init function
-    std::cout << "\nNext Function: \n";
     std::vector<Type> returnTypes( nexts.size(), nullptr); 
     for( uint32_t i = 0; i < nexts.size(); ++i ) {
-        std::cout << "get type for line " << nexts.at( i )->id << "\n";
         returnTypes[i] = builder.getIntegerType( 
                                 nexts.at( i )->sort.bitvec.width );
 
         assert( returnTypes[i] );
-        std::cout << "added result for line " << nexts.at( i )->id << "\n";
     }
     ArrayRef<Type> outputs( returnTypes );
 
+    // create next function signature
     OperationState state(unknownLoc, FuncOp::getOperationName());
     FuncOp::build(builder, state, "next",
-                    FunctionType::get(context, outputs, { })
-                    /*, builder.getStringAttr("private")*/);
-    OwningOpRef<FuncOp> funcOp = cast<FuncOp>(Operation::create(state));
+                    FunctionType::get( context, outputs, outputs ));
+    OwningOpRef<FuncOp> funcOp = cast<FuncOp>( Operation::create(state) );
     Region &region = funcOp->getBody();
     OpBuilder::InsertionGuard guard( builder );
     auto *body = builder.createBlock( &region, {}, TypeRange({ outputs }) );
@@ -386,25 +450,23 @@ OwningOpRef<FuncOp> buildNextFunction(MLIRContext *context) {
         cache[ nexts.at( i )->args[ 0 ] ] = body->getArguments()[i];
     }
 
-    // std::cout << "cache has size: " << cache.size() << "\n";
+    // start with nexts, then add bads, for logic sharing
     for( auto it = nexts.begin(); it != nexts.end(); ++it ) {
         toOp( *it, builder, cache );
     }
-
-    // auto opType = builder.getIntegerType( 4 );
-    // Operation * constOp = builder.create<btor::ConstantOp>(unknownLoc, opType, 
-    //                                                 builder.getIntegerAttr(opType, 0));
-    // Value test = nullptr;
-    // builder.create<btor::AddOp>( unknownLoc, 
-    //                     body->getArguments()[0], 
-    //                     constOp->getResult(0));
-
-    // returnOp
-    OperationState returnState(unknownLoc, ReturnOp::getOperationName());
-    ReturnOp::build(builder, returnState);
-    auto retOp = cast<ReturnOp>(Operation::create(returnState));
-    builder.insert( retOp );
+    for( auto it = bads.begin(); it != bads.end(); ++it ) {
+        toOp( *it, builder, cache );
+    }
     
+    // close with a fitting returnOp
+    std::vector<Value> testResults( nexts.size(), nullptr); 
+    for( uint32_t i = 0; i < nexts.size(); ++i ) {
+        testResults[i] = cache.at( nexts.at( i )->args[1] );
+        assert( testResults[i] );
+    }
+    ArrayRef<Value> results( testResults );
+
+    builder.create<ReturnOp>( unknownLoc, ValueRange({ results }) );
     return funcOp;
 }
 
@@ -416,10 +478,10 @@ static OwningModuleRef deserializeModule(const llvm::MemoryBuffer *input,
     
     // need to figure out how to get file name
     // from llvm::MemoryBuffer
-    model_file = fopen ("test/Btor/count4.btor2","r");
+    // model_file = fopen ("test/Btor/count4.btor2","r");
+    model_file = fopen ("test/Btor/factorial4even.btor2","r");
     
     if (model_file != NULL) {
-        std::cout << "reading file ... \n";
         parse_model();
         fclose (model_file);
     }
@@ -432,8 +494,8 @@ static OwningModuleRef deserializeModule(const llvm::MemoryBuffer *input,
     auto iterator = reached_lines.begin();
     reached_lines.insert ( iterator , reached_lines.front() );
 
-    // verify correct parsing and structure for module creation
-    std::cout << reached_lines.size() << " reached lines" << "\n";
+    // // verify correct parsing and structure for module creation
+    // std::cout << reached_lines.size() << " reached lines" << "\n";
     // for( auto it = reached_lines.begin(); it != reached_lines.end(); ++it ) {
     //     std::cout << (*it)->name << ": line " << (*it)->lineno << "\n";
     //     std::cout << "   sort " << (*it)->sort.bitvec.width << "\n";
@@ -445,11 +507,10 @@ static OwningModuleRef deserializeModule(const llvm::MemoryBuffer *input,
     //     std::cout << "\n";
     // }
 
-    std::cout << inits.size() << " init lines" << "\n";
-    std::cout << nexts.size() << " next lines" << "\n";
-    std::cout << states.size() << " states lines" << "\n";
+    // std::cout << inits.size() << " init lines" << "\n";
+    // std::cout << nexts.size() << " next lines" << "\n";
+    // std::cout << states.size() << " states lines" << "\n";
     
-    // To be fillied with our btor specific code
     OwningOpRef<FuncOp> initFunc = buildInitFunction(context);
     if (!initFunc)
         return {};
