@@ -96,9 +96,9 @@ struct NotOpLowering : public ConvertOpToLLVMPattern<btor::NotOp> {
                   ConversionPatternRewriter &rewriter) const override;
 };
 
-struct AssertOpLowering : public ConvertOpToLLVMPattern<btor::AssertOp> {
-    using ConvertOpToLLVMPattern<btor::AssertOp>::ConvertOpToLLVMPattern;
-    LogicalResult matchAndRewrite(btor::AssertOp op, OpAdaptor adaptor,
+struct AssertNotOpLowering : public ConvertOpToLLVMPattern<btor::AssertNotOp> {
+    using ConvertOpToLLVMPattern<btor::AssertNotOp>::ConvertOpToLLVMPattern;
+    LogicalResult matchAndRewrite(btor::AssertNotOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override;
 };
 
@@ -221,10 +221,10 @@ LogicalResult NotOpLowering::matchAndRewrite(btor::NotOp notOp, OpAdaptor adapto
 }
 
 //===----------------------------------------------------------------------===//
-// AssertOpLowering
+// AssertNotOpLowering
 //===----------------------------------------------------------------------===//
 
-LogicalResult AssertOpLowering::matchAndRewrite(btor::AssertOp assertOp, OpAdaptor adaptor,
+LogicalResult AssertNotOpLowering::matchAndRewrite(btor::AssertNotOp assertOp, OpAdaptor adaptor,
                                     ConversionPatternRewriter &rewriter) const {
 
     auto loc = assertOp.getLoc();
@@ -516,7 +516,7 @@ void BtorToLLVMLoweringPass::runOnOperation() {
     /// unary operators
     target.addIllegalOp<btor::NotOp, btor::IncOp, btor::DecOp, btor::NegOp>();
     target.addIllegalOp<btor::RedAndOp, btor::RedXorOp, btor::RedOrOp>();
-    target.addIllegalOp<btor::AssertOp, btor::ConstantOp>();
+    target.addIllegalOp<btor::AssertNotOp, btor::ConstantOp>();
 
     /// binary operators
     // logical 
@@ -572,7 +572,7 @@ void mlir::btor::populateBtorToLLVMConversionPatterns(LLVMTypeConverter &convert
     UMulOverflowOpLowering,
     SDivOverflowOpLowering,
     NotOpLowering,
-    AssertOpLowering,
+    AssertNotOpLowering,
     IteOpLowering,
     IffOpLowering,
     ImpliesOpLowering,
