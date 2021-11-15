@@ -476,10 +476,7 @@ static OwningModuleRef deserializeModule(const llvm::MemoryBuffer *input,
     context->loadDialect<btor::BtorDialect>();
     context->loadDialect<StandardOpsDialect>();
     
-    // need to figure out how to get file name
-    // from llvm::MemoryBuffer
-    // model_file = fopen ("test/Btor/count4.btor2","r");
-    model_file = fopen ("test/Btor/factorial4even.btor2","r");
+    model_file = fopen( input->getBufferIdentifier().str().c_str(), "r" );
     
     if (model_file != NULL) {
         parse_model();
