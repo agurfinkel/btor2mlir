@@ -38,7 +38,7 @@ def SignlessFixedWidthIntegerLike : TypeConstraint<Or<[
     "signless-fixed-width-integer-like">;
 
 // Cast from an integer type to another integer type.
-class BtorCastOp<string mnemonic, list<OpTrait> traits = []> :
+class BtorCastOp<string mnemonic> :
     Btor_CastOp<mnemonic, SignlessFixedWidthIntegerLike,
                           SignlessFixedWidthIntegerLike>;
 
@@ -816,8 +816,8 @@ def RedXorOp : BtorUnaryOp<"redxor"> {
   let results = (outs BoolLike);
 }
 
-def AssertOp : Btor_Op<"assert"> {
-    let summary = "btor assertion";
+def AssertNotOp : Btor_Op<"assert_not"> {
+    let summary = "btor assertion to mimic bad operation";
     let description = [{
         This operation takes one boolean argument and terminates
         the program if the argument is false.
@@ -827,7 +827,7 @@ def AssertOp : Btor_Op<"assert"> {
         ```mlir
         %0 = constant 1 : i1
         // Apply the assert operation to %0
-        btor.assert ( %0 )
+        btor.assert_not ( %0 )
         ```
     }];
 

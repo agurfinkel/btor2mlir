@@ -203,7 +203,7 @@ Operation * createMLIR( Btor2Line * line,
 
     switch (line->tag) {
         case BTOR2_TAG_bad: {
-            res = builder.create<btor::AssertOp>(unknownLoc, 
+            res = builder.create<btor::AssertNotOp>(unknownLoc, 
                                         cache.at(kids[0]));
         }
         break;

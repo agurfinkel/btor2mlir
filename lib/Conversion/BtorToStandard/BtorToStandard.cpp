@@ -120,9 +120,9 @@ struct RotateRLowering : public OpRewritePattern<mlir::btor::RotateROp> {
     LogicalResult matchAndRewrite(mlir::btor::RotateROp rorOp, PatternRewriter &rewriter) const override;
 };
 
-struct AssertLowering : public OpRewritePattern<mlir::btor::AssertOp> {
-    using OpRewritePattern<mlir::btor::AssertOp>::OpRewritePattern;
-    LogicalResult matchAndRewrite(mlir::btor::AssertOp mulOp, PatternRewriter &rewriter) const override;
+struct AssertLowering : public OpRewritePattern<mlir::btor::AssertNotOp> {
+    using OpRewritePattern<mlir::btor::AssertNotOp>::OpRewritePattern;
+    LogicalResult matchAndRewrite(mlir::btor::AssertNotOp mulOp, PatternRewriter &rewriter) const override;
 };
 
 struct CmpLowering : public OpRewritePattern<mlir::btor::CmpOp> {
@@ -227,7 +227,7 @@ LogicalResult XnorLowering::matchAndRewrite(mlir::btor::XnorOp xnorOp, PatternRe
     return success();
 }
 
-LogicalResult AssertLowering::matchAndRewrite(mlir::btor::AssertOp assertOp, PatternRewriter &rewriter) const {
+LogicalResult AssertLowering::matchAndRewrite(mlir::btor::AssertNotOp assertOp, PatternRewriter &rewriter) const {
     Value notBad = rewriter.create<NotOp>(assertOp.getLoc(), assertOp.arg());
 
     auto loc = assertOp.getLoc();
@@ -403,7 +403,7 @@ void BtorToStandardLoweringPass::runOnOperation() {
     /// Configure conversion to lower out btor.add; Anything else is fine.
     ConversionTarget target(getContext());
     target.addIllegalOp<mlir::btor::AddOp, mlir::btor::MulOp, mlir::btor::AndOp>();
-    target.addIllegalOp<mlir::btor::CmpOp, mlir::btor::AssertOp, mlir::btor::NotOp>();
+    target.addIllegalOp<mlir::btor::CmpOp, mlir::btor::AssertNotOp, mlir::btor::NotOp>();
     target.addIllegalOp<mlir::btor::XOrOp, mlir::btor::XnorOp, mlir::btor::NandOp>();
     target.addIllegalOp<mlir::btor::OrOp, mlir::btor::NorOp, mlir::btor::IncOp>();
     target.addIllegalOp<mlir::btor::DecOp, mlir::btor::SubOp, mlir::btor::SRemOp>();
