@@ -490,23 +490,6 @@ static OwningModuleRef deserializeModule(const llvm::MemoryBuffer *input,
     // ensure all operations can be accessed by id
     auto iterator = reached_lines.begin();
     reached_lines.insert ( iterator , reached_lines.front() );
-
-    // // verify correct parsing and structure for module creation
-    // std::cout << reached_lines.size() << " reached lines" << "\n";
-    // for( auto it = reached_lines.begin(); it != reached_lines.end(); ++it ) {
-    //     std::cout << (*it)->name << ": line " << (*it)->lineno << "\n";
-    //     std::cout << "   sort " << (*it)->sort.bitvec.width << "\n";
-    //     std::cout << "   init: " << (*it)->init << " next: " << (*it)->next << "\n";
-    //     std::cout << "   args: ";
-    //     for( uint32_t i = 0; i < (*it)->nargs; ++i ) {
-    //         std::cout << (*it)->args[i] << " ";
-    //     }
-    //     std::cout << "\n";
-    // }
-
-    // std::cout << inits.size() << " init lines" << "\n";
-    // std::cout << nexts.size() << " next lines" << "\n";
-    // std::cout << states.size() << " states lines" << "\n";
     
     OwningOpRef<FuncOp> initFunc = buildInitFunction(context);
     if (!initFunc)
