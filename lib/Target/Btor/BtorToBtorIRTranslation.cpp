@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <map>
 
 #include "btor2tools/btor2parser/btor2parser.h"
 #include "btor2tools/btorsimbv.h"
@@ -41,10 +42,10 @@ static int64_t num_format_lines;
 static std::vector<Btor2Line *> inits;
 static std::vector<Btor2Line *> nexts;
 
-static std::vector<Btor2Line *> reached_lines;
+static std::map<int64_t, Btor2Line *> reached_lines;
 
 static void parse_model_line (Btor2Line *l) {
-    reached_lines.push_back (l);
+    reached_lines[ l->id ] = l;
     switch (l->tag) {
         case BTOR2_TAG_bad: {
             bads.push_back (l);
@@ -143,7 +144,7 @@ static void parse_model () {
     assert (model_file);
     model = btor2parser_new ();
     if (!btor2parser_read_lines (model, model_file))
-    std::cout << "parse error at: " << btor2parser_error (model) << "\n";
+    std::cerr << "parse error at: " << btor2parser_error (model) << "\n";
     num_format_lines = btor2parser_max_id (model);
     inits.resize (num_format_lines, nullptr);
     nexts.resize (num_format_lines, nullptr);
@@ -156,7 +157,7 @@ static void parse_model () {
     Btor2Line *state = states[i];
     if (!nexts[state->id])
     {
-        std::cout << "state " << state->id << " without next function\n";
+        std::cerr << "state " << state->id << " without next function\n";
     }
     }
 }
@@ -184,10 +185,10 @@ void filterNexts() {
 }
 
 
-Operation * createMLIR( Btor2Line * line, 
+Operation * createMLIR( const Btor2Line * line, 
                     OpBuilder builder,
-                    std::vector<Value> cache,
-                    int64_t * kids  ) {
+                    const std::map<int64_t, Value> cache,
+                    const int64_t * kids  ) {
     Location unknownLoc = UnknownLoc::get(builder.getContext());
     Operation * res = nullptr;
 
@@ -411,7 +412,7 @@ Operation * createMLIR( Btor2Line * line,
 
         // unary ops
         case BTOR2_TAG_const: {
-            auto opType = builder.getIntegerType( 1 );
+            auto opType = builder.getIntegerType( line->sort.bitvec.width );
             res = builder.create<btor::ConstantOp>(unknownLoc, opType, 
                                         builder.getIntegerAttr(
                                             opType,
@@ -562,9 +563,9 @@ bool isValidChild( uint32_t line ) {
 
 void toOp( Btor2Line * line, 
            OpBuilder builder, 
-           std::vector<Value> &cache) {
+           std::map<int64_t, Value> &cache) {
 
-    if( cache[ line->id ] != nullptr ) 
+    if( cache.find( line->id) != cache.end() )
         return;
 
     Operation * res = nullptr; 
@@ -578,7 +579,7 @@ void toOp( Btor2Line * line,
                 continue;
             }
 
-            if( cache[ cur->args[i] ] == nullptr ) {
+            if( cache.find( cur->args[i]) == cache.end() ) {
                 todo.push_back( reached_lines.at( cur->args[i] ) );
             }
         } 
@@ -590,7 +591,7 @@ void toOp( Btor2Line * line,
             continue;
         }
         // some operations could have been resolved prior to this
-        if( cache.at( cur->id ) == nullptr ) {
+        if( cache.find( cur-> id) == cache.end() ) {
             res = createMLIR( cur, builder, cache, cur->args );
             assert( res );
             cache[ cur->id ] = res->getResult(0);
@@ -608,7 +609,6 @@ OwningOpRef<FuncOp> buildInitFunction(MLIRContext *context) {
     for( uint32_t i = 0; i < inits.size(); ++i ) {
         returnTypes[i] = builder.getIntegerType( 
                                 inits.at( i )->sort.bitvec.width );
-
         assert( returnTypes[i] );
     }
     ArrayRef<Type> outputs( returnTypes );
@@ -625,7 +625,7 @@ OwningOpRef<FuncOp> buildInitFunction(MLIRContext *context) {
     auto *body = builder.createBlock( &region );
     builder.setInsertionPointToStart( body );
 
-    std::vector<Value> cache( reached_lines.size(), nullptr );
+    std::map<int64_t, Value> cache;
     for( auto it = inits.begin(); it != inits.end(); ++it ) {
         toOp( *it, builder, cache );
     }
@@ -652,7 +652,6 @@ OwningOpRef<FuncOp> buildNextFunction(MLIRContext *context) {
     for( uint32_t i = 0; i < nexts.size(); ++i ) {
         returnTypes[i] = builder.getIntegerType( 
                                 nexts.at( i )->sort.bitvec.width );
-
         assert( returnTypes[i] );
     }
     ArrayRef<Type> outputs( returnTypes );
@@ -667,7 +666,7 @@ OwningOpRef<FuncOp> buildNextFunction(MLIRContext *context) {
     auto *body = builder.createBlock( &region, {}, TypeRange({ outputs }) );
     builder.setInsertionPointToStart( body );
 
-    std::vector<Value> cache( reached_lines.size(), nullptr );
+    std::map<int64_t, Value> cache;
     // initialize states with block arguments
     for( uint32_t i = 0; i < nexts.size(); ++i ) {
         cache[ nexts.at( i )->args[ 0 ] ] = body->getArguments()[i];
@@ -709,10 +708,6 @@ static OwningModuleRef deserializeModule(const llvm::MemoryBuffer *input,
     // extract relevant inits and nexts
     filterInits();
     filterNexts();
-
-    // ensure all operations can be accessed by id
-    auto iterator = reached_lines.begin();
-    reached_lines.insert ( iterator , reached_lines.front() );
     
     OwningOpRef<FuncOp> initFunc = buildInitFunction(context);
     if (!initFunc)
