@@ -202,21 +202,6 @@ Operation * createMLIR( Btor2Line * line,
     Operation * res = nullptr;
 
     switch (line->tag) {
-        case BTOR2_TAG_bad: {
-            res = builder.create<btor::AssertNotOp>(unknownLoc, 
-                                        cache.at(kids[0]));
-        }
-        break;
-        case BTOR2_TAG_constraint: break;
-        case BTOR2_TAG_init: break;
-        case BTOR2_TAG_input: break;
-        case BTOR2_TAG_next: break;
-        case BTOR2_TAG_sort: break;
-        case BTOR2_TAG_state: break;
-        case BTOR2_TAG_fair: break;
-        case BTOR2_TAG_justice: break;
-        case BTOR2_TAG_output: break;
-
         // binary ops
         case BTOR2_TAG_slt: 
             res = builder.create<btor::CmpOp>(unknownLoc, 
@@ -433,7 +418,6 @@ Operation * createMLIR( Btor2Line * line,
                                         cache.at(kids[0]), 
                                         cache.at(kids[1]));
         break;
-        case BTOR2_TAG_read: break;
 
         // unary ops
         case BTOR2_TAG_const: {
@@ -446,13 +430,23 @@ Operation * createMLIR( Btor2Line * line,
         break;
         case BTOR2_TAG_constd: {
             auto opType = builder.getIntegerType( line->sort.bitvec.width );
+            std::string input( line->constant );
             res = builder.create<btor::ConstantOp>(unknownLoc, opType, 
                                         builder.getIntegerAttr(
                                             opType,
-                                            line->constant[0] - '0'));
+                                            std::stoi( input )));
         }
         break;
-        case BTOR2_TAG_consth: break;
+        case BTOR2_TAG_consth: {
+            auto opType = builder.getIntegerType( line->sort.bitvec.width );
+            std::string input( "0x" ); input += line->constant;
+            res = builder.create<btor::ConstantOp>(unknownLoc, opType, 
+                                        builder.getIntegerAttr(
+                                            opType,
+                                            std::stoi( input, nullptr, 16 )));
+        }
+        break;
+
         case BTOR2_TAG_dec: 
             res = builder.create<btor::DecOp>(unknownLoc, 
                                             cache.at(kids[0]));
@@ -504,6 +498,10 @@ Operation * createMLIR( Btor2Line * line,
                                                 builder.getIntegerAttr(opType, 0));
         }
         break;
+        case BTOR2_TAG_bad:
+            res = builder.create<btor::AssertNotOp>(unknownLoc, 
+                                        cache.at(kids[0]));
+        break;
 
         // indexed ops
         case BTOR2_TAG_slice: {
@@ -520,15 +518,41 @@ Operation * createMLIR( Btor2Line * line,
                                                 u->getResult(0), l->getResult(0));
         }
         break;
-        case BTOR2_TAG_sext: break;
-        case BTOR2_TAG_uext: break;
+        case BTOR2_TAG_sext: 
+            res = builder.create<btor::SExtOp>(unknownLoc, 
+                                            cache.at(kids[0]),
+                                            builder.getIntegerType( 
+                                                line->sort.bitvec.width));
+        break;
+        case BTOR2_TAG_uext: 
+            res = builder.create<btor::UExtOp>(unknownLoc, 
+                                            cache.at(kids[0]),
+                                            builder.getIntegerType( 
+                                                line->sort.bitvec.width));
+        break;
 
         // ternary ops
-        case BTOR2_TAG_ite: break;
-        case BTOR2_TAG_write: break;
-
-        default:
+        case BTOR2_TAG_ite:
+            res = builder.create<btor::IteOp>(unknownLoc, 
+                                        cache.at(kids[0]),
+                                        cache.at(kids[1]),
+                                        cache.at(kids[2]));
         break;
+
+        // unmapped ops
+        case BTOR2_TAG_read:
+        case BTOR2_TAG_constraint:
+        case BTOR2_TAG_init: 
+        case BTOR2_TAG_input:
+        case BTOR2_TAG_next:
+        case BTOR2_TAG_sort:
+        case BTOR2_TAG_state:
+        case BTOR2_TAG_fair:
+        case BTOR2_TAG_justice:
+        case BTOR2_TAG_output:
+        case BTOR2_TAG_write:
+        default:
+            break;
     }
     return res;
 }
