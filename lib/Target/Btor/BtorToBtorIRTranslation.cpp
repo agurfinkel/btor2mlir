@@ -218,6 +218,66 @@ Operation * createMLIR( Btor2Line * line,
         case BTOR2_TAG_output: break;
 
         // binary ops
+        case BTOR2_TAG_slt: 
+            res = builder.create<btor::CmpOp>(unknownLoc, 
+                                        btor::BtorPredicate::slt,
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_slte: 
+            res = builder.create<btor::CmpOp>(unknownLoc, 
+                                        btor::BtorPredicate::sle,
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_sgt: 
+            res = builder.create<btor::CmpOp>(unknownLoc, 
+                                        btor::BtorPredicate::sgt,
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_sgte:
+            res = builder.create<btor::CmpOp>(unknownLoc, 
+                                        btor::BtorPredicate::sge,
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_neq: 
+            res = builder.create<btor::CmpOp>(unknownLoc, 
+                                        btor::BtorPredicate::ne,
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_eq: 
+            res = builder.create<btor::CmpOp>(unknownLoc, 
+                                        btor::BtorPredicate::eq,
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_ugt: 
+            res = builder.create<btor::CmpOp>(unknownLoc, 
+                                        btor::BtorPredicate::ugt,
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_ugte: 
+            res = builder.create<btor::CmpOp>(unknownLoc, 
+                                        btor::BtorPredicate::uge,
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_ult: 
+            res = builder.create<btor::CmpOp>(unknownLoc, 
+                                        btor::BtorPredicate::ult,
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_ulte: 
+            res = builder.create<btor::CmpOp>(unknownLoc, 
+                                        btor::BtorPredicate::ule,
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
         case BTOR2_TAG_add: 
             res = builder.create<btor::AddOp>(unknownLoc, 
                                         cache.at(kids[0]), 
@@ -228,39 +288,43 @@ Operation * createMLIR( Btor2Line * line,
                                         cache.at(kids[0]), 
                                         cache.at(kids[1]));
         break;
-        case BTOR2_TAG_concat: break;
-        case BTOR2_TAG_eq: 
-            res = builder.create<btor::CmpOp>(unknownLoc, 
-                                        btor::BtorPredicate::eq,
-                                        cache.at(kids[0]), 
-                                        cache.at(kids[1]));
+        case BTOR2_TAG_concat: {
+            Value lhs = cache.at(kids[0]), rhs = cache.at(kids[1]);
+            auto sum = lhs.getType().getIntOrFloatBitWidth() + 
+                    rhs.getType().getIntOrFloatBitWidth();
+            auto resType = builder.getIntegerType( sum );
+            res = builder.create<btor::ConcatOp>(unknownLoc, resType, lhs, rhs);
+        }
         break;
         case BTOR2_TAG_implies: break;
         case BTOR2_TAG_nand: break;
         case BTOR2_TAG_nor: break;
-        case BTOR2_TAG_neq: break;
         case BTOR2_TAG_or: break;
         case BTOR2_TAG_redand: break;
         case BTOR2_TAG_redor: break;
         case BTOR2_TAG_redxor: break;
         case BTOR2_TAG_sdiv: break;
-        case BTOR2_TAG_sgt: break;
-        case BTOR2_TAG_sgte: break;
         case BTOR2_TAG_sll: break;
-        case BTOR2_TAG_slt: break;
-        case BTOR2_TAG_slte: break;
         case BTOR2_TAG_sra: break;
         case BTOR2_TAG_srem: break;
         case BTOR2_TAG_srl: break;
         case BTOR2_TAG_sub: break;
         case BTOR2_TAG_udiv: break;
-        case BTOR2_TAG_ugt: break;
-        case BTOR2_TAG_ugte: break;
-        case BTOR2_TAG_ult: break;
-        case BTOR2_TAG_ulte: break;
-        case BTOR2_TAG_urem: break;
-        case BTOR2_TAG_xnor: break;
-        case BTOR2_TAG_xor: break;
+        case BTOR2_TAG_urem: 
+            res = builder.create<btor::URemOp>(unknownLoc, 
+                                            cache.at(kids[0]), 
+                                            cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_xnor: 
+            res = builder.create<btor::XnorOp>(unknownLoc, 
+                                            cache.at(kids[0]), 
+                                            cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_xor: 
+            res = builder.create<btor::XOrOp>(unknownLoc, 
+                                            cache.at(kids[0]), 
+                                            cache.at(kids[1]));
+        break;
         case BTOR2_TAG_rol: break;
         case BTOR2_TAG_ror: break;
         case BTOR2_TAG_saddo: break;
@@ -276,10 +340,25 @@ Operation * createMLIR( Btor2Line * line,
                                             cache.at(kids[0]), 
                                             cache.at(kids[1]));
         break;
+        case BTOR2_TAG_read: break;
 
         // unary ops
-        case BTOR2_TAG_const: break;
-        case BTOR2_TAG_constd: break;
+        case BTOR2_TAG_const: {
+            auto opType = builder.getIntegerType( 1 );
+            res = builder.create<btor::ConstantOp>(unknownLoc, opType, 
+                                        builder.getIntegerAttr(
+                                            opType,
+                                            line->constant[0] - '0'));
+        }
+        break;
+        case BTOR2_TAG_constd: {
+            auto opType = builder.getIntegerType( line->sort.bitvec.width );
+            res = builder.create<btor::ConstantOp>(unknownLoc, opType, 
+                                        builder.getIntegerAttr(
+                                            opType,
+                                            line->constant[0] - '0'));
+        }
+        break;
         case BTOR2_TAG_consth: break;
         case BTOR2_TAG_dec: 
             res = builder.create<btor::DecOp>(unknownLoc, 
@@ -289,8 +368,14 @@ Operation * createMLIR( Btor2Line * line,
             res = builder.create<btor::IncOp>(unknownLoc, 
                                             cache.at(kids[0]));
         break;
-        case BTOR2_TAG_neg: break;
-        case BTOR2_TAG_not: break;
+        case BTOR2_TAG_neg: 
+            res = builder.create<btor::NegOp>(unknownLoc, 
+                                            cache.at(kids[0]));
+        break;
+        case BTOR2_TAG_not: 
+            res = builder.create<btor::NotOp>(unknownLoc, 
+                                            cache.at(kids[0]));
+        break;
         case BTOR2_TAG_one: {
             auto opType = builder.getIntegerType( line->sort.bitvec.width );
             res = builder.create<btor::ConstantOp>(unknownLoc, opType, 
@@ -305,20 +390,31 @@ Operation * createMLIR( Btor2Line * line,
                                                 builder.getIntegerAttr(opType, value));
         }
         break;
-
-
-        // indexed ops
-        case BTOR2_TAG_slice: break;
-        case BTOR2_TAG_sext: break;
-        case BTOR2_TAG_uext: break;
-        
         case BTOR2_TAG_zero: {
              auto opType = builder.getIntegerType( line->sort.bitvec.width );
              res = builder.create<btor::ConstantOp>(unknownLoc, opType, 
                                                 builder.getIntegerAttr(opType, 0));
         }
         break;
-        case BTOR2_TAG_read: break;
+
+
+        // indexed ops
+        case BTOR2_TAG_slice: {
+            auto operandWidth = reached_lines.at( kids[0] )->sort.bitvec.width;
+            auto opType = builder.getIntegerType( operandWidth );
+            assert( operandWidth > kids[1] && kids[1] >= kids[2] );
+            auto resType = builder.getIntegerType( kids[1] - kids[2] + 1 );
+
+            auto u = builder.create<btor::ConstantOp>(unknownLoc, opType, 
+                                                builder.getIntegerAttr(opType, kids[1]));
+            auto l = builder.create<btor::ConstantOp>(unknownLoc, opType, 
+                                                builder.getIntegerAttr(opType, kids[2]));
+            res = builder.create<btor::SliceOp>(unknownLoc, resType, cache.at( kids[0]), 
+                                                u->getResult(0), l->getResult(0));
+        }
+        break;
+        case BTOR2_TAG_sext: break;
+        case BTOR2_TAG_uext: break;
 
         // ternary ops
         case BTOR2_TAG_ite: break;
@@ -344,6 +440,7 @@ bool isValidChild( uint32_t line ) {
 void toOp( Btor2Line * line, 
            OpBuilder builder, 
            std::vector<Value> &cache) {
+
     if( cache[ line->id ] != nullptr ) 
         return;
 
@@ -369,9 +466,12 @@ void toOp( Btor2Line * line,
             todo.pop_back();
             continue;
         }
-        res = createMLIR( cur, builder, cache, cur->args );
-        assert( res );
-        cache[ cur->id ] = res->getResult(0);
+        // some operations could have been resolved prior to this
+        if( cache.at( cur->id ) == nullptr ) {
+            res = createMLIR( cur, builder, cache, cur->args );
+            assert( res );
+            cache[ cur->id ] = res->getResult(0);
+        }
         todo.pop_back();
     }
 }
