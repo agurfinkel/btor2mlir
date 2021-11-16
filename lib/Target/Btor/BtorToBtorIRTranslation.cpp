@@ -548,7 +548,37 @@ Operation * createMLIR( const Btor2Line * line,
     return res;
 }
 
-bool isValidChild( uint32_t line ) {
+void cleanupCreatedLines() {
+    for( auto it = reached_lines.begin(); it != reached_lines.end(); ++it ) {
+        if( it->first < 0 ) {
+            Btor2Line *line = it->second;
+            delete [] line->args;
+            delete line;
+        }
+    }
+}
+
+void createNegateLine( int64_t curAt, Btor2Line * line ) {
+    Btor2Line *res = new Btor2Line;
+    int64_t *args = new int64_t[1];
+    args[0] = curAt * -1;
+
+    res->id = curAt;
+    res->lineno = curAt;
+    res->name = "not";
+    res->tag = BTOR2_TAG_not;
+    res->sort = line->sort;
+    res->init = line->init;
+    res->next = line->next;
+    res->constant = line->constant;
+    res->symbol = line->symbol;
+    res->nargs = 1;
+    res->args = args; 
+
+    reached_lines[ curAt ] = res;
+}
+
+bool isValidChild( int64_t line ) {
     auto tag = reached_lines.at( line )->tag;
     if( tag == BTOR2_TAG_init || tag == BTOR2_TAG_constraint
     ||  tag == BTOR2_TAG_next || tag == BTOR2_TAG_read
@@ -575,12 +605,19 @@ void toOp( Btor2Line * line,
         auto cur = todo.back();
         uint32_t oldsize = todo.size();
         for( uint32_t i = 0; i < cur->nargs; ++i ) {
-            if( !isValidChild( cur->args[i] ) ) {
+            if( cur->args[i] > 0 && !isValidChild( cur->args[i] ) ) {
                 continue;
             }
 
-            if( cache.find( cur->args[i]) == cache.end() ) {
-                todo.push_back( reached_lines.at( cur->args[i] ) );
+            if( cache.find( cur->args[i] ) == cache.end() ) {
+                if( cur->args[i] < 0 ) {
+                    createNegateLine( cur->args[i], 
+                        reached_lines.at( cur->args[i] * -1 ));
+                    todo.push_back( reached_lines.at( cur->args[i] ) );
+                    todo.push_back( reached_lines.at( cur->args[i] * -1 ) );
+                } else {
+                    todo.push_back( reached_lines.at( cur->args[i] ) );
+                }
             }
         } 
         if( todo.size() != oldsize ) {
@@ -591,7 +628,7 @@ void toOp( Btor2Line * line,
             continue;
         }
         // some operations could have been resolved prior to this
-        if( cache.find( cur-> id) == cache.end() ) {
+        if( cache.find( cur-> id ) == cache.end() ) {
             res = createMLIR( cur, builder, cache, cur->args );
             assert( res );
             cache[ cur->id ] = res->getResult(0);
@@ -723,6 +760,7 @@ static OwningModuleRef deserializeModule(const llvm::MemoryBuffer *input,
         owningModule->getBody()->push_front(initFunc.release());
         
         btor2parser_delete( model );
+        cleanupCreatedLines();
     }
 
     return owningModule;
