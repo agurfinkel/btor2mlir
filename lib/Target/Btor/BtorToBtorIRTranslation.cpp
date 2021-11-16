@@ -2,7 +2,6 @@
 #include "Dialect/Btor/IR/BtorDialect.h"
 #include "Dialect/Btor/IR/BtorOps.h"
 
-
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/Dialect.h"
@@ -13,19 +12,9 @@
 #include "llvm/Support/SourceMgr.h"
 
 #include <assert.h>
-#include <ctype.h>
-#include <inttypes.h>
-#include <limits.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include <string>
 #include <vector>
 #include <iostream>
-#include <memory>
-#include <unordered_map>
 
 #include "btor2tools/btor2parser/btor2parser.h"
 #include "btor2tools/btorsimbv.h"
@@ -112,6 +101,7 @@ static void parse_model_line (Btor2Line *l) {
         case BTOR2_TAG_sext:
         case BTOR2_TAG_sgt:
         case BTOR2_TAG_sgte:
+        case BTOR2_TAG_iff:
         case BTOR2_TAG_slice:
         case BTOR2_TAG_sll:
         case BTOR2_TAG_slt:
@@ -559,10 +549,12 @@ Operation * createMLIR( Btor2Line * line,
 
 bool isValidChild( uint32_t line ) {
     auto tag = reached_lines.at( line )->tag;
-    if( tag == BTOR2_TAG_init 
-    ||  tag == BTOR2_TAG_next 
-    ||  tag == BTOR2_TAG_state
-    ||  tag == BTOR2_TAG_sort ) {
+    if( tag == BTOR2_TAG_init || tag == BTOR2_TAG_constraint
+    ||  tag == BTOR2_TAG_next || tag == BTOR2_TAG_read
+    ||  tag == BTOR2_TAG_state || tag == BTOR2_TAG_input
+    ||  tag == BTOR2_TAG_sort || tag == BTOR2_TAG_fair 
+    || tag == BTOR2_TAG_justice || tag == BTOR2_TAG_output
+    || tag ==  BTOR2_TAG_write) {
         return false;
     }
     return true;
