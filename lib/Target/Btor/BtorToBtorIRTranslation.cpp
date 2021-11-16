@@ -698,30 +698,32 @@ static OwningModuleRef deserializeModule(const llvm::MemoryBuffer *input,
     context->loadDialect<btor::BtorDialect>();
     context->loadDialect<StandardOpsDialect>();
     
+    OwningModuleRef owningModule(ModuleOp::create(FileLineColLoc::get(
+      context, input->getBufferIdentifier(), /*line=*/0, /*column=*/0)));
+
     model_file = fopen( input->getBufferIdentifier().str().c_str(), "r" );
     
     if (model_file != NULL) {
         parse_model();
         fclose (model_file);
+
+        // extract relevant inits and nexts
+        filterInits();
+        filterNexts();
+        
+        OwningOpRef<FuncOp> initFunc = buildInitFunction(context);
+        if (!initFunc)
+            return {};
+
+        OwningOpRef<FuncOp> nextFunc = buildNextFunction(context);
+        if (!nextFunc)
+            return {};
+
+        owningModule->getBody()->push_front(nextFunc.release());
+        owningModule->getBody()->push_front(initFunc.release());
+        
+        btor2parser_delete( model );
     }
-
-    // extract relevant inits and nexts
-    filterInits();
-    filterNexts();
-    
-    OwningOpRef<FuncOp> initFunc = buildInitFunction(context);
-    if (!initFunc)
-        return {};
-
-    OwningOpRef<FuncOp> nextFunc = buildNextFunction(context);
-    if (!nextFunc)
-        return {};
-
-    OwningModuleRef owningModule(ModuleOp::create(FileLineColLoc::get(
-      context, input->getBufferIdentifier(), /*line=*/0, /*column=*/0)));
-    owningModule->getBody()->push_front(nextFunc.release());
-    owningModule->getBody()->push_front(initFunc.release());
-
 
     return owningModule;
 }
