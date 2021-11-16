@@ -129,7 +129,7 @@ def IteOp : Btor_Op<"ite", [NoSideEffect,
 }
 
 def SliceOp : Btor_Op<"slice", [NoSideEffect,
-    AllTypesMatch<["in", "upper_bound", "lower_bound"]>]
+    AllTypesMatch<["upper_bound", "lower_bound"]>]
     #ElementwiseMappable.traits> {
     
     let summary = "integer slice operation";
