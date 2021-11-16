@@ -296,24 +296,65 @@ Operation * createMLIR( Btor2Line * line,
             res = builder.create<btor::ConcatOp>(unknownLoc, resType, lhs, rhs);
         }
         break;
-        case BTOR2_TAG_implies: break;
-        case BTOR2_TAG_nand: break;
-        case BTOR2_TAG_nor: break;
-        case BTOR2_TAG_or: break;
-        case BTOR2_TAG_redand: break;
-        case BTOR2_TAG_redor: break;
-        case BTOR2_TAG_redxor: break;
-        case BTOR2_TAG_sdiv: break;
-        case BTOR2_TAG_sll: break;
-        case BTOR2_TAG_sra: break;
-        case BTOR2_TAG_srem: break;
-        case BTOR2_TAG_srl: break;
-        case BTOR2_TAG_sub: break;
-        case BTOR2_TAG_udiv: break;
+        case BTOR2_TAG_implies: 
+            res = builder.create<btor::ImpliesOp>(unknownLoc, 
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_iff: 
+            res = builder.create<btor::IffOp>(unknownLoc, 
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_nand: 
+            res = builder.create<btor::NandOp>(unknownLoc, 
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_nor: 
+            res = builder.create<btor::NorOp>(unknownLoc, 
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_or: 
+            res = builder.create<btor::OrOp>(unknownLoc, 
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_sdiv: 
+            res = builder.create<btor::SDivOp>(unknownLoc, 
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_srem: 
+            res = builder.create<btor::SRemOp>(unknownLoc, 
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_sub: 
+            res = builder.create<btor::SubOp>(unknownLoc, 
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_udiv: 
+            res = builder.create<btor::UDivOp>(unknownLoc, 
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
         case BTOR2_TAG_urem: 
             res = builder.create<btor::URemOp>(unknownLoc, 
                                             cache.at(kids[0]), 
                                             cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_mul:
+             res = builder.create<btor::MulOp>(unknownLoc, 
+                                            cache.at(kids[0]), 
+                                            cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_smod: 
+            res = builder.create<btor::SModOp>(unknownLoc, 
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
         break;
         case BTOR2_TAG_xnor: 
             res = builder.create<btor::XnorOp>(unknownLoc, 
@@ -325,20 +366,72 @@ Operation * createMLIR( Btor2Line * line,
                                             cache.at(kids[0]), 
                                             cache.at(kids[1]));
         break;
-        case BTOR2_TAG_rol: break;
-        case BTOR2_TAG_ror: break;
-        case BTOR2_TAG_saddo: break;
-        case BTOR2_TAG_sdivo: break;
-        case BTOR2_TAG_smod: break;
-        case BTOR2_TAG_smulo: break;
-        case BTOR2_TAG_ssubo: break;
-        case BTOR2_TAG_uaddo: break;
-        case BTOR2_TAG_umulo: break;
-        case BTOR2_TAG_usubo: break;
-        case BTOR2_TAG_mul:
-             res = builder.create<btor::MulOp>(unknownLoc, 
-                                            cache.at(kids[0]), 
-                                            cache.at(kids[1]));
+        case BTOR2_TAG_sll: 
+            res = builder.create<btor::ShiftLLOp>(unknownLoc, 
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_sra: 
+            res = builder.create<btor::ShiftRAOp>(unknownLoc, 
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_srl: 
+            res = builder.create<btor::ShiftRLOp>(unknownLoc, 
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_rol: 
+            res = builder.create<btor::RotateLOp>(unknownLoc, 
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_ror: 
+            res = builder.create<btor::RotateROp>(unknownLoc, 
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_saddo: 
+            res = builder.create<btor::SAddOverflowOp>(unknownLoc, 
+                                        builder.getIntegerType( 1 ),
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_sdivo: 
+            res = builder.create<btor::SDivOverflowOp>(unknownLoc,
+                                        builder.getIntegerType( 1 ),
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_smulo: 
+            res = builder.create<btor::SMulOverflowOp>(unknownLoc, 
+                                        builder.getIntegerType( 1 ),
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_ssubo: 
+            res = builder.create<btor::SSubOverflowOp>(unknownLoc, 
+                                        builder.getIntegerType( 1 ),
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_uaddo: 
+            res = builder.create<btor::UAddOverflowOp>(unknownLoc, 
+                                        builder.getIntegerType( 1 ),
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_umulo: 
+            res = builder.create<btor::UMulOverflowOp>(unknownLoc, 
+                                        builder.getIntegerType( 1 ),
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
+        break;
+        case BTOR2_TAG_usubo: 
+            res = builder.create<btor::USubOverflowOp>(unknownLoc, 
+                                        builder.getIntegerType( 1 ),
+                                        cache.at(kids[0]), 
+                                        cache.at(kids[1]));
         break;
         case BTOR2_TAG_read: break;
 
@@ -376,6 +469,21 @@ Operation * createMLIR( Btor2Line * line,
             res = builder.create<btor::NotOp>(unknownLoc, 
                                             cache.at(kids[0]));
         break;
+        case BTOR2_TAG_redand: 
+            res = builder.create<btor::RedAndOp>(unknownLoc, 
+                                        builder.getIntegerType( 1 ),
+                                        cache.at(kids[0]));
+        break;
+        case BTOR2_TAG_redor: 
+            res = builder.create<btor::RedOrOp>(unknownLoc, 
+                                        builder.getIntegerType( 1 ),
+                                        cache.at(kids[0]));
+        break;
+        case BTOR2_TAG_redxor: 
+            res = builder.create<btor::RedXorOp>(unknownLoc, 
+                                        builder.getIntegerType( 1 ),
+                                        cache.at(kids[0]));
+        break;
         case BTOR2_TAG_one: {
             auto opType = builder.getIntegerType( line->sort.bitvec.width );
             res = builder.create<btor::ConstantOp>(unknownLoc, opType, 
@@ -396,7 +504,6 @@ Operation * createMLIR( Btor2Line * line,
                                                 builder.getIntegerAttr(opType, 0));
         }
         break;
-
 
         // indexed ops
         case BTOR2_TAG_slice: {
