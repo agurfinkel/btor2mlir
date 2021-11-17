@@ -43,6 +43,7 @@ static std::vector<Btor2Line *> inits;
 static std::vector<Btor2Line *> nexts;
 
 static std::map<int64_t, Btor2Line *> reached_lines;
+static std::map<int64_t, Value> cache;
 
 static void parse_model_line(Btor2Line *l) {
   reached_lines[l->id] = l;
@@ -194,8 +195,8 @@ void filterNexts() {
   nexts = filteredNexts;
 }
 
-Operation *createMLIR(const Btor2Line *line, OpBuilder &builder,
-                      const std::map<int64_t, Value> cache,
+Operation *createMLIR(const Btor2Line *line, 
+                      OpBuilder &builder,
                       const int64_t *kids) {
   Location unknownLoc = UnknownLoc::get(builder.getContext());
   Operation *res = nullptr;
@@ -528,7 +529,7 @@ bool isValidChild(int64_t line) {
   return true;
 }
 
-void toOp(Btor2Line *line, OpBuilder &builder, std::map<int64_t, Value> &cache) {
+void toOp(Btor2Line *line, OpBuilder &builder) {
 
   if (cache.find(line->id) != cache.end())
     return;
@@ -563,7 +564,7 @@ void toOp(Btor2Line *line, OpBuilder &builder, std::map<int64_t, Value> &cache) 
     }
     // some operations could have been resolved prior to this
     if (cache.find(cur->id) == cache.end()) {
-      res = createMLIR(cur, builder, cache, cur->args);
+      res = createMLIR(cur, builder, cur->args);
       assert(res);
       cache[cur->id] = res->getResult(0);
     }
@@ -595,9 +596,10 @@ OwningOpRef<FuncOp> buildInitFunction(MLIRContext *context) {
   auto *body = builder.createBlock(&region);
   builder.setInsertionPointToStart(body);
 
-  std::map<int64_t, Value> cache;
+  // clear cache so that values are mapped to the right Basic Block
+  cache.clear();
   for (auto it = inits.begin(); it != inits.end(); ++it) {
-    toOp(*it, builder, cache);
+    toOp(*it, builder);
   }
 
   // close with a fitting returnOp
@@ -635,7 +637,8 @@ OwningOpRef<FuncOp> buildNextFunction(MLIRContext *context) {
   auto *body = builder.createBlock(&region, {}, TypeRange({outputs}));
   builder.setInsertionPointToStart(body);
 
-  std::map<int64_t, Value> cache;
+  // clear cache so that values are mapped to the right Basic Block
+  cache.clear();
   // initialize states with block arguments
   for (uint32_t i = 0; i < nexts.size(); ++i) {
     cache[nexts.at(i)->args[0]] = body->getArguments()[i];
@@ -643,10 +646,10 @@ OwningOpRef<FuncOp> buildNextFunction(MLIRContext *context) {
 
   // start with nexts, then add bads, for logic sharing
   for (auto it = nexts.begin(); it != nexts.end(); ++it) {
-    toOp(*it, builder, cache);
+    toOp(*it, builder);
   }
   for (auto it = bads.begin(); it != bads.end(); ++it) {
-    toOp(*it, builder, cache);
+    toOp(*it, builder);
   }
 
   // close with a fitting returnOp
