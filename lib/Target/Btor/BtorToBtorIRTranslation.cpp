@@ -151,8 +151,10 @@ static void parse_model_line(Btor2Line *l) {
 static void parse_model() {
   assert(model_file);
   model = btor2parser_new();
-  if (!btor2parser_read_lines(model, model_file))
+  if (!btor2parser_read_lines(model, model_file)) {
     std::cerr << "parse error at: " << btor2parser_error(model) << "\n";
+    exit(1);
+  }
   num_format_lines = btor2parser_max_id(model);
   inits.resize(num_format_lines, nullptr);
   nexts.resize(num_format_lines, nullptr);
@@ -165,6 +167,7 @@ static void parse_model() {
     Btor2Line *state = states[i];
     if (!nexts[state->id]) {
       std::cerr << "state " << state->id << " without next function\n";
+      exit(1);
     }
   }
 }
@@ -191,7 +194,7 @@ void filterNexts() {
   nexts = filteredNexts;
 }
 
-Operation *createMLIR(const Btor2Line *line, OpBuilder builder,
+Operation *createMLIR(const Btor2Line *line, OpBuilder &builder,
                       const std::map<int64_t, Value> cache,
                       const int64_t *kids) {
   Location unknownLoc = UnknownLoc::get(builder.getContext());
@@ -525,7 +528,7 @@ bool isValidChild(int64_t line) {
   return true;
 }
 
-void toOp(Btor2Line *line, OpBuilder builder, std::map<int64_t, Value> &cache) {
+void toOp(Btor2Line *line, OpBuilder &builder, std::map<int64_t, Value> &cache) {
 
   if (cache.find(line->id) != cache.end())
     return;
