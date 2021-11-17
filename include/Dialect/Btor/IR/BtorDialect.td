@@ -39,12 +39,7 @@ def BtorPredicateAttr : I64EnumAttr<
 
 def Btor_Dialect : Dialect {
     let name = "btor";
-    let summary = "An out-of-tree MLIR Btor dialect.";
-    let description = [{
-        This dialect is an example of an out-of-tree MLIR dialect designed to
-        illustrate the basic setup required to develop MLIR-based tools without
-        working inside of the LLVM source tree.
-    }];
+    let summary = "A BTOR2 MLIR dialect";
     let cppNamespace = "::mlir::btor";
 }
 
