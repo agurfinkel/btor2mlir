@@ -195,6 +195,15 @@ void filterNexts() {
   nexts = filteredNexts;
 }
 
+///===----------------------------------------------------------------------===//
+/// This function's goal is to create the MLIR Operation that corresponds to 
+/// the given Btor2Line*, cur, into the basic block designated by the provided 
+/// builder.
+///
+/// e.x:
+///     Operation * res = createMLIR(cur, builder, cur->args);
+///
+///===----------------------------------------------------------------------===//
 Operation *createMLIR(const Btor2Line *line, 
                       OpBuilder &builder,
                       const int64_t *kids) {
@@ -529,6 +538,20 @@ bool isValidChild(Btor2Line * line) {
   return true;
 }
 
+///===----------------------------------------------------------------------===//
+/// This function's goal is to add the MLIR Operation that corresponds to 
+/// the given Btor2Line* into the basic block designated by the provided 
+/// builder. Then, the MLIR Value of the newly minted operation is added
+/// into our cache for future reference within the basic block. 
+///
+/// e.x:
+///      for (auto it = nexts.begin(); it != nexts.end(); ++it) {
+///          toOp(*it, builder);
+///      }
+///
+///  We can see that for each next operation in btor2, we will compute all
+///  the prerequisite operations before storing the result in our cache
+///===----------------------------------------------------------------------===//
 void toOp(Btor2Line *line, OpBuilder &builder) {
 
   if (cache.find(line->id) != cache.end())
@@ -566,7 +589,7 @@ void toOp(Btor2Line *line, OpBuilder &builder) {
     // some operations could have been resolved prior to this
     if (cache.find(cur->id) == cache.end()) {
       res = createMLIR(cur, builder, cur->args);
-      assert(res);
+      assert(res && res->getNumResults() < 2 && res->getResult(0));
       cache[cur->id] = res->getResult(0);
     }
     todo.pop_back();
