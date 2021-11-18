@@ -174,25 +174,23 @@ static void parse_model() {
 }
 
 void filterInits() {
-  std::vector<Btor2Line *> filteredInits;
-  for (auto it = inits.begin(); it != inits.end(); ++it) {
-    if (*it) {
-      filteredInits.push_back(*it);
-    }
+  size_t i = 0;
+  for (size_t j = 0, sz = inits.size(); j < sz; ++j) {
+      if (inits.at(j)) {
+          inits[i++] = inits.at(j);
+      }
   }
-  inits.clear();
-  inits = filteredInits;
+  inits.resize(i);
 }
 
 void filterNexts() {
-  std::vector<Btor2Line *> filteredNexts;
-  for (auto it = nexts.begin(); it != nexts.end(); ++it) {
-    if (*it) {
-      filteredNexts.push_back(*it);
-    }
+  size_t i = 0;
+  for (size_t j = 0, sz = nexts.size(); j < sz; ++j) {
+      if (nexts.at(j)) {
+        nexts[i++] = nexts.at(j);
+      }
   }
-  nexts.clear();
-  nexts = filteredNexts;
+  nexts.resize(i);
 }
 
 ///===----------------------------------------------------------------------===//
@@ -495,34 +493,11 @@ Operation *createMLIR(const Btor2Line *line,
   return res;
 }
 
-void cleanupCreatedLines() {
-  for (auto it = reached_lines.begin(); it != reached_lines.end(); ++it) {
-    if (it->first < 0) {
-      Btor2Line *line = it->second;
-      delete[] line->args;
-      delete line;
-    }
-  }
-}
-
-void createNegateLine(int64_t curAt, Btor2Line *line) {
-  Btor2Line *res = new Btor2Line;
-  int64_t *args = new int64_t[1];
-  args[0] = curAt * -1;
-
-  res->id = curAt;
-  res->lineno = curAt;
-  res->name = "not";
-  res->tag = BTOR2_TAG_not;
-  res->sort = line->sort;
-  res->init = line->init;
-  res->next = line->next;
-  res->constant = line->constant;
-  res->symbol = line->symbol;
-  res->nargs = 1;
-  res->args = args;
-
-  reached_lines[curAt] = res;
+void createNegateLine(int64_t curAt, Value child, OpBuilder &builder) {
+  Location unknownLoc = UnknownLoc::get(builder.getContext());
+  auto res = builder.create<btor::NotOp>(unknownLoc, cache.at(curAt * -1));
+  assert(res && res->getNumResults() == 1);
+  cache[curAt] = res->getResult(0);
 }
 
 bool isValidChild(Btor2Line * line) {
@@ -571,9 +546,12 @@ void toOp(Btor2Line *line, OpBuilder &builder) {
 
       if (cache.find(cur->args[i]) == cache.end()) {
         if (cur->args[i] < 0) {
-          createNegateLine(cur->args[i], reached_lines.at(cur->args[i] * -1));
-          todo.push_back(reached_lines.at(cur->args[i]));
-          todo.push_back(reached_lines.at(cur->args[i] * -1));
+          // if original operation is cached, negate it
+          if (cache.find(cur->args[i] * -1) != cache.end()) {
+            createNegateLine(cur->args[i], cache.at(cur->args[i] * -1), builder); 
+          } else {
+            todo.push_back(reached_lines.at(cur->args[i] * -1));
+          }
         } else {
           todo.push_back(reached_lines.at(cur->args[i]));
         }
@@ -731,7 +709,6 @@ static OwningModuleRef deserializeModule(const llvm::MemoryBuffer *input,
     owningModule->getBody()->push_front(initFunc.release());
 
     btor2parser_delete(model);
-    cleanupCreatedLines();
   }
 
   return owningModule;
