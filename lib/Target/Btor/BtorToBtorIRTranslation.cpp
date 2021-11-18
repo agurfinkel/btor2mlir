@@ -516,8 +516,8 @@ void createNegateLine(int64_t curAt, Btor2Line *line) {
   reached_lines[curAt] = res;
 }
 
-bool isValidChild(int64_t line) {
-  auto tag = reached_lines.at(line)->tag;
+bool isValidChild(Btor2Line * line) {
+  auto tag = reached_lines.at(line->id)->tag;
   if (tag == BTOR2_TAG_init || tag == BTOR2_TAG_constraint ||
       tag == BTOR2_TAG_next || tag == BTOR2_TAG_read ||
       tag == BTOR2_TAG_state || tag == BTOR2_TAG_input ||
@@ -541,7 +541,8 @@ void toOp(Btor2Line *line, OpBuilder &builder) {
     auto cur = todo.back();
     uint32_t oldsize = todo.size();
     for (uint32_t i = 0; i < cur->nargs; ++i) {
-      if (cur->args[i] > 0 && !isValidChild(cur->args[i])) {
+      if (cur->args[i] > 0 
+      && !isValidChild(reached_lines.at(cur->args[i]))) {
         continue;
       }
 
@@ -558,7 +559,7 @@ void toOp(Btor2Line *line, OpBuilder &builder) {
     if (todo.size() != oldsize) {
       continue;
     }
-    if (!isValidChild(cur->id)) {
+    if (!isValidChild(cur)) {
       todo.pop_back();
       continue;
     }
