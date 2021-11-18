@@ -582,16 +582,14 @@ void toOp(Btor2Line *line, OpBuilder &builder) {
     if (todo.size() != oldsize) {
       continue;
     }
-    if (!isValidChild(cur)) {
+    if (!isValidChild(cur) 
+    || cache.find(cur->id) != cache.end()) {
       todo.pop_back();
       continue;
     }
-    // some operations could have been resolved prior to this
-    if (cache.find(cur->id) == cache.end()) {
-      res = createMLIR(cur, builder, cur->args);
-      assert(res && res->getNumResults() < 2 && res->getResult(0));
-      cache[cur->id] = res->getResult(0);
-    }
+    res = createMLIR(cur, builder, cur->args);
+    assert(res && res->getNumResults() < 2 && res->getResult(0));
+    cache[cur->id] = res->getResult(0);
     todo.pop_back();
   }
 }
@@ -601,9 +599,9 @@ OwningOpRef<FuncOp> buildInitFunction(MLIRContext *context) {
   OpBuilder builder(context);
 
   // collect the return types for our init function
-  std::vector<Type> returnTypes(inits.size(), nullptr);
-  for (uint32_t i = 0; i < inits.size(); ++i) {
-    returnTypes[i] = builder.getIntegerType(inits.at(i)->sort.bitvec.width);
+  std::vector<Type> returnTypes(states.size(), nullptr);
+  for (uint32_t i = 0; i < states.size(); ++i) {
+    returnTypes[i] = builder.getIntegerType(states.at(i)->sort.bitvec.width);
     assert(returnTypes[i]);
   }
   ArrayRef<Type> outputs(returnTypes);
@@ -627,9 +625,24 @@ OwningOpRef<FuncOp> buildInitFunction(MLIRContext *context) {
   }
 
   // close with a fitting returnOp
-  std::vector<Value> testResults(inits.size(), nullptr);
-  for (uint32_t i = 0; i < inits.size(); ++i) {
-    testResults[i] = cache.at(inits.at(i)->args[1]);
+  std::vector<Value> testResults(states.size(), nullptr);
+  std::map<uint32_t, Value> undefOpsBySort;
+  uint32_t j = 0; // counters over inits vector
+  for (uint32_t i = 0, sz = states.size(); i < sz; ++i) {
+    if (states.at(i)->init > 0) {
+      // get the result of init's second argument since
+      // that is what we assign our state to  
+      testResults[i] = cache.at(inits.at(j++)->args[1]);
+    } else {
+      auto sort = returnTypes.at(i).getIntOrFloatBitWidth();
+      if (undefOpsBySort.find(sort) == undefOpsBySort.end()) {
+          auto res = builder.create<btor::UndefOp>(unknownLoc,
+                                    returnTypes.at(i));
+          assert(res && res->getNumResults() == 1);
+          undefOpsBySort[sort] = res->getResult(0);
+      }
+      testResults[i] = undefOpsBySort.at(sort);
+    }
     assert(testResults[i]);
   }
   ArrayRef<Value> results(testResults);

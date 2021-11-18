@@ -895,4 +895,22 @@ def AssumeOp : Btor_Op<"assume"> {
     let assemblyFormat = "`(` $arg `)` attr-dict";
 }
 
+def UndefOp : Btor_Op<"undef"> {
+    let summary = "btor undefined operation";
+    let description = [{
+        This operation takes no input and returns
+        a SignlessIntegerLike
+
+        Example:
+
+        ```mlir
+        // invoke the undef operation 
+        %0 = btor.undef : i3
+        ```
+    }];
+
+    let results = (outs SignlessIntegerLike:$result);
+    let assemblyFormat = "attr-dict `:` type($result)";
+}
+
 #endif // BTOR_OPS
