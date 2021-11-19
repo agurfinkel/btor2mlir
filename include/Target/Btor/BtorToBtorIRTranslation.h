@@ -131,7 +131,33 @@ class Deserialize {
       value = mlir::APInt(width, str, radix);
     }
     auto res = builder.create<btor::ConstantOp>(unknownLoc, type,
-                            builder.getIntegerAttr(type, value.getLimitedValue()));
+                        builder.getIntegerAttr(type, value.getLimitedValue()));
+    return res;
+  }
+
+  Operation * buildConcatOp(Value lhs, Value rhs) {
+    auto newWidth = lhs.getType().getIntOrFloatBitWidth() +
+               rhs.getType().getIntOrFloatBitWidth();
+    Type resType = builder.getIntegerType(newWidth);
+    auto res = builder.create<btor::ConcatOp>(unknownLoc, resType, lhs, rhs);
+    return res;
+  }
+
+  Operation * buildSliceOp(Value val, int64_t upper, int64_t lower) {
+    auto opType = val.getType();
+    auto operandWidth = opType.getIntOrFloatBitWidth();
+    assert(operandWidth > upper && upper >= lower);
+
+    auto resType = builder.getIntegerType(upper - lower + 1);
+    auto u = builder.create<btor::ConstantOp>(
+        unknownLoc, opType, builder.getIntegerAttr(opType, upper));
+    assert(u && u->getNumResults() == 1);
+    auto l = builder.create<btor::ConstantOp>(
+        unknownLoc, opType, builder.getIntegerAttr(opType, lower));
+    assert(l && l->getNumResults() == 1);
+
+    auto res = builder.create<btor::SliceOp>(unknownLoc, resType, val,
+                                        u->getResult(0), l->getResult(0));
     return res;
   }
 };
