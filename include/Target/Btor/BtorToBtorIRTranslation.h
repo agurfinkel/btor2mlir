@@ -37,8 +37,10 @@ class Deserialize {
 /// Constructors and Destructors
 ///===----------------------------------------------------------------------===//
 
-  Deserialize(MLIRContext *context) : context(context), 
-    builder(OpBuilder(context)), unknownLoc(UnknownLoc::get(context)) {}
+  Deserialize(MLIRContext *context, const std::string &s) : context(context), 
+    builder(OpBuilder(context)), unknownLoc(UnknownLoc::get(context)) {
+        modelFile = fopen(s.c_str(), "r");
+    }
 
   ~Deserialize() {
       if (model) {
@@ -62,10 +64,7 @@ class Deserialize {
  
   std::map<int64_t, Btor2Line *> reachedLines;
   
-  bool parseModel();
-  void setModelFile(FILE * file) { modelFile = file; }
-  void filterInits();
-  void filterNexts();
+  bool parseModelIsSuccessful();
 
 ///===----------------------------------------------------------------------===//
 /// Create MLIR module
@@ -85,6 +84,26 @@ class Deserialize {
   FILE *modelFile = nullptr;
 
   void parseModelLine(Btor2Line *l);
+
+  void filterInits(){
+    size_t i = 0;
+    for (size_t j = 0, sz = inits.size(); j < sz; ++j) {
+        if (inits.at(j)) {
+            inits[i++] = inits.at(j);
+        }
+    }
+    inits.resize(i);
+  }
+
+  void filterNexts() {
+    size_t i = 0;
+    for (size_t j = 0, sz = nexts.size(); j < sz; ++j) {
+      if (nexts.at(j)) {
+        nexts[i++] = nexts.at(j);
+      }
+    }
+    nexts.resize(i);
+  }
 
 ///===----------------------------------------------------------------------===//
 /// Create MLIR module
