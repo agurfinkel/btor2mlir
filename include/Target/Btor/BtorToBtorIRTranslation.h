@@ -111,6 +111,14 @@ class Deserialize {
     auto res = builder.create<btorOp>(unknownLoc, pred, lhs, rhs);
     return res;
   }
+
+  template <typename btorOp>
+  Operation * buildOverflowOp(Value lhs, Value rhs) {
+    auto res = builder.create<btorOp>(unknownLoc, 
+                                    builder.getIntegerType(1), 
+                                    lhs, rhs);
+    return res;
+  }
 };
 
 /// Register the Btor translation
