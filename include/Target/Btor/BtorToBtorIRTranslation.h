@@ -7,6 +7,9 @@
 #ifndef TARGET_BTOR_BTORTOBTORIRTRANSLATION_H
 #define TARGET_BTOR_BTORTOBTORIRTRANSLATION_H
 
+#include "Dialect/Btor/IR/BtorDialect.h"
+#include "Dialect/Btor/IR/BtorOps.h"
+
 #include "mlir/IR/OwningOpRef.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
@@ -95,6 +98,19 @@ class Deserialize {
   bool isValidChild(Btor2Line * line);
   void createNegateLine(int64_t curAt, Value child);
   Operation * createMLIR(const Btor2Line *line, const int64_t *kids);
+
+  template <typename btorOp>
+  Operation * buildBinaryOp(Value lhs, Value rhs) {
+    auto res = builder.create<btorOp>(unknownLoc, lhs, rhs);
+    return res;
+  }
+
+  template <typename btorOp>
+  Operation * buildComparisonOp(btor::BtorPredicate pred,
+                                Value lhs, Value rhs) {
+    auto res = builder.create<btorOp>(unknownLoc, pred, lhs, rhs);
+    return res;
+  }
 };
 
 /// Register the Btor translation
