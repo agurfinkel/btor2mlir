@@ -69,13 +69,12 @@ void Deserialize::parseModelLine(Btor2Line *l) {
   }
 }
 
-void Deserialize::parseModel() {
+bool Deserialize::parseModel() {
   assert(modelFile);
   model = btor2parser_new();
   if (!btor2parser_read_lines(model, modelFile)) {
     std::cerr << "parse error at: " << btor2parser_error(model) << "\n";
-    fclose(modelFile);
-    exit(1);
+    return false;
   }
   auto numLines = btor2parser_max_id(model);
   inits.resize(numLines, nullptr);
@@ -90,10 +89,10 @@ void Deserialize::parseModel() {
     Btor2Line *state = states.at(i);
     if (!nexts[state->id]) {
       std::cerr << "state " << state->id << " without next function\n";
-      fclose(modelFile);
-      exit(1);
+      return false;
     }
   }
+  return true;
 }
 
 ///===----------------------------------------------------------------------===//
@@ -550,7 +549,8 @@ static OwningModuleRef deserializeModule(const llvm::MemoryBuffer *input,
   if (btorFile != NULL) {
     Deserialize deserialize(context);
     deserialize.setModelFile(btorFile);
-    deserialize.parseModel();
+    if (!deserialize.parseModel())
+      return {};
 
     // extract relevant inits and nexts
     deserialize.filterInits();
