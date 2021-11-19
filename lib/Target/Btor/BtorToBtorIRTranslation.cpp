@@ -222,39 +222,25 @@ Operation * Deserialize::createMLIR(const Btor2Line *line, const int64_t *kids) 
     res = buildBinaryOp<btor::RotateROp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_saddo:
-    res = builder.create<btor::SAddOverflowOp>(
-        unknownLoc, builder.getIntegerType(1), cache.at(kids[0]),
-        cache.at(kids[1]));
+    res = buildOverflowOp<btor::SAddOverflowOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_sdivo:
-    res = builder.create<btor::SDivOverflowOp>(
-        unknownLoc, builder.getIntegerType(1), cache.at(kids[0]),
-        cache.at(kids[1]));
+    res = buildOverflowOp<btor::SDivOverflowOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_smulo:
-    res = builder.create<btor::SMulOverflowOp>(
-        unknownLoc, builder.getIntegerType(1), cache.at(kids[0]),
-        cache.at(kids[1]));
+    res = buildOverflowOp<btor::SMulOverflowOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_ssubo:
-    res = builder.create<btor::SSubOverflowOp>(
-        unknownLoc, builder.getIntegerType(1), cache.at(kids[0]),
-        cache.at(kids[1]));
+    res = buildOverflowOp<btor::SSubOverflowOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_uaddo:
-    res = builder.create<btor::UAddOverflowOp>(
-        unknownLoc, builder.getIntegerType(1), cache.at(kids[0]),
-        cache.at(kids[1]));
+    res = buildOverflowOp<btor::UAddOverflowOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_umulo:
-    res = builder.create<btor::UMulOverflowOp>(
-        unknownLoc, builder.getIntegerType(1), cache.at(kids[0]),
-        cache.at(kids[1]));
+    res = buildOverflowOp<btor::UMulOverflowOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_usubo:
-    res = builder.create<btor::USubOverflowOp>(
-        unknownLoc, builder.getIntegerType(1), cache.at(kids[0]),
-        cache.at(kids[1]));
+    res = buildOverflowOp<btor::USubOverflowOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
 
   // unary ops
