@@ -22,26 +22,82 @@
 using namespace mlir;
 using namespace mlir::btor;
 
-static FILE *model_file;
-static Btor2Parser *model;
+namespace {
+class Deserialize {
+ public:
+  std::vector<Btor2Line *> inputs;
+  std::vector<Btor2Line *> states;
+  std::vector<Btor2Line *> bads;
+  std::vector<Btor2Line *> constraints;
+  std::vector<Btor2Line *> justices;
 
-static std::vector<Btor2Line *> inputs;
-static std::vector<Btor2Line *> states;
-static std::vector<Btor2Line *> bads;
-static std::vector<Btor2Line *> constraints;
-static std::vector<Btor2Line *> justices;
+  std::vector<int64_t> reached_bads;
+  int64_t num_unreached_bads;
+ 
+  int64_t num_format_lines;
+  std::vector<Btor2Line *> inits;
+  std::vector<Btor2Line *> nexts;
 
-static std::vector<int64_t> reached_bads;
-static int64_t num_unreached_bads;
+  std::map<int64_t, Btor2Line *> reached_lines;
+  std::map<int64_t, Value> cache;
 
-static int64_t num_format_lines;
-static std::vector<Btor2Line *> inits;
-static std::vector<Btor2Line *> nexts;
+  Deserialize(MLIRContext *context) : context(context) {}
 
-static std::map<int64_t, Btor2Line *> reached_lines;
-static std::map<int64_t, Value> cache;
+  ~Deserialize() {
+      std::cerr << "Called destructor!\n";
+      if (model) {
+        std::cerr << "Destroy model!\n";
+        btor2parser_delete(model);
+      }
+      if (modelFile) {
+        fclose(modelFile);
+      }
+  }
 
-static void parse_model_line(Btor2Line *l) {
+  void parseModel();
+  void setModelFile(FILE * file) {
+    modelFile = file;
+  }
+  void filterInits();
+  void filterNexts();
+  OwningOpRef<FuncOp> buildInitFunction();
+  OwningOpRef<FuncOp> buildNextFunction();
+  
+ private: 
+  MLIRContext *context;
+  Btor2Parser *model = nullptr;
+  FILE *modelFile = nullptr;
+
+  void parseModelLine(Btor2Line *l);
+  Operation * createMLIR(const Btor2Line *line, 
+                    OpBuilder &builder, const int64_t *kids);
+  void createNegateLine(int64_t curAt, Value child, OpBuilder &builder);
+  bool isValidChild(Btor2Line * line);
+  void toOp(Btor2Line *line, OpBuilder &builder);
+};
+}
+
+void Deserialize::filterInits() {
+  size_t i = 0;
+  for (size_t j = 0, sz = inits.size(); j < sz; ++j) {
+      if (inits.at(j)) {
+          inits[i++] = inits.at(j);
+      }
+  }
+  inits.resize(i);
+}
+
+void Deserialize::filterNexts() {
+  size_t i = 0;
+  for (size_t j = 0, sz = nexts.size(); j < sz; ++j) {
+      if (nexts.at(j)) {
+        nexts[i++] = nexts.at(j);
+      }
+  }
+  nexts.resize(i);
+}
+
+void Deserialize::parseModelLine(Btor2Line *l) {
   reached_lines[l->id] = l;
   switch (l->tag) {
   case BTOR2_TAG_bad: {
@@ -145,11 +201,12 @@ static void parse_model_line(Btor2Line *l) {
   }
 }
 
-static void parse_model() {
-  assert(model_file);
+void Deserialize::parseModel() {
+  assert(modelFile);
   model = btor2parser_new();
-  if (!btor2parser_read_lines(model, model_file)) {
+  if (!btor2parser_read_lines(model, modelFile)) {
     std::cerr << "parse error at: " << btor2parser_error(model) << "\n";
+    fclose(modelFile);
     exit(1);
   }
   num_format_lines = btor2parser_max_id(model);
@@ -158,35 +215,16 @@ static void parse_model() {
   Btor2LineIterator it = btor2parser_iter_init(model);
   Btor2Line *line;
   while ((line = btor2parser_iter_next(&it)))
-    parse_model_line(line);
+    parseModelLine(line);
 
   for (size_t i = 0; i < states.size(); i++) {
     Btor2Line *state = states[i];
     if (!nexts[state->id]) {
       std::cerr << "state " << state->id << " without next function\n";
+      fclose(modelFile);
       exit(1);
     }
   }
-}
-
-void filterInits() {
-  size_t i = 0;
-  for (size_t j = 0, sz = inits.size(); j < sz; ++j) {
-      if (inits.at(j)) {
-          inits[i++] = inits.at(j);
-      }
-  }
-  inits.resize(i);
-}
-
-void filterNexts() {
-  size_t i = 0;
-  for (size_t j = 0, sz = nexts.size(); j < sz; ++j) {
-      if (nexts.at(j)) {
-        nexts[i++] = nexts.at(j);
-      }
-  }
-  nexts.resize(i);
 }
 
 ///===----------------------------------------------------------------------===//
@@ -198,7 +236,7 @@ void filterNexts() {
 ///     Operation * res = createMLIR(cur, builder, cur->args);
 ///
 ///===----------------------------------------------------------------------===//
-Operation *createMLIR(const Btor2Line *line, 
+Operation * Deserialize::createMLIR(const Btor2Line *line, 
                       OpBuilder &builder,
                       const int64_t *kids) {
   Location unknownLoc = UnknownLoc::get(builder.getContext());
@@ -489,14 +527,14 @@ Operation *createMLIR(const Btor2Line *line,
   return res;
 }
 
-void createNegateLine(int64_t curAt, Value child, OpBuilder &builder) {
+void Deserialize::createNegateLine(int64_t curAt, Value child, OpBuilder &builder) {
   Location unknownLoc = UnknownLoc::get(builder.getContext());
   auto res = builder.create<btor::NotOp>(unknownLoc, cache.at(curAt * -1));
   assert(res && res->getNumResults() == 1);
   cache[curAt] = res->getResult(0);
 }
 
-bool isValidChild(Btor2Line * line) {
+bool Deserialize::isValidChild(Btor2Line * line) {
   auto tag = reached_lines.at(line->id)->tag;
   if (tag == BTOR2_TAG_init || tag == BTOR2_TAG_constraint ||
       tag == BTOR2_TAG_next || tag == BTOR2_TAG_read ||
@@ -523,7 +561,7 @@ bool isValidChild(Btor2Line * line) {
 ///  We can see that for each next operation in btor2, we will compute all
 ///  the prerequisite operations before storing the result in our cache
 ///===----------------------------------------------------------------------===//
-void toOp(Btor2Line *line, OpBuilder &builder) {
+void Deserialize::toOp(Btor2Line *line, OpBuilder &builder) {
 
   if (cache.find(line->id) != cache.end())
     return;
@@ -568,7 +606,7 @@ void toOp(Btor2Line *line, OpBuilder &builder) {
   }
 }
 
-OwningOpRef<FuncOp> buildInitFunction(MLIRContext *context) {
+OwningOpRef<FuncOp> Deserialize::buildInitFunction() {
   Location unknownLoc = UnknownLoc::get(context);
   OpBuilder builder(context);
 
@@ -626,7 +664,7 @@ OwningOpRef<FuncOp> buildInitFunction(MLIRContext *context) {
   return funcOp;
 }
 
-OwningOpRef<FuncOp> buildNextFunction(MLIRContext *context) {
+OwningOpRef<FuncOp> Deserialize::buildNextFunction() {
   Location unknownLoc = UnknownLoc::get(context);
   OpBuilder builder(context);
 
@@ -683,28 +721,26 @@ static OwningModuleRef deserializeModule(const llvm::MemoryBuffer *input,
   OwningModuleRef owningModule(ModuleOp::create(FileLineColLoc::get(
       context, input->getBufferIdentifier(), /*line=*/0, /*column=*/0)));
 
-  model_file = fopen(input->getBufferIdentifier().str().c_str(), "r");
-
-  if (model_file != NULL) {
-    parse_model();
-    fclose(model_file);
+  auto btorFile = fopen(input->getBufferIdentifier().str().c_str(), "r");
+  if (btorFile != NULL) {
+    Deserialize deserialize(context);
+    deserialize.setModelFile(btorFile);
+    deserialize.parseModel();
 
     // extract relevant inits and nexts
-    filterInits();
-    filterNexts();
+    deserialize.filterInits();
+    deserialize.filterNexts();
 
-    OwningOpRef<FuncOp> initFunc = buildInitFunction(context);
+    OwningOpRef<FuncOp> initFunc = deserialize.buildInitFunction();
     if (!initFunc)
       return {};
 
-    OwningOpRef<FuncOp> nextFunc = buildNextFunction(context);
+    OwningOpRef<FuncOp> nextFunc = deserialize.buildNextFunction();
     if (!nextFunc)
       return {};
 
     owningModule->getBody()->push_front(nextFunc.release());
     owningModule->getBody()->push_front(initFunc.release());
-
-    btor2parser_delete(model);
   }
 
   return owningModule;
