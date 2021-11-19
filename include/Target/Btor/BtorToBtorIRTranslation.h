@@ -119,6 +119,21 @@ class Deserialize {
                                     lhs, rhs);
     return res;
   }
+
+  Operation * buildConstantOp(uint32_t width, std::string str, uint32_t radix) {
+    Type type = builder.getIntegerType(width);
+    mlir::APInt value(width, 0, radix);
+    if (str.compare("ones") == 0) {
+      value.setAllBits();
+    } else if (str.compare("one") == 0) {
+      value = mlir::APInt(width, 1, radix);
+    } else if (str.compare("zero") != 0) {
+      value = mlir::APInt(width, str, radix);
+    }
+    auto res = builder.create<btor::ConstantOp>(unknownLoc, type,
+                            builder.getIntegerAttr(type, value.getLimitedValue()));
+    return res;
+  }
 };
 
 /// Register the Btor translation
