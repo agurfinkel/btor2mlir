@@ -62,7 +62,7 @@ class Deserialize {
  
   std::map<int64_t, Btor2Line *> reachedLines;
   
-  void parseModel();
+  bool parseModel();
   void setModelFile(FILE * file) { modelFile = file; }
   void filterInits();
   void filterNexts();
