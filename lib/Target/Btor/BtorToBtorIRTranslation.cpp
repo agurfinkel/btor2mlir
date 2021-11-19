@@ -17,26 +17,6 @@
 using namespace mlir;
 using namespace mlir::btor;
 
-void Deserialize::filterInits() {
-  size_t i = 0;
-  for (size_t j = 0, sz = inits.size(); j < sz; ++j) {
-      if (inits.at(j)) {
-          inits[i++] = inits.at(j);
-      }
-  }
-  inits.resize(i);
-}
-
-void Deserialize::filterNexts() {
-  size_t i = 0;
-  for (size_t j = 0, sz = nexts.size(); j < sz; ++j) {
-      if (nexts.at(j)) {
-        nexts[i++] = nexts.at(j);
-      }
-  }
-  nexts.resize(i);
-}
-
 void Deserialize::parseModelLine(Btor2Line *l) {
   reachedLines[l->id] = l;
   switch (l->tag) {
@@ -69,13 +49,15 @@ void Deserialize::parseModelLine(Btor2Line *l) {
   }
 }
 
-bool Deserialize::parseModel() {
-  assert(modelFile);
+bool Deserialize::parseModelIsSuccessful() {
+  if (!modelFile)
+    return false;
   model = btor2parser_new();
   if (!btor2parser_read_lines(model, modelFile)) {
     std::cerr << "parse error at: " << btor2parser_error(model) << "\n";
     return false;
   }
+  // register each line that has been parsed
   auto numLines = btor2parser_max_id(model);
   inits.resize(numLines, nullptr);
   nexts.resize(numLines, nullptr);
@@ -84,7 +66,7 @@ bool Deserialize::parseModel() {
   while ((line = btor2parser_iter_next(&it))) {
     parseModelLine(line);
   }
-
+  // ensure each state has a next function
   for (size_t i = 0; i < states.size(); i++) {
     Btor2Line *state = states.at(i);
     if (!nexts[state->id]) {
@@ -92,6 +74,10 @@ bool Deserialize::parseModel() {
       return false;
     }
   }
+  // extract relevant inits and nexts
+  filterInits();
+  filterNexts();
+
   return true;
 }
 
@@ -517,17 +503,8 @@ static OwningModuleRef deserializeModule(const llvm::MemoryBuffer *input,
   OwningModuleRef owningModule(ModuleOp::create(FileLineColLoc::get(
       context, input->getBufferIdentifier(), /*line=*/0, /*column=*/0)));
 
-  auto btorFile = fopen(input->getBufferIdentifier().str().c_str(), "r");
-  if (btorFile != NULL) {
-    Deserialize deserialize(context);
-    deserialize.setModelFile(btorFile);
-    if (!deserialize.parseModel())
-      return {};
-
-    // extract relevant inits and nexts
-    deserialize.filterInits();
-    deserialize.filterNexts();
-
+  Deserialize deserialize(context, input->getBufferIdentifier().str());
+  if (deserialize.parseModelIsSuccessful()) {
     OwningOpRef<FuncOp> initFunc = deserialize.buildInitFunction();
     if (!initFunc)
       return {};
