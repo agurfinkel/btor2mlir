@@ -150,14 +150,7 @@ Operation * Deserialize::createMLIR(const Btor2Line *line, const int64_t *kids) 
     res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::ule, 
                             cache.at(kids[0]), cache.at(kids[1]));
     break;
-  case BTOR2_TAG_add:
-    res = builder.create<btor::AddOp>(unknownLoc, cache.at(kids[0]),
-                                      cache.at(kids[1]));
-    break;
-  case BTOR2_TAG_and:
-    res = builder.create<btor::AndOp>(unknownLoc, cache.at(kids[0]),
-                                      cache.at(kids[1]));
-    break;
+  
   case BTOR2_TAG_concat: {
     Value lhs = cache.at(kids[0]), rhs = cache.at(kids[1]);
     auto sum = lhs.getType().getIntOrFloatBitWidth() +
@@ -165,81 +158,68 @@ Operation * Deserialize::createMLIR(const Btor2Line *line, const int64_t *kids) 
     auto resType = builder.getIntegerType(sum);
     res = builder.create<btor::ConcatOp>(unknownLoc, resType, lhs, rhs);
   } break;
+  case BTOR2_TAG_add:
+    res = buildBinaryOp<btor::AddOp>(cache.at(kids[0]), cache.at(kids[1]));
+    break;
+  case BTOR2_TAG_and:
+    res = buildBinaryOp<btor::AndOp>(cache.at(kids[0]), cache.at(kids[1]));
+    break;
   case BTOR2_TAG_implies:
-    res = builder.create<btor::ImpliesOp>(unknownLoc, cache.at(kids[0]),
-                                          cache.at(kids[1]));
+    res = buildBinaryOp<btor::ImpliesOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_iff:
-    res = builder.create<btor::IffOp>(unknownLoc, cache.at(kids[0]),
-                                      cache.at(kids[1]));
+    res = buildBinaryOp<btor::IffOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_nand:
-    res = builder.create<btor::NandOp>(unknownLoc, cache.at(kids[0]),
-                                       cache.at(kids[1]));
+    res = buildBinaryOp<btor::NandOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_nor:
-    res = builder.create<btor::NorOp>(unknownLoc, cache.at(kids[0]),
-                                      cache.at(kids[1]));
+    res = buildBinaryOp<btor::NorOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_or:
-    res = builder.create<btor::OrOp>(unknownLoc, cache.at(kids[0]),
-                                     cache.at(kids[1]));
+    res = buildBinaryOp<btor::OrOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_sdiv:
-    res = builder.create<btor::SDivOp>(unknownLoc, cache.at(kids[0]),
-                                       cache.at(kids[1]));
+    res = buildBinaryOp<btor::SDivOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_srem:
-    res = builder.create<btor::SRemOp>(unknownLoc, cache.at(kids[0]),
-                                       cache.at(kids[1]));
+    res = buildBinaryOp<btor::SRemOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_sub:
-    res = builder.create<btor::SubOp>(unknownLoc, cache.at(kids[0]),
-                                      cache.at(kids[1]));
+    res = buildBinaryOp<btor::SubOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_udiv:
-    res = builder.create<btor::UDivOp>(unknownLoc, cache.at(kids[0]),
-                                       cache.at(kids[1]));
+    res = buildBinaryOp<btor::UDivOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_urem:
-    res = builder.create<btor::URemOp>(unknownLoc, cache.at(kids[0]),
-                                       cache.at(kids[1]));
+    res = buildBinaryOp<btor::URemOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_mul:
-    res = builder.create<btor::MulOp>(unknownLoc, cache.at(kids[0]),
-                                      cache.at(kids[1]));
+    res = buildBinaryOp<btor::MulOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_smod:
-    res = builder.create<btor::SModOp>(unknownLoc, cache.at(kids[0]),
-                                       cache.at(kids[1]));
+    res = buildBinaryOp<btor::SModOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_xnor:
-    res = builder.create<btor::XnorOp>(unknownLoc, cache.at(kids[0]),
-                                       cache.at(kids[1]));
+    res = buildBinaryOp<btor::XnorOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_xor:
-    res = builder.create<btor::XOrOp>(unknownLoc, cache.at(kids[0]),
-                                      cache.at(kids[1]));
+    res = buildBinaryOp<btor::XOrOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_sll:
-    res = builder.create<btor::ShiftLLOp>(unknownLoc, cache.at(kids[0]),
-                                          cache.at(kids[1]));
+    res = buildBinaryOp<btor::ShiftLLOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_sra:
-    res = builder.create<btor::ShiftRAOp>(unknownLoc, cache.at(kids[0]),
-                                          cache.at(kids[1]));
+    res = buildBinaryOp<btor::ShiftRAOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_srl:
-    res = builder.create<btor::ShiftRLOp>(unknownLoc, cache.at(kids[0]),
-                                          cache.at(kids[1]));
+    res = buildBinaryOp<btor::ShiftRLOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_rol:
-    res = builder.create<btor::RotateLOp>(unknownLoc, cache.at(kids[0]),
-                                          cache.at(kids[1]));
+    res = buildBinaryOp<btor::RotateLOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_ror:
-    res = builder.create<btor::RotateROp>(unknownLoc, cache.at(kids[0]),
-                                          cache.at(kids[1]));
+    res = buildBinaryOp<btor::RotateROp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_saddo:
     res = builder.create<btor::SAddOverflowOp>(
