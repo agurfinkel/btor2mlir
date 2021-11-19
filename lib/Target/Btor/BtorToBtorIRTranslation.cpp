@@ -18,10 +18,6 @@
 #include <vector>
 
 #include "btor2tools/btor2parser/btor2parser.h"
-#include "btor2tools/btorsimbv.h"
-#include "btor2tools/btorsimrng.h"
-#include "btor2tools/btorsimstate.h"
-#include "btor2tools/btorsimvcd.h"
 
 using namespace mlir;
 using namespace mlir::btor;
