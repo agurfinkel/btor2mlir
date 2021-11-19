@@ -11,7 +11,6 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
 
-#include <assert.h>
 #include <iostream>
 #include <string>
 
@@ -112,44 +111,44 @@ Operation * Deserialize::createMLIR(const Btor2Line *line, const int64_t *kids) 
   switch (line->tag) {
   // binary ops
   case BTOR2_TAG_slt:
-    res = builder.create<btor::CmpOp>(unknownLoc, btor::BtorPredicate::slt,
-                                      cache.at(kids[0]), cache.at(kids[1]));
+    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::slt, 
+                            cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_slte:
-    res = builder.create<btor::CmpOp>(unknownLoc, btor::BtorPredicate::sle,
-                                      cache.at(kids[0]), cache.at(kids[1]));
+    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::sle, 
+                            cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_sgt:
-    res = builder.create<btor::CmpOp>(unknownLoc, btor::BtorPredicate::sgt,
-                                      cache.at(kids[0]), cache.at(kids[1]));
+    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::sgt, 
+                            cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_sgte:
-    res = builder.create<btor::CmpOp>(unknownLoc, btor::BtorPredicate::sge,
-                                      cache.at(kids[0]), cache.at(kids[1]));
+    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::sge, 
+                            cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_neq:
-    res = builder.create<btor::CmpOp>(unknownLoc, btor::BtorPredicate::ne,
-                                      cache.at(kids[0]), cache.at(kids[1]));
+    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::ne, 
+                            cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_eq:
-    res = builder.create<btor::CmpOp>(unknownLoc, btor::BtorPredicate::eq,
-                                      cache.at(kids[0]), cache.at(kids[1]));
+    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::eq, 
+                            cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_ugt:
-    res = builder.create<btor::CmpOp>(unknownLoc, btor::BtorPredicate::ugt,
-                                      cache.at(kids[0]), cache.at(kids[1]));
+    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::ugt, 
+                            cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_ugte:
-    res = builder.create<btor::CmpOp>(unknownLoc, btor::BtorPredicate::uge,
-                                      cache.at(kids[0]), cache.at(kids[1]));
+    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::uge, 
+                            cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_ult:
-    res = builder.create<btor::CmpOp>(unknownLoc, btor::BtorPredicate::ult,
-                                      cache.at(kids[0]), cache.at(kids[1]));
+    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::ult, 
+                            cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_ulte:
-    res = builder.create<btor::CmpOp>(unknownLoc, btor::BtorPredicate::ule,
-                                      cache.at(kids[0]), cache.at(kids[1]));
+    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::ule, 
+                            cache.at(kids[0]), cache.at(kids[1]));
     break;
   case BTOR2_TAG_add:
     res = builder.create<btor::AddOp>(unknownLoc, cache.at(kids[0]),
