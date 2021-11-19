@@ -150,13 +150,9 @@ Operation * Deserialize::createMLIR(const Btor2Line *line, const int64_t *kids) 
                             cache.at(kids[0]), cache.at(kids[1]));
     break;
   
-  case BTOR2_TAG_concat: {
-    Value lhs = cache.at(kids[0]), rhs = cache.at(kids[1]);
-    auto sum = lhs.getType().getIntOrFloatBitWidth() +
-               rhs.getType().getIntOrFloatBitWidth();
-    auto resType = builder.getIntegerType(sum);
-    res = builder.create<btor::ConcatOp>(unknownLoc, resType, lhs, rhs);
-  } break;
+  case BTOR2_TAG_concat:
+    res = buildConcatOp(cache.at(kids[0]), cache.at(kids[1]));
+    break;
   case BTOR2_TAG_add:
     res = buildBinaryOp<btor::AddOp>(cache.at(kids[0]), cache.at(kids[1]));
     break;
@@ -270,45 +266,35 @@ Operation * Deserialize::createMLIR(const Btor2Line *line, const int64_t *kids) 
   case BTOR2_TAG_const:
     res = buildConstantOp(line->sort.bitvec.width,
                         std::string(line->constant), 2);
-  break;
+    break;
   case BTOR2_TAG_constd:
     res = buildConstantOp(line->sort.bitvec.width, 
                         std::string(line->constant), 10);
-  break;
+    break;
   case BTOR2_TAG_consth:
     res = buildConstantOp(line->sort.bitvec.width, 
                         std::string(line->constant), 16);
-  break;
+    break;
   case BTOR2_TAG_one:
     res = buildConstantOp(line->sort.bitvec.width, 
                         std::string("one"), 10);
-  break;
+    break;
   case BTOR2_TAG_ones:
     res = buildConstantOp(line->sort.bitvec.width,
                         std::string("ones"), 10);
-  break;
+    break;
   case BTOR2_TAG_zero:
     res = buildConstantOp(line->sort.bitvec.width, 
                         std::string("zero"), 10);
-  break;
+    break;
   case BTOR2_TAG_bad:
     res = builder.create<btor::AssertNotOp>(unknownLoc, cache.at(kids[0]));
     break;
 
   // indexed ops
-  case BTOR2_TAG_slice: {
-    auto operandWidth = reachedLines.at(kids[0])->sort.bitvec.width;
-    auto opType = builder.getIntegerType(operandWidth);
-    assert(operandWidth > kids[1] && kids[1] >= kids[2]);
-    auto resType = builder.getIntegerType(kids[1] - kids[2] + 1);
-
-    auto u = builder.create<btor::ConstantOp>(
-        unknownLoc, opType, builder.getIntegerAttr(opType, kids[1]));
-    auto l = builder.create<btor::ConstantOp>(
-        unknownLoc, opType, builder.getIntegerAttr(opType, kids[2]));
-    res = builder.create<btor::SliceOp>(unknownLoc, resType, cache.at(kids[0]),
-                                        u->getResult(0), l->getResult(0));
-  } break;
+  case BTOR2_TAG_slice:
+    res = buildSliceOp(cache.at(kids[0]), kids[1], kids[2]);
+    break;
   case BTOR2_TAG_sext:
     res = builder.create<btor::SExtOp>(
         unknownLoc, cache.at(kids[0]),
