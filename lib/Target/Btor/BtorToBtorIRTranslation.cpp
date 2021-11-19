@@ -243,27 +243,6 @@ Operation * Deserialize::createMLIR(const Btor2Line *line, const int64_t *kids) 
     break;
 
   // unary ops
-  case BTOR2_TAG_const: {
-    auto opType = builder.getIntegerType(line->sort.bitvec.width);
-    res = builder.create<btor::ConstantOp>(
-        unknownLoc, opType,
-        builder.getIntegerAttr(opType, line->constant[0] - '0'));
-  } break;
-  case BTOR2_TAG_constd: {
-    auto opType = builder.getIntegerType(line->sort.bitvec.width);
-    std::string input(line->constant);
-    res = builder.create<btor::ConstantOp>(
-        unknownLoc, opType, builder.getIntegerAttr(opType, std::stoi(input)));
-  } break;
-  case BTOR2_TAG_consth: {
-    auto opType = builder.getIntegerType(line->sort.bitvec.width);
-    std::string input("0x");
-    input += line->constant;
-    res = builder.create<btor::ConstantOp>(
-        unknownLoc, opType,
-        builder.getIntegerAttr(opType, std::stoi(input, nullptr, 16)));
-  } break;
-
   case BTOR2_TAG_dec:
     res = builder.create<btor::DecOp>(unknownLoc, cache.at(kids[0]));
     break;
@@ -288,23 +267,30 @@ Operation * Deserialize::createMLIR(const Btor2Line *line, const int64_t *kids) 
     res = builder.create<btor::RedXorOp>(unknownLoc, builder.getIntegerType(1),
                                          cache.at(kids[0]));
     break;
-  case BTOR2_TAG_one: {
-    auto opType = builder.getIntegerType(line->sort.bitvec.width);
-    res = builder.create<btor::ConstantOp>(unknownLoc, opType,
-                                           builder.getIntegerAttr(opType, 1));
-  } break;
-  case BTOR2_TAG_ones: {
-    auto width = line->sort.bitvec.width;
-    auto opType = builder.getIntegerType(width);
-    auto value = pow(2, width) - 1;
-    res = builder.create<btor::ConstantOp>(
-        unknownLoc, opType, builder.getIntegerAttr(opType, value));
-  } break;
-  case BTOR2_TAG_zero: {
-    auto opType = builder.getIntegerType(line->sort.bitvec.width);
-    res = builder.create<btor::ConstantOp>(unknownLoc, opType,
-                                           builder.getIntegerAttr(opType, 0));
-  } break;
+  case BTOR2_TAG_const:
+    res = buildConstantOp(line->sort.bitvec.width,
+                        std::string(line->constant), 2);
+  break;
+  case BTOR2_TAG_constd:
+    res = buildConstantOp(line->sort.bitvec.width, 
+                        std::string(line->constant), 10);
+  break;
+  case BTOR2_TAG_consth:
+    res = buildConstantOp(line->sort.bitvec.width, 
+                        std::string(line->constant), 16);
+  break;
+  case BTOR2_TAG_one:
+    res = buildConstantOp(line->sort.bitvec.width, 
+                        std::string("one"), 10);
+  break;
+  case BTOR2_TAG_ones:
+    res = buildConstantOp(line->sort.bitvec.width,
+                        std::string("ones"), 10);
+  break;
+  case BTOR2_TAG_zero:
+    res = buildConstantOp(line->sort.bitvec.width, 
+                        std::string("zero"), 10);
+  break;
   case BTOR2_TAG_bad:
     res = builder.create<btor::AssertNotOp>(unknownLoc, cache.at(kids[0]));
     break;
