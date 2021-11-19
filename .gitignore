@@ -1,4 +1,4 @@
 debug
 build
 run-script.sh
-lib/Target/Btor/btor2tools
+include/Target/Btor/btor2parser

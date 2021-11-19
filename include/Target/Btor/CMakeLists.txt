@@ -1,0 +1,1 @@
+add_subdirectory(btor2parser)
