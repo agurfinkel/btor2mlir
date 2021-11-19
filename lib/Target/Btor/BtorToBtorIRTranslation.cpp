@@ -13,69 +13,10 @@
 
 #include <assert.h>
 #include <iostream>
-#include <map>
 #include <string>
-#include <vector>
-
-#include "btor2tools/btor2parser/btor2parser.h"
 
 using namespace mlir;
 using namespace mlir::btor;
-
-namespace {
-class Deserialize {
- public:
-  std::vector<Btor2Line *> inputs;
-  std::vector<Btor2Line *> states;
-  std::vector<Btor2Line *> bads;
-  std::vector<Btor2Line *> constraints;
-  std::vector<Btor2Line *> justices;
-
-  std::vector<int64_t> reached_bads;
-  int64_t num_unreached_bads;
- 
-  int64_t num_format_lines;
-  std::vector<Btor2Line *> inits;
-  std::vector<Btor2Line *> nexts;
-
-  std::map<int64_t, Btor2Line *> reached_lines;
-  std::map<int64_t, Value> cache;
-
-  Deserialize(MLIRContext *context) : context(context) {}
-
-  ~Deserialize() {
-      std::cerr << "Called destructor!\n";
-      if (model) {
-        std::cerr << "Destroy model!\n";
-        btor2parser_delete(model);
-      }
-      if (modelFile) {
-        fclose(modelFile);
-      }
-  }
-
-  void parseModel();
-  void setModelFile(FILE * file) {
-    modelFile = file;
-  }
-  void filterInits();
-  void filterNexts();
-  OwningOpRef<FuncOp> buildInitFunction();
-  OwningOpRef<FuncOp> buildNextFunction();
-  
- private: 
-  MLIRContext *context;
-  Btor2Parser *model = nullptr;
-  FILE *modelFile = nullptr;
-
-  void parseModelLine(Btor2Line *l);
-  Operation * createMLIR(const Btor2Line *line, 
-                    OpBuilder &builder, const int64_t *kids);
-  void createNegateLine(int64_t curAt, Value child, OpBuilder &builder);
-  bool isValidChild(Btor2Line * line);
-  void toOp(Btor2Line *line, OpBuilder &builder);
-};
-}
 
 void Deserialize::filterInits() {
   size_t i = 0;
@@ -98,13 +39,11 @@ void Deserialize::filterNexts() {
 }
 
 void Deserialize::parseModelLine(Btor2Line *l) {
-  reached_lines[l->id] = l;
+  reachedLines[l->id] = l;
   switch (l->tag) {
-  case BTOR2_TAG_bad: {
+  case BTOR2_TAG_bad:
     bads.push_back(l);
-    reached_bads.push_back(-1);
-    num_unreached_bads++;
-  } break;
+    break;
 
   case BTOR2_TAG_constraint:
     constraints.push_back(l);
@@ -122,80 +61,10 @@ void Deserialize::parseModelLine(Btor2Line *l) {
     nexts[l->args[0]] = l;
     break;
 
-  case BTOR2_TAG_sort: {
-    switch (l->sort.tag) {
-    case BTOR2_TAG_SORT_bitvec:
-    case BTOR2_TAG_SORT_array:
-    default:
-      break;
-    }
-  } break;
-
   case BTOR2_TAG_state:
     states.push_back(l);
     break;
 
-  case BTOR2_TAG_add:
-  case BTOR2_TAG_and:
-  case BTOR2_TAG_concat:
-  case BTOR2_TAG_const:
-  case BTOR2_TAG_constd:
-  case BTOR2_TAG_consth:
-  case BTOR2_TAG_dec:
-  case BTOR2_TAG_eq:
-  case BTOR2_TAG_implies:
-  case BTOR2_TAG_inc:
-  case BTOR2_TAG_ite:
-  case BTOR2_TAG_mul:
-  case BTOR2_TAG_nand:
-  case BTOR2_TAG_neg:
-  case BTOR2_TAG_neq:
-  case BTOR2_TAG_nor:
-  case BTOR2_TAG_not:
-  case BTOR2_TAG_one:
-  case BTOR2_TAG_ones:
-  case BTOR2_TAG_or:
-  case BTOR2_TAG_output:
-  case BTOR2_TAG_redand:
-  case BTOR2_TAG_redor:
-  case BTOR2_TAG_redxor:
-  case BTOR2_TAG_sdiv:
-  case BTOR2_TAG_sext:
-  case BTOR2_TAG_sgt:
-  case BTOR2_TAG_sgte:
-  case BTOR2_TAG_iff:
-  case BTOR2_TAG_slice:
-  case BTOR2_TAG_sll:
-  case BTOR2_TAG_slt:
-  case BTOR2_TAG_slte:
-  case BTOR2_TAG_sra:
-  case BTOR2_TAG_srem:
-  case BTOR2_TAG_srl:
-  case BTOR2_TAG_sub:
-  case BTOR2_TAG_udiv:
-  case BTOR2_TAG_uext:
-  case BTOR2_TAG_ugt:
-  case BTOR2_TAG_ugte:
-  case BTOR2_TAG_ult:
-  case BTOR2_TAG_ulte:
-  case BTOR2_TAG_urem:
-  case BTOR2_TAG_xnor:
-  case BTOR2_TAG_xor:
-  case BTOR2_TAG_zero:
-  case BTOR2_TAG_read:
-  case BTOR2_TAG_write:
-  case BTOR2_TAG_fair:
-  case BTOR2_TAG_justice:
-  case BTOR2_TAG_rol:
-  case BTOR2_TAG_ror:
-  case BTOR2_TAG_saddo:
-  case BTOR2_TAG_sdivo:
-  case BTOR2_TAG_smod:
-  case BTOR2_TAG_smulo:
-  case BTOR2_TAG_ssubo:
-  case BTOR2_TAG_uaddo:
-  case BTOR2_TAG_umulo:
-  case BTOR2_TAG_usubo:
   default:
     break;
   }
@@ -209,16 +78,17 @@ void Deserialize::parseModel() {
     fclose(modelFile);
     exit(1);
   }
-  num_format_lines = btor2parser_max_id(model);
-  inits.resize(num_format_lines, nullptr);
-  nexts.resize(num_format_lines, nullptr);
+  auto numLines = btor2parser_max_id(model);
+  inits.resize(numLines, nullptr);
+  nexts.resize(numLines, nullptr);
   Btor2LineIterator it = btor2parser_iter_init(model);
   Btor2Line *line;
-  while ((line = btor2parser_iter_next(&it)))
+  while ((line = btor2parser_iter_next(&it))) {
     parseModelLine(line);
+  }
 
   for (size_t i = 0; i < states.size(); i++) {
-    Btor2Line *state = states[i];
+    Btor2Line *state = states.at(i);
     if (!nexts[state->id]) {
       std::cerr << "state " << state->id << " without next function\n";
       fclose(modelFile);
@@ -233,13 +103,10 @@ void Deserialize::parseModel() {
 /// builder.
 ///
 /// e.x:
-///     Operation * res = createMLIR(cur, builder, cur->args);
+///     Operation * res = createMLIR(cur, cur->args);
 ///
 ///===----------------------------------------------------------------------===//
-Operation * Deserialize::createMLIR(const Btor2Line *line, 
-                      OpBuilder &builder,
-                      const int64_t *kids) {
-  Location unknownLoc = UnknownLoc::get(builder.getContext());
+Operation * Deserialize::createMLIR(const Btor2Line *line, const int64_t *kids) {
   Operation *res = nullptr;
 
   switch (line->tag) {
@@ -480,7 +347,7 @@ Operation * Deserialize::createMLIR(const Btor2Line *line,
 
   // indexed ops
   case BTOR2_TAG_slice: {
-    auto operandWidth = reached_lines.at(kids[0])->sort.bitvec.width;
+    auto operandWidth = reachedLines.at(kids[0])->sort.bitvec.width;
     auto opType = builder.getIntegerType(operandWidth);
     assert(operandWidth > kids[1] && kids[1] >= kids[2]);
     auto resType = builder.getIntegerType(kids[1] - kids[2] + 1);
@@ -527,15 +394,14 @@ Operation * Deserialize::createMLIR(const Btor2Line *line,
   return res;
 }
 
-void Deserialize::createNegateLine(int64_t curAt, Value child, OpBuilder &builder) {
-  Location unknownLoc = UnknownLoc::get(builder.getContext());
+void Deserialize::createNegateLine(int64_t curAt, Value child) {
   auto res = builder.create<btor::NotOp>(unknownLoc, cache.at(curAt * -1));
   assert(res && res->getNumResults() == 1);
   cache[curAt] = res->getResult(0);
 }
 
 bool Deserialize::isValidChild(Btor2Line * line) {
-  auto tag = reached_lines.at(line->id)->tag;
+  auto tag = reachedLines.at(line->id)->tag;
   if (tag == BTOR2_TAG_init || tag == BTOR2_TAG_constraint ||
       tag == BTOR2_TAG_next || tag == BTOR2_TAG_read ||
       tag == BTOR2_TAG_state || tag == BTOR2_TAG_input ||
@@ -555,16 +421,16 @@ bool Deserialize::isValidChild(Btor2Line * line) {
 ///
 /// e.x:
 ///      for (auto it = nexts.begin(); it != nexts.end(); ++it) {
-///          toOp(*it, builder);
+///          toOp(*it);
 ///      }
 ///
 ///  We can see that for each next operation in btor2, we will compute all
 ///  the prerequisite operations before storing the result in our cache
 ///===----------------------------------------------------------------------===//
-void Deserialize::toOp(Btor2Line *line, OpBuilder &builder) {
-
-  if (cache.find(line->id) != cache.end())
+void Deserialize::toOp(Btor2Line *line) {
+  if (cache.find(line->id) != cache.end()) {
     return;
+  }
 
   Operation *res = nullptr;
   std::vector<Btor2Line *> todo;
@@ -574,7 +440,7 @@ void Deserialize::toOp(Btor2Line *line, OpBuilder &builder) {
     uint32_t oldsize = todo.size();
     for (uint32_t i = 0; i < cur->nargs; ++i) {
       if (cur->args[i] > 0 
-      && !isValidChild(reached_lines.at(cur->args[i]))) {
+      && !isValidChild(reachedLines.at(cur->args[i]))) {
         continue;
       }
 
@@ -582,12 +448,12 @@ void Deserialize::toOp(Btor2Line *line, OpBuilder &builder) {
         if (cur->args[i] < 0) {
           // if original operation is cached, negate it
           if (cache.find(cur->args[i] * -1) != cache.end()) {
-            createNegateLine(cur->args[i], cache.at(cur->args[i] * -1), builder); 
+            createNegateLine(cur->args[i], cache.at(cur->args[i] * -1)); 
           } else {
-            todo.push_back(reached_lines.at(cur->args[i] * -1));
+            todo.push_back(reachedLines.at(cur->args[i] * -1));
           }
         } else {
-          todo.push_back(reached_lines.at(cur->args[i]));
+          todo.push_back(reachedLines.at(cur->args[i]));
         }
       }
     }
@@ -599,7 +465,7 @@ void Deserialize::toOp(Btor2Line *line, OpBuilder &builder) {
       todo.pop_back();
       continue;
     }
-    res = createMLIR(cur, builder, cur->args);
+    res = createMLIR(cur, cur->args);
     assert(res && res->getNumResults() < 2 && res->getResult(0));
     cache[cur->id] = res->getResult(0);
     todo.pop_back();
@@ -607,9 +473,6 @@ void Deserialize::toOp(Btor2Line *line, OpBuilder &builder) {
 }
 
 OwningOpRef<FuncOp> Deserialize::buildInitFunction() {
-  Location unknownLoc = UnknownLoc::get(context);
-  OpBuilder builder(context);
-
   // collect the return types for our init function
   std::vector<Type> returnTypes(states.size(), nullptr);
   for (uint32_t i = 0; i < states.size(); ++i) {
@@ -633,7 +496,7 @@ OwningOpRef<FuncOp> Deserialize::buildInitFunction() {
   // clear cache so that values are mapped to the right Basic Block
   cache.clear();
   for (auto it = inits.begin(); it != inits.end(); ++it) {
-    toOp(*it, builder);
+    toOp(*it);
   }
 
   // close with a fitting returnOp
@@ -665,9 +528,6 @@ OwningOpRef<FuncOp> Deserialize::buildInitFunction() {
 }
 
 OwningOpRef<FuncOp> Deserialize::buildNextFunction() {
-  Location unknownLoc = UnknownLoc::get(context);
-  OpBuilder builder(context);
-
   // collect the return types for our init function
   std::vector<Type> returnTypes(nexts.size(), nullptr);
   for (uint32_t i = 0; i < nexts.size(); ++i) {
@@ -695,10 +555,10 @@ OwningOpRef<FuncOp> Deserialize::buildNextFunction() {
 
   // start with nexts, then add bads, for logic sharing
   for (auto it = nexts.begin(); it != nexts.end(); ++it) {
-    toOp(*it, builder);
+    toOp(*it);
   }
   for (auto it = bads.begin(); it != bads.end(); ++it) {
-    toOp(*it, builder);
+    toOp(*it);
   }
 
   // close with a fitting returnOp

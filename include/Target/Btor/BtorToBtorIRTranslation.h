@@ -9,6 +9,14 @@
 
 #include "mlir/IR/OwningOpRef.h"
 #include "mlir/Support/LLVM.h"
+#include "mlir/Dialect/StandardOps/IR/Ops.h"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinOps.h"
+
+#include <vector>
+#include <map>
+
+#include "btor2parser/btor2parser.h"
 
 namespace mlir {
 class MLIRContext;
@@ -17,11 +25,77 @@ class ModuleOp;
 namespace btor {
 
 /// Deserializes the given Btor module and creates a MLIR ModuleOp
-/// in the given `context`. Returns the ModuleOp on success; otherwise, reports
-/// errors to the error handler registered with `context` and returns a null
-/// module.
-OwningOpRef<mlir::ModuleOp> translateBtorToMLIR(ArrayRef<uint32_t> btor,
-                                         MLIRContext *context);
+/// in the given `context`. Makes use of btor2parser.
+
+class Deserialize {
+
+ public:
+///===----------------------------------------------------------------------===//
+/// Constructors and Destructors
+///===----------------------------------------------------------------------===//
+
+  Deserialize(MLIRContext *context) : context(context), 
+    builder(OpBuilder(context)), unknownLoc(UnknownLoc::get(context)) {}
+
+  ~Deserialize() {
+      if (model) {
+        btor2parser_delete(model);
+      }
+      if (modelFile) {
+        fclose(modelFile);
+      }
+  }
+
+///===----------------------------------------------------------------------===//
+/// Parse btor2 file
+///===----------------------------------------------------------------------===//
+
+  std::vector<Btor2Line *> inputs;
+  std::vector<Btor2Line *> states;
+  std::vector<Btor2Line *> bads;
+  std::vector<Btor2Line *> inits;
+  std::vector<Btor2Line *> nexts;
+  std::vector<Btor2Line *> constraints;
+ 
+  std::map<int64_t, Btor2Line *> reachedLines;
+  
+  void parseModel();
+  void setModelFile(FILE * file) { modelFile = file; }
+  void filterInits();
+  void filterNexts();
+
+///===----------------------------------------------------------------------===//
+/// Create MLIR module
+///===----------------------------------------------------------------------===//
+  
+  std::map<int64_t, Value> cache;
+
+  OwningOpRef<FuncOp> buildInitFunction();
+  OwningOpRef<FuncOp> buildNextFunction();
+  
+ private: 
+///===----------------------------------------------------------------------===//
+/// Parse btor2 file
+///===----------------------------------------------------------------------===//
+  
+  Btor2Parser *model = nullptr;
+  FILE *modelFile = nullptr;
+
+  void parseModelLine(Btor2Line *l);
+
+///===----------------------------------------------------------------------===//
+/// Create MLIR module
+///===----------------------------------------------------------------------===//
+
+  MLIRContext *context;
+  OpBuilder builder;
+  Location unknownLoc;
+  
+  void toOp(Btor2Line *line);
+  bool isValidChild(Btor2Line * line);
+  void createNegateLine(int64_t curAt, Value child);
+  Operation * createMLIR(const Btor2Line *line, const int64_t *kids);
+};
 
 /// Register the Btor translation
 void registerFromBtorTranslation();
