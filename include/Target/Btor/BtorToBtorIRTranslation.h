@@ -85,26 +85,6 @@ class Deserialize {
 
   void parseModelLine(Btor2Line *l);
 
-  void filterInits(){
-    size_t i = 0;
-    for (size_t j = 0, sz = inits.size(); j < sz; ++j) {
-        if (inits.at(j)) {
-            inits[i++] = inits.at(j);
-        }
-    }
-    inits.resize(i);
-  }
-
-  void filterNexts() {
-    size_t i = 0;
-    for (size_t j = 0, sz = nexts.size(); j < sz; ++j) {
-      if (nexts.at(j)) {
-        nexts[i++] = nexts.at(j);
-      }
-    }
-    nexts.resize(i);
-  }
-
 ///===----------------------------------------------------------------------===//
 /// Create MLIR module
 ///===----------------------------------------------------------------------===//

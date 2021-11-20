@@ -29,7 +29,7 @@ void Deserialize::parseModelLine(Btor2Line *l) {
     break;
 
   case BTOR2_TAG_init:
-    inits[l->args[0]] = l;
+    inits.push_back(l);
     break;
 
   case BTOR2_TAG_input:
@@ -37,7 +37,7 @@ void Deserialize::parseModelLine(Btor2Line *l) {
     break;
 
   case BTOR2_TAG_next:
-    nexts[l->args[0]] = l;
+    nexts.push_back(l);
     break;
 
   case BTOR2_TAG_state:
@@ -58,25 +58,18 @@ bool Deserialize::parseModelIsSuccessful() {
     return false;
   }
   // register each line that has been parsed
-  auto numLines = btor2parser_max_id(model);
-  inits.resize(numLines, nullptr);
-  nexts.resize(numLines, nullptr);
   Btor2LineIterator it = btor2parser_iter_init(model);
   Btor2Line *line;
   while ((line = btor2parser_iter_next(&it))) {
     parseModelLine(line);
   }
   // ensure each state has a next function
-  for (size_t i = 0; i < states.size(); i++) {
-    Btor2Line *state = states.at(i);
-    if (!nexts[state->id]) {
+  for (auto state : states) {
+    if (reachedLines.find(state->next) == reachedLines.end()) {
       std::cerr << "state " << state->id << " without next function\n";
       return false;
     }
   }
-  // extract relevant inits and nexts
-  filterInits();
-  filterNexts();
 
   return true;
 }
