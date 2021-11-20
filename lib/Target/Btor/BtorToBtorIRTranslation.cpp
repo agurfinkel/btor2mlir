@@ -401,12 +401,11 @@ OwningOpRef<FuncOp> Deserialize::buildInitFunction() {
     returnTypes[i] = builder.getIntegerType(states.at(i)->sort.bitvec.width);
     assert(returnTypes[i]);
   }
-  ArrayRef<Type> outputs(returnTypes);
 
   // create init function signature
   OperationState state(unknownLoc, FuncOp::getOperationName());
   FuncOp::build(builder, state, "init",
-                FunctionType::get(context, {}, outputs));
+                FunctionType::get(context, {}, returnTypes));
   OwningOpRef<FuncOp> funcOp = cast<FuncOp>(Operation::create(state));
 
   // create basic block and accompanying builder
@@ -442,9 +441,8 @@ OwningOpRef<FuncOp> Deserialize::buildInitFunction() {
     }
     assert(testResults[i]);
   }
-  ArrayRef<Value> results(testResults);
 
-  builder.create<ReturnOp>(unknownLoc, ValueRange({results}));
+  builder.create<ReturnOp>(unknownLoc, testResults);
 
   return funcOp;
 }
@@ -456,16 +454,15 @@ OwningOpRef<FuncOp> Deserialize::buildNextFunction() {
     returnTypes[i] = builder.getIntegerType(nexts.at(i)->sort.bitvec.width);
     assert(returnTypes[i]);
   }
-  ArrayRef<Type> outputs(returnTypes);
 
   // create next function signature
   OperationState state(unknownLoc, FuncOp::getOperationName());
   FuncOp::build(builder, state, "next",
-                FunctionType::get(context, outputs, outputs));
+                FunctionType::get(context, returnTypes, returnTypes));
   OwningOpRef<FuncOp> funcOp = cast<FuncOp>(Operation::create(state));
   Region &region = funcOp->getBody();
   OpBuilder::InsertionGuard guard(builder);
-  auto *body = builder.createBlock(&region, {}, TypeRange({outputs}));
+  auto *body = builder.createBlock(&region, {}, returnTypes);
   builder.setInsertionPointToStart(body);
 
   // clear cache so that values are mapped to the right Basic Block
@@ -489,9 +486,8 @@ OwningOpRef<FuncOp> Deserialize::buildNextFunction() {
     testResults[i] = cache.at(nexts.at(i)->args[1]);
     assert(testResults[i]);
   }
-  ArrayRef<Value> results(testResults);
 
-  builder.create<ReturnOp>(unknownLoc, ValueRange({results}));
+  builder.create<ReturnOp>(unknownLoc, testResults);
   return funcOp;
 }
 
