@@ -115,24 +115,24 @@ class Deserialize {
   
   void toOp(Btor2Line *line);
   bool isValidChild(Btor2Line * line);
-  void createNegateLine(int64_t curAt, Value child);
+  void createNegateLine(int64_t curAt, Value &child);
   Operation * createMLIR(const Btor2Line *line, const int64_t *kids);
 
   template <typename btorOp>
-  Operation * buildBinaryOp(Value lhs, Value rhs) {
+  Operation * buildBinaryOp(Value &lhs, Value &rhs) {
     auto res = builder.create<btorOp>(unknownLoc, lhs, rhs);
     return res;
   }
 
   template <typename btorOp>
   Operation * buildComparisonOp(btor::BtorPredicate pred,
-                                Value lhs, Value rhs) {
+                                Value &lhs, Value &rhs) {
     auto res = builder.create<btorOp>(unknownLoc, pred, lhs, rhs);
     return res;
   }
 
   template <typename btorOp>
-  Operation * buildOverflowOp(Value lhs, Value rhs) {
+  Operation * buildOverflowOp(Value &lhs, Value &rhs) {
     auto res = builder.create<btorOp>(unknownLoc, 
                                     builder.getIntegerType(1), 
                                     lhs, rhs);
@@ -154,7 +154,7 @@ class Deserialize {
     return res;
   }
 
-  Operation * buildConcatOp(Value lhs, Value rhs) {
+  Operation * buildConcatOp(Value &lhs, Value &rhs) {
     auto newWidth = lhs.getType().getIntOrFloatBitWidth() +
                rhs.getType().getIntOrFloatBitWidth();
     Type resType = builder.getIntegerType(newWidth);
@@ -162,7 +162,7 @@ class Deserialize {
     return res;
   }
 
-  Operation * buildSliceOp(Value val, int64_t upper, int64_t lower) {
+  Operation * buildSliceOp(Value &val, int64_t upper, int64_t lower) {
     auto opType = val.getType();
     auto operandWidth = opType.getIntOrFloatBitWidth();
     assert(operandWidth > upper && upper >= lower);
