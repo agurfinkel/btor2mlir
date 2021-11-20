@@ -316,7 +316,7 @@ Operation * Deserialize::createMLIR(const Btor2Line *line, const int64_t *kids) 
   return res;
 }
 
-void Deserialize::createNegateLine(int64_t curAt, Value child) {
+void Deserialize::createNegateLine(int64_t curAt, Value &child) {
   auto res = builder.create<btor::NotOp>(unknownLoc, cache.at(curAt * -1));
   assert(res && res->getNumResults() == 1);
   cache[curAt] = res->getResult(0);
@@ -416,9 +416,7 @@ OwningOpRef<FuncOp> Deserialize::buildInitFunction() {
 
   // clear cache so that values are mapped to the right Basic Block
   cache.clear();
-  for (auto it = inits.begin(); it != inits.end(); ++it) {
-    toOp(*it);
-  }
+  for (auto init : inits) { toOp(init); }
 
   // close with a fitting returnOp
   std::vector<Value> testResults(states.size(), nullptr);
@@ -473,12 +471,8 @@ OwningOpRef<FuncOp> Deserialize::buildNextFunction() {
   }
 
   // start with nexts, then add bads, for logic sharing
-  for (auto it = nexts.begin(); it != nexts.end(); ++it) {
-    toOp(*it);
-  }
-  for (auto it = bads.begin(); it != bads.end(); ++it) {
-    toOp(*it);
-  }
+  for (auto next : nexts) { toOp(next); }
+  for (auto bad : bads) { toOp(bad); }
 
   // close with a fitting returnOp
   std::vector<Value> testResults(nexts.size(), nullptr);
