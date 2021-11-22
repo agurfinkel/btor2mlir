@@ -54,15 +54,6 @@ class Deserialize {
 ///===----------------------------------------------------------------------===//
 /// Parse btor2 file
 ///===----------------------------------------------------------------------===//
-
-  std::vector<Btor2Line *> inputs;
-  std::vector<Btor2Line *> states;
-  std::vector<Btor2Line *> bads;
-  std::vector<Btor2Line *> inits;
-  std::vector<Btor2Line *> nexts;
-  std::vector<Btor2Line *> constraints;
- 
-  std::map<int64_t, Btor2Line *> reachedLines;
   
   bool parseModelIsSuccessful();
 
@@ -82,6 +73,15 @@ class Deserialize {
   
   Btor2Parser *model = nullptr;
   FILE *modelFile = nullptr;
+
+  std::vector<Btor2Line *> inputs;
+  std::vector<Btor2Line *> states;
+  std::vector<Btor2Line *> bads;
+  std::vector<Btor2Line *> inits;
+  std::vector<Btor2Line *> nexts;
+  std::vector<Btor2Line *> constraints;
+ 
+  std::map<int64_t, Btor2Line *> reachedLines;
 
   void parseModelLine(Btor2Line *l);
 
@@ -119,7 +119,7 @@ class Deserialize {
     return res;
   }
 
-  Operation * buildConstantOp(uint32_t width, std::string str, uint32_t radix) {
+  Operation * buildConstantOp(uint32_t width, const std::string &str, uint32_t radix) {
     Type type = builder.getIntegerType(width);
     mlir::APInt value(width, 0, radix);
     if (str.compare("ones") == 0) {
