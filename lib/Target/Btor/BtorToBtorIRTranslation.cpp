@@ -319,8 +319,8 @@ Operation * Deserialize::createMLIR(const Btor2Line *line, const int64_t *kids) 
 /// created and saved in the cache
 ///===----------------------------------------------------------------------===//
 void Deserialize::createNegateLine(int64_t negativeLine, const Value &child) {
-  Value originalLine = getFromCacheById(negativeLine * -1);
-  auto res = m_builder.create<btor::NotOp>(m_unknownLoc, originalLine);
+  auto res = m_builder.create<btor::NotOp>(m_unknownLoc, 
+                getFromCacheById(std::abs(negativeLine)));
   assert(res && res->getNumResults() == 1);
   setCacheWithId(negativeLine, res->getResult(0));
 }
@@ -386,10 +386,10 @@ void Deserialize::toOp(Btor2Line *line) {
       if (!valueAtIdIsInCache(arg_i)) {
         if (arg_i < 0) {
           // if original operation is cached, negate it on the fly
-          if (valueAtIdIsInCache(arg_i * -1)) {
-            createNegateLine(arg_i, getFromCacheById(arg_i * -1)); 
+          if (valueAtIdIsInCache(std::abs(arg_i))) {
+            createNegateLine(arg_i, getFromCacheById(std::abs(arg_i))); 
           } else {
-            todo.push_back(getLineById(arg_i * -1));
+            todo.push_back(getLineById(std::abs(arg_i)));
           }
         } else {
           todo.push_back(getLineById(arg_i));
