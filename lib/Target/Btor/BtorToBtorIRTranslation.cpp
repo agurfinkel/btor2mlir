@@ -18,7 +18,7 @@ using namespace mlir;
 using namespace mlir::btor;
 
 void Deserialize::parseModelLine(Btor2Line *l) {
-  reachedLines[l->id] = l;
+  setLineWithId(l->id, l);
   switch (l->tag) {
   case BTOR2_TAG_bad:
     bads.push_back(l);
@@ -58,6 +58,8 @@ bool Deserialize::parseModelIsSuccessful() {
     return false;
   }
   // register each line that has been parsed
+  auto numLines = btor2parser_max_id (model);
+  m_lines.resize(numLines + 1, nullptr);
   Btor2LineIterator it = btor2parser_iter_init(model);
   Btor2Line *line;
   while ((line = btor2parser_iter_next(&it))) {
@@ -65,7 +67,7 @@ bool Deserialize::parseModelIsSuccessful() {
   }
   // ensure each state has a next function
   for (auto state : states) {
-    if (reachedLines.find(state->next) == reachedLines.end()) {
+    if (!getLineById(state->next)) {
       std::cerr << "state " << state->id << " without next function\n";
       return false;
     }
@@ -373,21 +375,21 @@ void Deserialize::toOp(Btor2Line *line) {
     auto cur = todo.back();
     uint32_t oldsize = todo.size();
     for (uint32_t i = 0; i < cur->nargs; ++i) {
-      if (cur->args[i] > 0 
-      && !isValidChild(reachedLines.at(cur->args[i]))) {
+      auto arg_i = cur->args[i];
+      if (arg_i > 0 && !isValidChild(getLineById(arg_i))) {
         continue;
       }
 
-      if (cache.find(cur->args[i]) == cache.end()) {
-        if (cur->args[i] < 0) {
+      if (cache.find(arg_i) == cache.end()) {
+        if (arg_i < 0) {
           // if original operation is cached, negate it
-          if (cache.find(cur->args[i] * -1) != cache.end()) {
-            createNegateLine(cur->args[i], cache.at(cur->args[i] * -1)); 
+          if (cache.find(arg_i * -1) != cache.end()) {
+            createNegateLine(arg_i, cache.at(arg_i * -1)); 
           } else {
-            todo.push_back(reachedLines.at(cur->args[i] * -1));
+            todo.push_back(getLineById(arg_i * -1));
           }
         } else {
-          todo.push_back(reachedLines.at(cur->args[i]));
+          todo.push_back(getLineById(arg_i));
         }
       }
     }

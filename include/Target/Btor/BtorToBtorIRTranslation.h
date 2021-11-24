@@ -81,10 +81,20 @@ class Deserialize {
   std::vector<Btor2Line *> nexts;
   std::vector<Btor2Line *> constraints;
  
-  std::map<int64_t, Btor2Line *> reachedLines;
+  std::vector<Btor2Line *> m_lines;
 
   void parseModelLine(Btor2Line *l);
 
+  Btor2Line * getLineById(unsigned id) {
+      assert(id < m_lines.size());
+      return m_lines.at(id);
+  }
+
+  void setLineWithId(unsigned id, Btor2Line * line) {
+      assert(id < m_lines.size());
+      assert(!m_lines.at(id));
+      m_lines[id] = line;
+  }
 ///===----------------------------------------------------------------------===//
 /// Create MLIR module
 ///===----------------------------------------------------------------------===//
