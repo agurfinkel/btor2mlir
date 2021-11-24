@@ -321,7 +321,7 @@ void Deserialize::createNegateLine(int64_t negativeLine, const Value &child) {
 /// We use this method to check if a line needs to have a corresponding MLIR
 /// operation created
 ///===----------------------------------------------------------------------===//
-bool Deserialize::isValidChild(Btor2Line * line) {
+bool Deserialize::needsMLIROp(Btor2Line * line) {
   bool isValid = true;
   switch (line->tag) {
   case BTOR2_TAG_init:
@@ -371,7 +371,7 @@ void Deserialize::toOp(Btor2Line *line) {
     for (uint32_t i = 0; i < cur->nargs; ++i) {
       auto arg_i = cur->args[i];
       // exit early if we do not need to compute this line
-      if (arg_i > 0 && !isValidChild(getLineById(arg_i))) {
+      if (arg_i > 0 && !needsMLIROp(getLineById(arg_i))) {
         continue;
       }
       // only look at uncomputed lines
@@ -391,7 +391,7 @@ void Deserialize::toOp(Btor2Line *line) {
     if (todo.size() != oldsize) {
       continue;
     }
-    if (!isValidChild(cur) 
+    if (!needsMLIROp(cur) 
     || valueAtIdIsInCache(cur->id)) {
       todo.pop_back();
       continue;
