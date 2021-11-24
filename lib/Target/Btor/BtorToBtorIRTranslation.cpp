@@ -326,16 +326,25 @@ void Deserialize::createNegateLine(int64_t curAt, const Value &child) {
 /// operation created
 ///===----------------------------------------------------------------------===//
 bool Deserialize::isValidChild(Btor2Line * line) {
-  auto tag = reachedLines.at(line->id)->tag;
-  if (tag == BTOR2_TAG_init || tag == BTOR2_TAG_constraint ||
-      tag == BTOR2_TAG_next || tag == BTOR2_TAG_read ||
-      tag == BTOR2_TAG_state || tag == BTOR2_TAG_input ||
-      tag == BTOR2_TAG_sort || tag == BTOR2_TAG_fair ||
-      tag == BTOR2_TAG_justice || tag == BTOR2_TAG_output ||
-      tag == BTOR2_TAG_write) {
-    return false;
+  bool isValid = true;
+  switch (line->tag) {
+  case BTOR2_TAG_init:
+  case BTOR2_TAG_input:
+  case BTOR2_TAG_next:
+  case BTOR2_TAG_state:
+  case BTOR2_TAG_read:
+  case BTOR2_TAG_sort:
+  case BTOR2_TAG_fair:
+  case BTOR2_TAG_justice:
+  case BTOR2_TAG_output:
+  case BTOR2_TAG_write:
+  case BTOR2_TAG_constraint:
+    isValid = false;
+    break;
+  default:
+    break;
   }
-  return true;
+  return isValid;
 }
 
 ///===----------------------------------------------------------------------===//
