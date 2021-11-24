@@ -21,27 +21,27 @@ void Deserialize::parseModelLine(Btor2Line *l) {
   setLineWithId(l->id, l);
   switch (l->tag) {
   case BTOR2_TAG_bad:
-    bads.push_back(l);
+    m_bads.push_back(l);
     break;
 
   case BTOR2_TAG_constraint:
-    constraints.push_back(l);
+    m_constraints.push_back(l);
     break;
 
   case BTOR2_TAG_init:
-    inits.push_back(l);
+    m_inits.push_back(l);
     break;
 
   case BTOR2_TAG_input:
-    inputs.push_back(l);
+    m_inputs.push_back(l);
     break;
 
   case BTOR2_TAG_next:
-    nexts.push_back(l);
+    m_nexts.push_back(l);
     break;
 
   case BTOR2_TAG_state:
-    states.push_back(l);
+    m_states.push_back(l);
     break;
 
   default:
@@ -50,23 +50,23 @@ void Deserialize::parseModelLine(Btor2Line *l) {
 }
 
 bool Deserialize::parseModelIsSuccessful() {
-  if (!modelFile)
+  if (!m_modelFile)
     return false;
-  model = btor2parser_new();
-  if (!btor2parser_read_lines(model, modelFile)) {
-    std::cerr << "parse error at: " << btor2parser_error(model) << "\n";
+  m_model = btor2parser_new();
+  if (!btor2parser_read_lines(m_model, m_modelFile)) {
+    std::cerr << "parse error at: " << btor2parser_error(m_model) << "\n";
     return false;
   }
   // register each line that has been parsed
-  auto numLines = btor2parser_max_id (model);
+  auto numLines = btor2parser_max_id (m_model);
   m_lines.resize(numLines + 1, nullptr);
-  Btor2LineIterator it = btor2parser_iter_init(model);
+  Btor2LineIterator it = btor2parser_iter_init(m_model);
   Btor2Line *line;
   while ((line = btor2parser_iter_next(&it))) {
     parseModelLine(line);
   }
   // ensure each state has a next function
-  for (auto state : states) {
+  for (auto state : m_states) {
     if (!getLineById(state->next)) {
       std::cerr << "state " << state->id << " without next function\n";
       return false;
@@ -78,8 +78,8 @@ bool Deserialize::parseModelIsSuccessful() {
 
 ///===----------------------------------------------------------------------===//
 /// This function's goal is to create the MLIR Operation that corresponds to 
-/// the given Btor2Line*, cur, into the basic block designated by the provided 
-/// builder.
+/// the given Btor2Line*, cur, into the basic block designated by the class 
+/// field m_builder.
 ///
 /// e.x:
 ///     Operation * res = createMLIR(cur, cur->args);
@@ -221,27 +221,27 @@ Operation * Deserialize::createMLIR(const Btor2Line *line, const int64_t *kids) 
 
   // unary ops
   case BTOR2_TAG_dec:
-    res = builder.create<btor::DecOp>(unknownLoc, cache.at(kids[0]));
+    res = m_builder.create<btor::DecOp>(m_unknownLoc, cache.at(kids[0]));
     break;
   case BTOR2_TAG_inc:
-    res = builder.create<btor::IncOp>(unknownLoc, cache.at(kids[0]));
+    res = m_builder.create<btor::IncOp>(m_unknownLoc, cache.at(kids[0]));
     break;
   case BTOR2_TAG_neg:
-    res = builder.create<btor::NegOp>(unknownLoc, cache.at(kids[0]));
+    res = m_builder.create<btor::NegOp>(m_unknownLoc, cache.at(kids[0]));
     break;
   case BTOR2_TAG_not:
-    res = builder.create<btor::NotOp>(unknownLoc, cache.at(kids[0]));
+    res = m_builder.create<btor::NotOp>(m_unknownLoc, cache.at(kids[0]));
     break;
   case BTOR2_TAG_redand:
-    res = builder.create<btor::RedAndOp>(unknownLoc, builder.getIntegerType(1),
+    res = m_builder.create<btor::RedAndOp>(m_unknownLoc, m_builder.getIntegerType(1),
                                          cache.at(kids[0]));
     break;
   case BTOR2_TAG_redor:
-    res = builder.create<btor::RedOrOp>(unknownLoc, builder.getIntegerType(1),
+    res = m_builder.create<btor::RedOrOp>(m_unknownLoc, m_builder.getIntegerType(1),
                                         cache.at(kids[0]));
     break;
   case BTOR2_TAG_redxor:
-    res = builder.create<btor::RedXorOp>(unknownLoc, builder.getIntegerType(1),
+    res = m_builder.create<btor::RedXorOp>(m_unknownLoc, m_builder.getIntegerType(1),
                                          cache.at(kids[0]));
     break;
   case BTOR2_TAG_const:
@@ -269,7 +269,7 @@ Operation * Deserialize::createMLIR(const Btor2Line *line, const int64_t *kids) 
                         std::string("zero"), 10);
     break;
   case BTOR2_TAG_bad:
-    res = builder.create<btor::AssertNotOp>(unknownLoc, cache.at(kids[0]));
+    res = m_builder.create<btor::AssertNotOp>(m_unknownLoc, cache.at(kids[0]));
     break;
 
   // indexed ops
@@ -277,19 +277,19 @@ Operation * Deserialize::createMLIR(const Btor2Line *line, const int64_t *kids) 
     res = buildSliceOp(cache.at(kids[0]), kids[1], kids[2]);
     break;
   case BTOR2_TAG_sext:
-    res = builder.create<btor::SExtOp>(
-        unknownLoc, cache.at(kids[0]),
-        builder.getIntegerType(line->sort.bitvec.width));
+    res = m_builder.create<btor::SExtOp>(
+        m_unknownLoc, cache.at(kids[0]),
+        m_builder.getIntegerType(line->sort.bitvec.width));
     break;
   case BTOR2_TAG_uext:
-    res = builder.create<btor::UExtOp>(
-        unknownLoc, cache.at(kids[0]),
-        builder.getIntegerType(line->sort.bitvec.width));
+    res = m_builder.create<btor::UExtOp>(
+        m_unknownLoc, cache.at(kids[0]),
+        m_builder.getIntegerType(line->sort.bitvec.width));
     break;
 
   // ternary ops
   case BTOR2_TAG_ite:
-    res = builder.create<btor::IteOp>(unknownLoc, cache.at(kids[0]),
+    res = m_builder.create<btor::IteOp>(m_unknownLoc, cache.at(kids[0]),
                                       cache.at(kids[1]), cache.at(kids[2]));
     break;
 
@@ -318,7 +318,7 @@ Operation * Deserialize::createMLIR(const Btor2Line *line, const int64_t *kids) 
 /// created and saved in the cache
 ///===----------------------------------------------------------------------===//
 void Deserialize::createNegateLine(int64_t curAt, const Value &child) {
-  auto res = builder.create<btor::NotOp>(unknownLoc, cache.at(curAt * -1));
+  auto res = m_builder.create<btor::NotOp>(m_unknownLoc, cache.at(curAt * -1));
   assert(res && res->getNumResults() == 1);
   cache[curAt] = res->getResult(0);
 }
@@ -351,13 +351,13 @@ bool Deserialize::isValidChild(Btor2Line * line) {
 
 ///===----------------------------------------------------------------------===//
 /// This function's goal is to add the MLIR Operation that corresponds to 
-/// the given Btor2Line* into the basic block designated by the provided 
-/// builder. Then, the MLIR Value of the newly minted operation is added
+/// the given Btor2Line* into the basic block designated by the class field 
+/// m_builder. Then, the MLIR Value of the newly minted operation is added
 /// into our cache for future reference within the basic block. 
 ///
 /// e.x:
-///      for (auto it = nexts.begin(); it != nexts.end(); ++it) {
-///          toOp(*it);
+///      for (next : m_nexts) {
+///          toOp(next);
 ///      }
 ///
 ///  We can see that for each next operation in btor2, we will compute all
@@ -410,41 +410,41 @@ void Deserialize::toOp(Btor2Line *line) {
 
 OwningOpRef<FuncOp> Deserialize::buildInitFunction() {
   // collect the return types for our init function
-  std::vector<Type> returnTypes(states.size(), nullptr);
-  for (uint32_t i = 0; i < states.size(); ++i) {
-    returnTypes[i] = builder.getIntegerType(states.at(i)->sort.bitvec.width);
+  std::vector<Type> returnTypes(m_states.size(), nullptr);
+  for (uint32_t i = 0; i < m_states.size(); ++i) {
+    returnTypes[i] = m_builder.getIntegerType(m_states.at(i)->sort.bitvec.width);
     assert(returnTypes[i]);
   }
 
   // create init function signature
-  OperationState state(unknownLoc, FuncOp::getOperationName());
-  FuncOp::build(builder, state, "init",
-                FunctionType::get(context, {}, returnTypes));
+  OperationState state(m_unknownLoc, FuncOp::getOperationName());
+  FuncOp::build(m_builder, state, "init",
+                FunctionType::get(m_context, {}, returnTypes));
   OwningOpRef<FuncOp> funcOp = cast<FuncOp>(Operation::create(state));
 
-  // create basic block and accompanying builder
+  // create basic block with accompanying m_builder
   Region &region = funcOp->getBody();
-  OpBuilder::InsertionGuard guard(builder);
-  auto *body = builder.createBlock(&region);
-  builder.setInsertionPointToStart(body);
+  OpBuilder::InsertionGuard guard(m_builder);
+  auto *body = m_builder.createBlock(&region);
+  m_builder.setInsertionPointToStart(body);
 
   // clear cache so that values are mapped to the right Basic Block
   cache.clear();
-  for (auto init : inits) { toOp(init); }
+  for (auto init : m_inits) { toOp(init); }
 
   // close with a fitting returnOp
-  std::vector<Value> testResults(states.size(), nullptr);
+  std::vector<Value> testResults(m_states.size(), nullptr);
   std::map<uint32_t, Value> undefOpsBySort;
   uint32_t j = 0; // counters over inits vector
-  for (uint32_t i = 0, sz = states.size(); i < sz; ++i) {
-    if (states.at(i)->init > 0) {
+  for (uint32_t i = 0, sz = m_states.size(); i < sz; ++i) {
+    if (m_states.at(i)->init > 0) {
       // get the result of init's second argument since
       // that is what we assign our state to  
-      testResults[i] = cache.at(inits.at(j++)->args[1]);
+      testResults[i] = cache.at(m_inits.at(j++)->args[1]);
     } else {
       auto sort = returnTypes.at(i).getIntOrFloatBitWidth();
       if (undefOpsBySort.find(sort) == undefOpsBySort.end()) {
-          auto res = builder.create<btor::UndefOp>(unknownLoc,
+          auto res = m_builder.create<btor::UndefOp>(m_unknownLoc,
                                     returnTypes.at(i));
           assert(res && res->getNumResults() == 1);
           undefOpsBySort[sort] = res->getResult(0);
@@ -454,48 +454,48 @@ OwningOpRef<FuncOp> Deserialize::buildInitFunction() {
     assert(testResults[i]);
   }
 
-  builder.create<ReturnOp>(unknownLoc, testResults);
+  m_builder.create<ReturnOp>(m_unknownLoc, testResults);
 
   return funcOp;
 }
 
 OwningOpRef<FuncOp> Deserialize::buildNextFunction() {
   // collect the return types for our init function
-  std::vector<Type> returnTypes(nexts.size(), nullptr);
-  for (uint32_t i = 0; i < nexts.size(); ++i) {
-    returnTypes[i] = builder.getIntegerType(nexts.at(i)->sort.bitvec.width);
+  std::vector<Type> returnTypes(m_nexts.size(), nullptr);
+  for (uint32_t i = 0; i < m_nexts.size(); ++i) {
+    returnTypes[i] = m_builder.getIntegerType(m_nexts.at(i)->sort.bitvec.width);
     assert(returnTypes[i]);
   }
 
   // create next function signature
-  OperationState state(unknownLoc, FuncOp::getOperationName());
-  FuncOp::build(builder, state, "next",
-                FunctionType::get(context, returnTypes, returnTypes));
+  OperationState state(m_unknownLoc, FuncOp::getOperationName());
+  FuncOp::build(m_builder, state, "next",
+                FunctionType::get(m_context, returnTypes, returnTypes));
   OwningOpRef<FuncOp> funcOp = cast<FuncOp>(Operation::create(state));
   Region &region = funcOp->getBody();
-  OpBuilder::InsertionGuard guard(builder);
-  auto *body = builder.createBlock(&region, {}, returnTypes);
-  builder.setInsertionPointToStart(body);
+  OpBuilder::InsertionGuard guard(m_builder);
+  auto *body = m_builder.createBlock(&region, {}, returnTypes);
+  m_builder.setInsertionPointToStart(body);
 
   // clear cache so that values are mapped to the right Basic Block
   cache.clear();
   // initialize states with block arguments
-  for (uint32_t i = 0; i < nexts.size(); ++i) {
-    cache[nexts.at(i)->args[0]] = body->getArguments()[i];
+  for (uint32_t i = 0; i < m_nexts.size(); ++i) {
+    cache[m_nexts.at(i)->args[0]] = body->getArguments()[i];
   }
 
   // start with nexts, then add bads, for logic sharing
-  for (auto next : nexts) { toOp(next); }
-  for (auto bad : bads) { toOp(bad); }
+  for (auto next : m_nexts) { toOp(next); }
+  for (auto bad : m_bads) { toOp(bad); }
 
   // close with a fitting returnOp
-  std::vector<Value> testResults(nexts.size(), nullptr);
-  for (uint32_t i = 0; i < nexts.size(); ++i) {
-    testResults[i] = cache.at(nexts.at(i)->args[1]);
+  std::vector<Value> testResults(m_nexts.size(), nullptr);
+  for (uint32_t i = 0; i < m_nexts.size(); ++i) {
+    testResults[i] = cache.at(m_nexts.at(i)->args[1]);
     assert(testResults[i]);
   }
 
-  builder.create<ReturnOp>(unknownLoc, testResults);
+  m_builder.create<ReturnOp>(m_unknownLoc, testResults);
   return funcOp;
 }
 
