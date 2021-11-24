@@ -72,6 +72,17 @@ class Deserialize {
     assert(valueAtIdIsInCache(id));
   }
 
+  void setCacheWithId(const int64_t id, Operation * op) {
+    // We never have to use a btor line with 
+    // tag = BTOR2_TAG_bad since btor2 doesn't allow it
+    if (getLineById(id)->tag != BTOR2_TAG_bad) {
+      assert(op);
+      assert(op->getNumResults() == 1);
+      assert(op->getResult(0));
+      setCacheWithId(id, op->getResult(0));
+    }
+  }
+
   bool valueAtIdIsInCache(const int64_t id) {
     return m_cache.count(id) != 0;
   }
