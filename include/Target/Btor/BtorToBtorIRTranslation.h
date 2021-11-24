@@ -61,7 +61,20 @@ class Deserialize {
 /// Create MLIR module
 ///===----------------------------------------------------------------------===//
   
-  std::map<int64_t, Value> cache;
+  Value getFromCacheById(const int64_t id) {
+    assert(valueAtIdIsInCache(id));
+    return m_cache.at(id);
+  }
+
+  void setCacheWithId(const int64_t id, const Value &value) {
+    assert(!valueAtIdIsInCache(id));
+    m_cache[id] = value;
+    assert(valueAtIdIsInCache(id));
+  }
+
+  bool valueAtIdIsInCache(const int64_t id) {
+    return m_cache.count(id) != 0;
+  }
 
   OwningOpRef<FuncOp> buildInitFunction();
   OwningOpRef<FuncOp> buildNextFunction();
@@ -80,8 +93,9 @@ class Deserialize {
   std::vector<Btor2Line *> m_inits;
   std::vector<Btor2Line *> m_nexts;
   std::vector<Btor2Line *> m_constraints;
- 
   std::vector<Btor2Line *> m_lines;
+
+  std::map<int64_t, Value> m_cache;
 
   void parseModelLine(Btor2Line *l);
 
