@@ -95,31 +95,31 @@ class Deserialize {
   
   void toOp(Btor2Line *line);
   bool isValidChild(Btor2Line * line);
-  void createNegateLine(int64_t curAt, Value &child);
+  void createNegateLine(int64_t curAt, const Value &child);
   Operation * createMLIR(const Btor2Line *line, const int64_t *kids);
 
   template <typename btorOp>
-  Operation * buildBinaryOp(Value &lhs, Value &rhs) {
+  Operation * buildBinaryOp(const Value &lhs, const Value &rhs) {
     auto res = builder.create<btorOp>(unknownLoc, lhs, rhs);
     return res;
   }
 
   template <typename btorOp>
   Operation * buildComparisonOp(btor::BtorPredicate pred,
-                                Value &lhs, Value &rhs) {
+                                const Value &lhs, const Value &rhs) {
     auto res = builder.create<btorOp>(unknownLoc, pred, lhs, rhs);
     return res;
   }
 
   template <typename btorOp>
-  Operation * buildOverflowOp(Value &lhs, Value &rhs) {
+  Operation * buildOverflowOp(const Value &lhs, const Value &rhs) {
     auto res = builder.create<btorOp>(unknownLoc, 
                                     builder.getIntegerType(1), 
                                     lhs, rhs);
     return res;
   }
 
-  Operation * buildConstantOp(uint32_t width, const std::string &str, uint32_t radix) {
+  Operation * buildConstantOp(unsigned width, const std::string &str, unsigned radix) {
     Type type = builder.getIntegerType(width);
     mlir::APInt value(width, 0, radix);
     if (str.compare("ones") == 0) {
@@ -134,7 +134,7 @@ class Deserialize {
     return res;
   }
 
-  Operation * buildConcatOp(Value &lhs, Value &rhs) {
+  Operation * buildConcatOp(const Value &lhs, const Value &rhs) {
     auto newWidth = lhs.getType().getIntOrFloatBitWidth() +
                rhs.getType().getIntOrFloatBitWidth();
     Type resType = builder.getIntegerType(newWidth);
@@ -142,7 +142,7 @@ class Deserialize {
     return res;
   }
 
-  Operation * buildSliceOp(Value &val, int64_t upper, int64_t lower) {
+  Operation * buildSliceOp(const Value &val, int64_t upper, int64_t lower) {
     auto opType = val.getType();
     auto operandWidth = opType.getIntOrFloatBitWidth();
     assert(operandWidth > upper && upper >= lower);
