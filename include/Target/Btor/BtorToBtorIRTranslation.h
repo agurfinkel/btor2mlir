@@ -131,7 +131,9 @@ class Deserialize {
   void toOp(Btor2Line *line);
   bool needsMLIROp(Btor2Line * line);
   void createNegateLine(int64_t curAt, const Value &child);
-  Operation * createMLIR(const Btor2Line *line, const int64_t *kids);
+  Operation * createMLIR(const Btor2Line *line, 
+                        const SmallVector<Value> &kids,
+                        const SmallVector<unsigned> &arguments);
 
   // Builder wrappers
   Type getIntegerTypeOf(Btor2Line * line) {
