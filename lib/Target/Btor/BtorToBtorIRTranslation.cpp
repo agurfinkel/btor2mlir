@@ -222,28 +222,28 @@ Operation * Deserialize::createMLIR(const Btor2Line *line, const int64_t *kids) 
 
   // unary ops
   case BTOR2_TAG_dec:
-    res = m_builder.create<btor::DecOp>(m_unknownLoc, m_cache.at(kids[0]));
+    res = buildUnaryOp<btor::DecOp>(m_cache.at(kids[0]));
     break;
   case BTOR2_TAG_inc:
-    res = m_builder.create<btor::IncOp>(m_unknownLoc, m_cache.at(kids[0]));
+    res = buildUnaryOp<btor::IncOp>(m_cache.at(kids[0]));
     break;
   case BTOR2_TAG_neg:
-    res = m_builder.create<btor::NegOp>(m_unknownLoc, m_cache.at(kids[0]));
+    res = buildUnaryOp<btor::NegOp>(m_cache.at(kids[0]));
     break;
   case BTOR2_TAG_not:
-    res = m_builder.create<btor::NotOp>(m_unknownLoc, m_cache.at(kids[0]));
+    res = buildUnaryOp<btor::NotOp>(m_cache.at(kids[0]));
+    break;
+  case BTOR2_TAG_bad:
+    res = buildUnaryOp<btor::AssertNotOp>(m_cache.at(kids[0]));
     break;
   case BTOR2_TAG_redand:
-    res = m_builder.create<btor::RedAndOp>(m_unknownLoc, m_builder.getIntegerType(1),
-                                         m_cache.at(kids[0]));
+    res = buildReductionOp<btor::RedAndOp>(m_cache.at(kids[0]));
     break;
   case BTOR2_TAG_redor:
-    res = m_builder.create<btor::RedOrOp>(m_unknownLoc, m_builder.getIntegerType(1),
-                                        m_cache.at(kids[0]));
+    res = buildReductionOp<btor::RedOrOp>(m_cache.at(kids[0]));
     break;
   case BTOR2_TAG_redxor:
-    res = m_builder.create<btor::RedXorOp>(m_unknownLoc, m_builder.getIntegerType(1),
-                                         m_cache.at(kids[0]));
+    res = buildReductionOp<btor::RedXorOp>(m_cache.at(kids[0]));
     break;
   case BTOR2_TAG_const:
     res = buildConstantOp(line->sort.bitvec.width,
@@ -269,29 +269,22 @@ Operation * Deserialize::createMLIR(const Btor2Line *line, const int64_t *kids) 
     res = buildConstantOp(line->sort.bitvec.width, 
                         std::string("zero"), 10);
     break;
-  case BTOR2_TAG_bad:
-    res = m_builder.create<btor::AssertNotOp>(m_unknownLoc, m_cache.at(kids[0]));
-    break;
 
   // indexed ops
   case BTOR2_TAG_slice:
     res = buildSliceOp(m_cache.at(kids[0]), kids[1], kids[2]);
     break;
   case BTOR2_TAG_sext:
-    res = m_builder.create<btor::SExtOp>(
-        m_unknownLoc, m_cache.at(kids[0]),
-        m_builder.getIntegerType(line->sort.bitvec.width));
+    res = buildExtOp<btor::SExtOp>(m_cache.at(kids[0]), line->sort.bitvec.width);
     break;
   case BTOR2_TAG_uext:
-    res = m_builder.create<btor::UExtOp>(
-        m_unknownLoc, m_cache.at(kids[0]),
-        m_builder.getIntegerType(line->sort.bitvec.width));
+    res = buildExtOp<btor::UExtOp>(m_cache.at(kids[0]), line->sort.bitvec.width);
     break;
 
   // ternary ops
   case BTOR2_TAG_ite:
-    res = m_builder.create<btor::IteOp>(m_unknownLoc, m_cache.at(kids[0]),
-                                      m_cache.at(kids[1]), m_cache.at(kids[2]));
+    res = buildIteOp(m_cache.at(kids[0]), m_cache.at(kids[1]), 
+                    m_cache.at(kids[2]));
     break;
 
   // unmapped ops
@@ -319,8 +312,7 @@ Operation * Deserialize::createMLIR(const Btor2Line *line, const int64_t *kids) 
 /// created and saved in the cache
 ///===----------------------------------------------------------------------===//
 void Deserialize::createNegateLine(int64_t negativeLine, const Value &child) {
-  auto res = m_builder.create<btor::NotOp>(m_unknownLoc, 
-                getFromCacheById(std::abs(negativeLine)));
+  auto res = buildUnaryOp<btor::NotOp>(getFromCacheById(std::abs(negativeLine)));
   assert(res && res->getNumResults() == 1);
   setCacheWithId(negativeLine, res->getResult(0));
 }
@@ -415,7 +407,7 @@ OwningOpRef<FuncOp> Deserialize::buildInitFunction() {
   // collect the return types for our init function
   std::vector<Type> returnTypes(m_states.size(), nullptr);
   for (uint32_t i = 0; i < m_states.size(); ++i) {
-    returnTypes[i] = m_builder.getIntegerType(m_states.at(i)->sort.bitvec.width);
+    returnTypes[i] = getIntegerTypeOf(m_states.at(i));
     assert(returnTypes[i]);
   }
 
@@ -436,14 +428,14 @@ OwningOpRef<FuncOp> Deserialize::buildInitFunction() {
   for (auto init : m_inits) { toOp(init); }
 
   // close with a fitting returnOp
-  std::vector<Value> testResults(m_states.size(), nullptr);
+  std::vector<Value> results(m_states.size(), nullptr);
   std::map<uint32_t, Value> undefOpsBySort;
   uint32_t j = 0; // counters over inits vector
   for (uint32_t i = 0, sz = m_states.size(); i < sz; ++i) {
     if (m_states.at(i)->init > 0) {
       // get the result of init's second argument since
       // that is what we assign our state to  
-      testResults[i] = getFromCacheById(m_inits.at(j++)->args[1]);
+      results[i] = getFromCacheById(m_inits.at(j++)->args[1]);
     } else {
       auto sort = returnTypes.at(i).getIntOrFloatBitWidth();
       if (undefOpsBySort.find(sort) == undefOpsBySort.end()) {
@@ -452,12 +444,12 @@ OwningOpRef<FuncOp> Deserialize::buildInitFunction() {
           assert(res && res->getNumResults() == 1);
           undefOpsBySort[sort] = res->getResult(0);
       }
-      testResults[i] = undefOpsBySort.at(sort);
+      results[i] = undefOpsBySort.at(sort);
     }
-    assert(testResults[i]);
+    assert(results[i]);
   }
 
-  m_builder.create<ReturnOp>(m_unknownLoc, testResults);
+  buildReturnOp(results);
 
   return funcOp;
 }
@@ -466,7 +458,7 @@ OwningOpRef<FuncOp> Deserialize::buildNextFunction() {
   // collect the return types for our init function
   std::vector<Type> returnTypes(m_nexts.size(), nullptr);
   for (uint32_t i = 0; i < m_nexts.size(); ++i) {
-    returnTypes[i] = m_builder.getIntegerType(m_nexts.at(i)->sort.bitvec.width);
+    returnTypes[i] = getIntegerTypeOf(m_nexts.at(i));
     assert(returnTypes[i]);
   }
 
@@ -493,11 +485,11 @@ OwningOpRef<FuncOp> Deserialize::buildNextFunction() {
   for (auto bad : m_bads) { toOp(bad); }
 
   // close with a fitting returnOp
-  std::vector<Value> testResults(m_nexts.size(), nullptr);
+  std::vector<Value> results(m_nexts.size(), nullptr);
   for (uint32_t i = 0; i < m_nexts.size(); ++i) {
-    testResults[i] = getFromCacheById(m_nexts.at(i)->args[1]);
+    results[i] = getFromCacheById(m_nexts.at(i)->args[1]);
   }
-  m_builder.create<ReturnOp>(m_unknownLoc, testResults);
+  buildReturnOp(results);
   return funcOp;
 }
 

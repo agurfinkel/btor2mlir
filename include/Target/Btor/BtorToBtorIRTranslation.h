@@ -122,6 +122,12 @@ class Deserialize {
   void createNegateLine(int64_t curAt, const Value &child);
   Operation * createMLIR(const Btor2Line *line, const int64_t *kids);
 
+  // Builder wrappers
+  Type getIntegerTypeOf(Btor2Line * line) {
+    return m_builder.getIntegerType(line->sort.bitvec.width);
+  }
+
+  // Binary Operations
   template <typename btorOp>
   Operation * buildBinaryOp(const Value &lhs, const Value &rhs) {
     auto res = m_builder.create<btorOp>(m_unknownLoc, lhs, rhs);
@@ -129,7 +135,7 @@ class Deserialize {
   }
 
   template <typename btorOp>
-  Operation * buildComparisonOp(btor::BtorPredicate pred,
+  Operation * buildComparisonOp(const btor::BtorPredicate pred,
                                 const Value &lhs, const Value &rhs) {
     auto res = m_builder.create<btorOp>(m_unknownLoc, pred, lhs, rhs);
     return res;
@@ -143,7 +149,18 @@ class Deserialize {
     return res;
   }
 
-  Operation * buildConstantOp(unsigned width, const std::string &str, unsigned radix) {
+  Operation * buildConcatOp(const Value &lhs, const Value &rhs) {
+    auto newWidth = lhs.getType().getIntOrFloatBitWidth() +
+               rhs.getType().getIntOrFloatBitWidth();
+    Type resType = m_builder.getIntegerType(newWidth);
+    auto res = m_builder.create<btor::ConcatOp>(m_unknownLoc, resType, lhs, rhs);
+    return res;
+  }
+
+  // Unary Operations
+  Operation * buildConstantOp(const unsigned width, 
+                            const std::string &str,
+                            const unsigned radix) {
     Type type = m_builder.getIntegerType(width);
     mlir::APInt value(width, 0, radix);
     if (str.compare("ones") == 0) {
@@ -158,15 +175,26 @@ class Deserialize {
     return res;
   }
 
-  Operation * buildConcatOp(const Value &lhs, const Value &rhs) {
-    auto newWidth = lhs.getType().getIntOrFloatBitWidth() +
-               rhs.getType().getIntOrFloatBitWidth();
-    Type resType = m_builder.getIntegerType(newWidth);
-    auto res = m_builder.create<btor::ConcatOp>(m_unknownLoc, resType, lhs, rhs);
+  template <typename btorOp>
+  Operation * buildUnaryOp(const Value &val) {
+    auto res = m_builder.create<btorOp>(m_unknownLoc, val);
     return res;
   }
 
-  Operation * buildSliceOp(const Value &val, int64_t upper, int64_t lower) {
+  template <typename btorOp>
+  Operation * buildReductionOp(const Value &val) {
+    auto res = m_builder.create<btor::RedAndOp>(m_unknownLoc, 
+                                m_builder.getIntegerType(1), val);
+    return res;
+  }
+
+  void buildReturnOp(const std::vector<Value> &results) {
+    m_builder.create<ReturnOp>(m_unknownLoc, results);
+  }
+  // Indexed Operations
+  Operation * buildSliceOp(const Value &val, 
+                        const int64_t upper, 
+                        const int64_t lower) {
     auto opType = val.getType();
     auto operandWidth = opType.getIntOrFloatBitWidth();
     assert(operandWidth > upper && upper >= lower);
@@ -181,6 +209,23 @@ class Deserialize {
 
     auto res = m_builder.create<btor::SliceOp>(m_unknownLoc, resType, val,
                                         u->getResult(0), l->getResult(0));
+    return res;
+  }
+
+  template <typename btorOp>
+  Operation * buildExtOp(const Value &val,
+                        const unsigned width) {
+    auto res = m_builder.create<btorOp>(m_unknownLoc, val,
+                            m_builder.getIntegerType(width));
+    return res;
+  }
+
+  // Ternary Operations
+  Operation * buildIteOp(const Value &condition, 
+                        const Value &lhs, 
+                        const Value &rhs) {
+    auto res = m_builder.create<btor::IteOp>(m_unknownLoc, 
+                                        condition, lhs, rhs);
     return res;
   }
 };
