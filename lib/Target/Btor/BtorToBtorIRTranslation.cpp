@@ -309,7 +309,7 @@ Operation * Deserialize::createMLIR(const Btor2Line *line, const int64_t *kids) 
   return res;
 }
 
-void Deserialize::createNegateLine(int64_t curAt, Value &child) {
+void Deserialize::createNegateLine(int64_t curAt, const Value &child) {
   auto res = builder.create<btor::NotOp>(unknownLoc, cache.at(curAt * -1));
   assert(res && res->getNumResults() == 1);
   cache[curAt] = res->getResult(0);
