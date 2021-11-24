@@ -118,7 +118,7 @@ class Deserialize {
   Location m_unknownLoc;
   
   void toOp(Btor2Line *line);
-  bool isValidChild(Btor2Line * line);
+  bool needsMLIROp(Btor2Line * line);
   void createNegateLine(int64_t curAt, const Value &child);
   Operation * createMLIR(const Btor2Line *line, const int64_t *kids);
 
