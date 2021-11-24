@@ -309,12 +309,22 @@ Operation * Deserialize::createMLIR(const Btor2Line *line, const int64_t *kids) 
   return res;
 }
 
+///===----------------------------------------------------------------------===//
+/// Some Btor lines may refer to a negated version of a prior line. This
+/// function creates a negated version of the original line, and stores it in
+/// the cache, only after the caller ensures that the original line has been 
+/// created and saved in the cache
+///===----------------------------------------------------------------------===//
 void Deserialize::createNegateLine(int64_t curAt, const Value &child) {
   auto res = builder.create<btor::NotOp>(unknownLoc, cache.at(curAt * -1));
   assert(res && res->getNumResults() == 1);
   cache[curAt] = res->getResult(0);
 }
 
+///===----------------------------------------------------------------------===//
+/// We use this method to check if a line needs to have a corresponding MLIR
+/// operation created
+///===----------------------------------------------------------------------===//
 bool Deserialize::isValidChild(Btor2Line * line) {
   auto tag = reachedLines.at(line->id)->tag;
   if (tag == BTOR2_TAG_init || tag == BTOR2_TAG_constraint ||
