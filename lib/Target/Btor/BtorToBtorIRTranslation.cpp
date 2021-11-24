@@ -313,7 +313,8 @@ Operation * Deserialize::createMLIR(const Btor2Line *line, const int64_t *kids) 
 ///===----------------------------------------------------------------------===//
 void Deserialize::createNegateLine(int64_t negativeLine, const Value &child) {
   auto res = buildUnaryOp<btor::NotOp>(getFromCacheById(std::abs(negativeLine)));
-  assert(res && res->getNumResults() == 1);
+  assert(res);
+  assert(res->getNumResults() == 1);
   setCacheWithId(negativeLine, res->getResult(0));
 }
 
@@ -368,7 +369,7 @@ void Deserialize::toOp(Btor2Line *line) {
   while (!todo.empty()) {
     auto cur = todo.back();
     unsigned oldsize = todo.size();
-    for (uint32_t i = 0; i < cur->nargs; ++i) {
+    for (unsigned i = 0; i < cur->nargs; ++i) {
       auto arg_i = cur->args[i];
       // exit early if we do not need to compute this line
       if (arg_i > 0 && !needsMLIROp(getLineById(arg_i))) {
@@ -397,8 +398,7 @@ void Deserialize::toOp(Btor2Line *line) {
       continue;
     }
     res = createMLIR(cur, cur->args);
-    assert(res && res->getNumResults() < 2 && res->getResult(0));
-    setCacheWithId(cur->id, res->getResult(0));
+    setCacheWithId(cur->id, res);
     todo.pop_back();
   }
 }
@@ -406,7 +406,7 @@ void Deserialize::toOp(Btor2Line *line) {
 OwningOpRef<FuncOp> Deserialize::buildInitFunction() {
   // collect the return types for our init function
   std::vector<Type> returnTypes(m_states.size(), nullptr);
-  for (uint32_t i = 0; i < m_states.size(); ++i) {
+  for (unsigned i = 0; i < m_states.size(); ++i) {
     returnTypes[i] = getIntegerTypeOf(m_states.at(i));
     assert(returnTypes[i]);
   }
@@ -429,9 +429,9 @@ OwningOpRef<FuncOp> Deserialize::buildInitFunction() {
 
   // close with a fitting returnOp
   std::vector<Value> results(m_states.size(), nullptr);
-  std::map<uint32_t, Value> undefOpsBySort;
-  uint32_t j = 0; // counters over inits vector
-  for (uint32_t i = 0, sz = m_states.size(); i < sz; ++i) {
+  std::map<unsigned, Value> undefOpsBySort;
+  unsigned j = 0; // counters over inits vector
+  for (unsigned i = 0, sz = m_states.size(); i < sz; ++i) {
     if (m_states.at(i)->init > 0) {
       // get the result of init's second argument since
       // that is what we assign our state to  
@@ -441,7 +441,7 @@ OwningOpRef<FuncOp> Deserialize::buildInitFunction() {
       if (undefOpsBySort.find(sort) == undefOpsBySort.end()) {
           auto res = m_builder.create<btor::UndefOp>(m_unknownLoc,
                                     returnTypes.at(i));
-          assert(res && res->getNumResults() == 1);
+          assert(res); assert(res->getNumResults() == 1);
           undefOpsBySort[sort] = res->getResult(0);
       }
       results[i] = undefOpsBySort.at(sort);
@@ -457,7 +457,7 @@ OwningOpRef<FuncOp> Deserialize::buildInitFunction() {
 OwningOpRef<FuncOp> Deserialize::buildNextFunction() {
   // collect the return types for our init function
   std::vector<Type> returnTypes(m_nexts.size(), nullptr);
-  for (uint32_t i = 0; i < m_nexts.size(); ++i) {
+  for (unsigned i = 0; i < m_nexts.size(); ++i) {
     returnTypes[i] = getIntegerTypeOf(m_nexts.at(i));
     assert(returnTypes[i]);
   }
@@ -475,7 +475,7 @@ OwningOpRef<FuncOp> Deserialize::buildNextFunction() {
   // clear cache so that values are mapped to the right Basic Block
   m_cache.clear();
   // initialize states with block arguments
-  for (uint32_t i = 0; i < m_states.size(); ++i) {
+  for (unsigned i = 0; i < m_states.size(); ++i) {
     auto stateId = m_states.at(i)->id;
     setCacheWithId(stateId, body->getArguments()[i]);
   }
@@ -486,7 +486,7 @@ OwningOpRef<FuncOp> Deserialize::buildNextFunction() {
 
   // close with a fitting returnOp
   std::vector<Value> results(m_nexts.size(), nullptr);
-  for (uint32_t i = 0; i < m_nexts.size(); ++i) {
+  for (unsigned i = 0; i < m_nexts.size(); ++i) {
     results[i] = getFromCacheById(m_nexts.at(i)->args[1]);
   }
   buildReturnOp(results);
@@ -505,11 +505,11 @@ static OwningModuleRef deserializeModule(const llvm::MemoryBuffer *input,
   if (deserialize.parseModelIsSuccessful()) {
     OwningOpRef<FuncOp> initFunc = deserialize.buildInitFunction();
     if (!initFunc)
-      return {};
+      return owningModule;
 
     OwningOpRef<FuncOp> nextFunc = deserialize.buildNextFunction();
     if (!nextFunc)
-      return {};
+      return owningModule;
 
     owningModule->getBody()->push_front(nextFunc.release());
     owningModule->getBody()->push_front(initFunc.release());
