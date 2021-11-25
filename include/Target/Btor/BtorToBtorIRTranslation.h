@@ -140,6 +140,29 @@ class Deserialize {
     return m_builder.getIntegerType(line->sort.bitvec.width);
   }
 
+  std::vector<Value> collectReturnValuesForInit(
+                    const std::vector<Type> &returnTypes) {
+    std::vector<Value> results(m_states.size(), nullptr);
+    std::map<unsigned, Value> undefOpsBySort;
+    for (unsigned i = 0, sz = m_states.size(); i < sz; ++i) {
+      if (unsigned initLine = m_states.at(i)->init) {
+        results[i] = getFromCacheById(initLine);
+      } else {
+        auto sort = returnTypes.at(i).getIntOrFloatBitWidth();
+        if (undefOpsBySort.count(sort) == 0) {
+            auto res = m_builder.create<btor::UndefOp>(m_unknownLoc,
+                                        returnTypes.at(i));
+            assert(res); 
+            assert(res->getNumResults() == 1);
+            undefOpsBySort[sort] = res->getResult(0);
+        }
+        results[i] = undefOpsBySort.at(sort);
+        }
+        assert(results[i]);
+    }
+    return results;
+  }
+
   // Binary Operations
   template <typename btorOp>
   Operation * buildBinaryOp(const Value &lhs, const Value &rhs) {
