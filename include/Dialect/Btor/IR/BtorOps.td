@@ -913,4 +913,43 @@ def UndefOp : Btor_Op<"undef"> {
     let assemblyFormat = "attr-dict `:` type($result)";
 }
 
+def InputOp : Btor_Op<"input"> {
+    let summary = "btor input";
+    let description = [{
+        This operation takes an input number and a
+        SignlessIntegerLike, then returns the 
+        received SignlessIntegerLike
+
+        Example:
+
+        ```mlir
+        // invoke the input operation to %0
+        %0 = btor.input 15, %some_i3_value : i3
+        ```
+
+        In the example above, 15 gets interpreted as an
+        i64 integer, while %some_i3_value is expected 
+        to be of type i3. 
+    }];
+
+    let arguments = (ins AnyI64Attr:$id, SignlessIntegerLike:$value);
+    let results = (outs SignlessIntegerLike:$result);
+
+    let builders = [
+        OpBuilder<(ins "Value":$value),
+        [{
+            $_state.addOperands({value});
+            $_state.addTypes(value.getType());
+        }]>
+    ];
+
+    let printer = [{
+      return printInputOp(p, *this);
+    }];
+
+    let parser = [{
+      return parseInputOp(parser, result);
+    }];
+}
+
 #endif // BTOR_OPS

@@ -258,5 +258,39 @@ static LogicalResult verifyConcatOp(Op op) {
   return success();
 }
 
+//===----------------------------------------------------------------------===//
+// Input Operation
+//===----------------------------------------------------------------------===//
+
+static void printInputOp(OpAsmPrinter &p, mlir::btor::InputOp &op) {
+    p << " "  << op.value() << " : " << op->getOperand(0).getType();
+    p << " ";
+    p.printOptionalAttrDict(op->getAttrs());
+}
+
+static ParseResult parseInputOp(OpAsmParser &parser,OperationState &result) {  
+    SmallVector<OpAsmParser::OperandType> ops;
+    NamedAttrList attrs;
+    Attribute idAttr;
+    Type type;
+
+    if (parser.parseAttribute(idAttr, "id", attrs) ||
+        parser.parseComma() ||
+        parser.parseOperandList(ops, 1) ||
+        parser.parseOptionalAttrDict(attrs) || 
+        parser.parseColonType(type) ||
+        parser.resolveOperands(ops, type, result.operands)
+        )
+        return failure();
+
+    if (!idAttr.isa<mlir::IntegerAttr>())
+        return parser.emitError(parser.getNameLoc(),
+                                "expected integer id attribute");
+
+    result.attributes = attrs;
+    result.addTypes({type});
+  return success();
+}
+
 #define GET_OP_CLASSES
 #include "Dialect/Btor/IR/BtorOps.cpp.inc"
