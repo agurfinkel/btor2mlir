@@ -444,27 +444,7 @@ OwningOpRef<FuncOp> Deserialize::buildInitFunction() {
   for (auto init : m_inits) { toOp(init); }
 
   // close with a fitting returnOp
-  std::vector<Value> results(m_states.size(), nullptr);
-  std::map<unsigned, Value> undefOpsBySort;
-  unsigned j = 0; // counters over inits vector
-  for (unsigned i = 0, sz = m_states.size(); i < sz; ++i) {
-    if (m_states.at(i)->init > 0) {
-      // get the result of init's second argument since
-      // that is what we assign our state to  
-      results[i] = getFromCacheById(m_inits.at(j++)->args[1]);
-    } else {
-      auto sort = returnTypes.at(i).getIntOrFloatBitWidth();
-      if (undefOpsBySort.find(sort) == undefOpsBySort.end()) {
-          auto res = m_builder.create<btor::UndefOp>(m_unknownLoc,
-                                    returnTypes.at(i));
-          assert(res); assert(res->getNumResults() == 1);
-          undefOpsBySort[sort] = res->getResult(0);
-      }
-      results[i] = undefOpsBySort.at(sort);
-    }
-    assert(results[i]);
-  }
-
+  auto results = collectReturnValuesForInit(returnTypes);
   buildReturnOp(results);
 
   return funcOp;
@@ -472,9 +452,9 @@ OwningOpRef<FuncOp> Deserialize::buildInitFunction() {
 
 OwningOpRef<FuncOp> Deserialize::buildNextFunction() {
   // collect the return types for our init function
-  std::vector<Type> returnTypes(m_nexts.size(), nullptr);
-  for (unsigned i = 0; i < m_nexts.size(); ++i) {
-    returnTypes[i] = getIntegerTypeOf(m_nexts.at(i));
+  std::vector<Type> returnTypes(m_states.size(), nullptr);
+  for (unsigned i = 0; i < m_states.size(); ++i) {
+    returnTypes[i] = getIntegerTypeOf(m_states.at(i));
     assert(returnTypes[i]);
   }
 
@@ -501,9 +481,9 @@ OwningOpRef<FuncOp> Deserialize::buildNextFunction() {
   for (auto bad : m_bads) { toOp(bad); }
 
   // close with a fitting returnOp
-  std::vector<Value> results(m_nexts.size(), nullptr);
-  for (unsigned i = 0; i < m_nexts.size(); ++i) {
-    results[i] = getFromCacheById(m_nexts.at(i)->args[1]);
+  std::vector<Value> results(m_states.size(), nullptr);
+  for (unsigned i = 0; i < m_states.size(); ++i) {
+    results[i] = getFromCacheById(m_states.at(i)->next);
   }
   buildReturnOp(results);
   return funcOp;
