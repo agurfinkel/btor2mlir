@@ -73,9 +73,9 @@ class Deserialize {
   }
 
   void setCacheWithId(const int64_t id, Operation * op) {
-    // We never have to use a btor line with 
-    // tag = BTOR2_TAG_bad since btor2 doesn't allow it
-    if (getLineById(id)->tag != BTOR2_TAG_bad) {
+    // We never have to use the result of a btor line with no 
+    // return values since btor2 doesn't allow it
+    if (hasReturnValue(getLineById(id))) {
       assert(op);
       assert(op->getNumResults() == 1);
       assert(op->getResult(0));
@@ -98,7 +98,6 @@ class Deserialize {
   Btor2Parser *m_model = nullptr;
   FILE *m_modelFile = nullptr;
 
-  std::vector<Btor2Line *> m_inputs;
   std::vector<Btor2Line *> m_states;
   std::vector<Btor2Line *> m_bads;
   std::vector<Btor2Line *> m_inits;
@@ -130,6 +129,7 @@ class Deserialize {
   
   void toOp(Btor2Line *line);
   bool needsMLIROp(Btor2Line * line);
+  bool hasReturnValue(Btor2Line * line);
   void createNegateLine(int64_t curAt, const Value &child);
   Operation * createMLIR(const Btor2Line *line, 
                         const SmallVector<Value> &kids,
@@ -227,6 +227,22 @@ class Deserialize {
   void buildReturnOp(const std::vector<Value> &results) {
     m_builder.create<ReturnOp>(m_unknownLoc, results);
   }
+
+   Operation * buildInputOp(const unsigned width) {
+    Type type = m_builder.getIntegerType(width);
+    mlir::APInt value(width, 0, 10);
+    auto op = m_builder.create<btor::ConstantOp>(m_unknownLoc, type,
+                        m_builder.getIntegerAttr(type, value));
+    assert(op);
+    assert(op->getNumResults() == 1);
+    assert(op->getResult(0));
+    Value constValue = op->getResult(0);
+    auto res = m_builder.create<btor::InputOp>(m_unknownLoc, type,
+                                m_builder.getI64IntegerAttr(0), 
+                                constValue);
+    return res;
+  }
+
   // Indexed Operations
   Operation * buildSliceOp(const Value &val, 
                         const int64_t upper, 
