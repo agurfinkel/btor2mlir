@@ -32,10 +32,6 @@ void Deserialize::parseModelLine(Btor2Line *l) {
     m_inits.push_back(l);
     break;
 
-  case BTOR2_TAG_input:
-    m_inputs.push_back(l);
-    break;
-
   case BTOR2_TAG_next:
     m_nexts.push_back(l);
     break;
@@ -271,6 +267,13 @@ Operation * Deserialize::createMLIR(const Btor2Line *line,
     res = buildConstantOp(line->sort.bitvec.width, 
                         std::string("zero"), 10);
     break;
+  case BTOR2_TAG_input:
+    res = buildInputOp(line->sort.bitvec.width);
+    break;
+  case BTOR2_TAG_constraint:
+    res = buildUnaryOp<btor::AssumeOp>(kids[0]);
+    break;
+
 
   // indexed ops
   case BTOR2_TAG_slice:
@@ -290,9 +293,7 @@ Operation * Deserialize::createMLIR(const Btor2Line *line,
 
   // unmapped ops
   case BTOR2_TAG_read:
-  case BTOR2_TAG_constraint:
   case BTOR2_TAG_init:
-  case BTOR2_TAG_input:
   case BTOR2_TAG_next:
   case BTOR2_TAG_sort:
   case BTOR2_TAG_state:
@@ -320,6 +321,22 @@ void Deserialize::createNegateLine(int64_t negativeLine, const Value &child) {
 }
 
 ///===----------------------------------------------------------------------===//
+/// This method determines if a Btor2Line has a return value
+///===----------------------------------------------------------------------===//
+bool Deserialize::hasReturnValue(Btor2Line * line) {
+  bool hasReturnValue = true;
+  switch (line->tag) {
+  case BTOR2_TAG_constraint:
+  case BTOR2_TAG_bad:
+    hasReturnValue = false;
+    break;
+  default:
+    break;
+  }
+  return hasReturnValue;
+}
+
+///===----------------------------------------------------------------------===//
 /// We use this method to check if a line needs to have a corresponding MLIR
 /// operation created
 ///===----------------------------------------------------------------------===//
@@ -327,7 +344,6 @@ bool Deserialize::needsMLIROp(Btor2Line * line) {
   bool isValid = true;
   switch (line->tag) {
   case BTOR2_TAG_init:
-  case BTOR2_TAG_input:
   case BTOR2_TAG_next:
   case BTOR2_TAG_state:
   case BTOR2_TAG_read:
@@ -336,7 +352,6 @@ bool Deserialize::needsMLIROp(Btor2Line * line) {
   case BTOR2_TAG_justice:
   case BTOR2_TAG_output:
   case BTOR2_TAG_write:
-  case BTOR2_TAG_constraint:
     isValid = false;
     break;
   default:
@@ -478,6 +493,7 @@ OwningOpRef<FuncOp> Deserialize::buildNextFunction() {
 
   // start with nexts, then add bads, for logic sharing
   for (auto next : m_nexts) { toOp(next); }
+  for (auto constraint : m_constraints) { toOp(constraint); }
   for (auto bad : m_bads) { toOp(bad); }
 
   // close with a fitting returnOp
