@@ -207,7 +207,7 @@ class Deserialize {
       value = mlir::APInt(width, str, radix);
     }
     auto res = m_builder.create<btor::ConstantOp>(m_unknownLoc, type,
-                        m_builder.getIntegerAttr(type, value.getLimitedValue()));
+                        m_builder.getIntegerAttr(type, value));
     return res;
   }
 
