@@ -73,14 +73,11 @@ class Deserialize {
   }
 
   void setCacheWithId(const int64_t id, Operation * op) {
-    // We never have to use the result of a btor line with no 
-    // return values since btor2 doesn't allow it
-    if (hasReturnValue(getLineById(id))) {
-      assert(op);
-      assert(op->getNumResults() == 1);
-      assert(op->getResult(0));
-      setCacheWithId(id, op->getResult(0));
-    }
+    assert(hasReturnValue(getLineById(id)));
+    assert(op);
+    assert(op->getNumResults() == 1);
+    assert(op->getResult(0));
+    setCacheWithId(id, op->getResult(0));
   }
 
   bool valueAtIdIsInCache(const int64_t id) {

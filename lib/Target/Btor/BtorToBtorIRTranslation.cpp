@@ -429,7 +429,10 @@ void Deserialize::toOp(Btor2Line *line) {
         arguments.push_back(cur->args[2]);
     }
     res = createMLIR(cur, kids, arguments);
-    setCacheWithId(cur->id, res);
+    // We never have to use the result of a btor line with no 
+    // return values since btor2 doesn't allow it
+    if (hasReturnValue(getLineById(cur->id))) 
+      setCacheWithId(cur->id, res);
     todo.pop_back();
   }
 }
