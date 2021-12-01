@@ -691,6 +691,25 @@ class BtorUnaryOp<string mnemonic, list<OpTrait> traits = []> :
   }];
 }
 
+// This operation takes an operand
+// and returns one result of type I1
+//
+//     <op> %0 : i1
+class BtorUnaryDifferentResultTypeOp<string mnemonic, list<OpTrait> traits = []> :
+    Op<Btor_Dialect, mnemonic, !listconcat(traits, [NoSideEffect])>,
+    Arguments<(ins SignlessIntegerLike:$operand)> {
+
+  let results = (outs BoolLike:$result);
+
+  let parser = [{
+    return parseUnaryDifferentResultOp(parser, result);
+  }];
+
+  let printer = [{
+    return printBtorUnaryOp(this->getOperation(), p);
+  }];
+}
+
 def NotOp : BtorUnaryOp<"not", [SameOperandsAndResultType]> {
   let summary = "integer negation";
   let description = [{
@@ -759,7 +778,7 @@ def NegOp : BtorUnaryOp<"neg", [SameOperandsAndResultType]> {
   }];
 }
 
-def RedAndOp : BtorUnaryOp<"redand"> {
+def RedAndOp : BtorUnaryDifferentResultTypeOp<"redand"> {
   let summary = "integer reduction with and operator";
   let description = [{
     Syntax:
@@ -774,11 +793,9 @@ def RedAndOp : BtorUnaryOp<"redand"> {
     %a = btor.redand %b : i32
     ```
   }];
-
-  let results = (outs BoolLike);
 }
 
-def RedOrOp : BtorUnaryOp<"redor"> {
+def RedOrOp : BtorUnaryDifferentResultTypeOp<"redor"> {
   let summary = "integer reduction with or operator";
   let description = [{
     Syntax:
@@ -793,11 +810,9 @@ def RedOrOp : BtorUnaryOp<"redor"> {
     %a = btor.redand %b : i32
     ```
   }];
-
-  let results = (outs BoolLike);
 }
 
-def RedXorOp : BtorUnaryOp<"redxor"> {
+def RedXorOp : BtorUnaryDifferentResultTypeOp<"redxor"> {
   let summary = "integer reduction with and operator";
   let description = [{
     Syntax:
@@ -812,8 +827,6 @@ def RedXorOp : BtorUnaryOp<"redxor"> {
     %a = btor.redand %b : i32
     ```
   }];
-
-  let results = (outs BoolLike);
 }
 
 def AssertNotOp : Btor_Op<"assert_not"> {
