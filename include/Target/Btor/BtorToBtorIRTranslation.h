@@ -86,6 +86,7 @@ class Deserialize {
 
   OwningOpRef<FuncOp> buildInitFunction();
   OwningOpRef<FuncOp> buildNextFunction();
+  OwningOpRef<FuncOp> buildMainFunction(const OwningModuleRef &module);
   
  private: 
 ///===----------------------------------------------------------------------===//

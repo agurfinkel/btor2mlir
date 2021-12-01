@@ -508,6 +508,46 @@ OwningOpRef<FuncOp> Deserialize::buildNextFunction() {
   return funcOp;
 }
 
+OwningOpRef<FuncOp> Deserialize::buildMainFunction(const OwningModuleRef &moduleRef) {
+  // Since we initialize all states with init function or undef operation
+  // we should expect that an init function has been created
+  auto module = moduleRef.get();
+  FuncOp initFunc = module.lookupSymbol<FuncOp>("init");
+  assert(initFunc);
+  // Each state needs a next function, thus, we should expect this to be created
+  FuncOp nextFunc = module.lookupSymbol<FuncOp>("next");
+  assert(nextFunc);
+
+  // collecting information about returntypes
+  std::vector<Type> returnTypes(m_states.size(), nullptr);
+  for (unsigned i = 0; i < m_states.size(); ++i) {
+    returnTypes[i] = getIntegerTypeOf(m_states.at(i));
+    assert(returnTypes[i]);
+  }
+  // create main function signature
+  OperationState state(m_unknownLoc, FuncOp::getOperationName());
+  FuncOp::build(m_builder, state, "main",
+                FunctionType::get(m_context, {}, {}));
+  OwningOpRef<FuncOp> funcOp = cast<FuncOp>(Operation::create(state));
+  // make call to init function to initialize latches
+  Region &region = funcOp->getBody();
+  OpBuilder::InsertionGuard guard(m_builder);
+  auto *body = m_builder.createBlock(&region, {}, {});
+  m_builder.setInsertionPointToStart(body);
+  auto initializedStates = m_builder.create<mlir::CallOp>(m_unknownLoc, initFunc);
+  auto opPosition = m_builder.getInsertionPoint();
+  // Create infinite loop
+  Block *loopBlock = m_builder.createBlock(body->getParent(), {}, {returnTypes});
+  auto nextStates = m_builder.create<mlir::CallOp>(m_unknownLoc, nextFunc, 
+                                                loopBlock->getArguments());
+  m_builder.create<BranchOp>(m_unknownLoc, loopBlock, nextStates.getResults());
+  // add call to branch from original basic block
+  m_builder.setInsertionPoint(body, opPosition);
+  m_builder.create<BranchOp>(m_unknownLoc, loopBlock, initializedStates.getResults());
+
+  return funcOp;
+}
+
 static OwningModuleRef deserializeModule(const llvm::MemoryBuffer *input,
                                          MLIRContext *context) {
   context->loadDialect<btor::BtorDialect>();
@@ -528,6 +568,12 @@ static OwningModuleRef deserializeModule(const llvm::MemoryBuffer *input,
 
     owningModule->getBody()->push_front(nextFunc.release());
     owningModule->getBody()->push_front(initFunc.release());
+
+    OwningOpRef<FuncOp> mainFunc = deserialize.buildMainFunction(owningModule);
+    if (!mainFunc)
+      return owningModule;
+
+    owningModule->getBody()->push_back(mainFunc.release());
   }
 
   return owningModule;
