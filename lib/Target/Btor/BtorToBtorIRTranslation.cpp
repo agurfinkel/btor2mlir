@@ -437,55 +437,16 @@ void Deserialize::toOp(Btor2Line *line) {
   }
 }
 
-OwningOpRef<FuncOp> Deserialize::buildInitFunction() {
-  // collect the return types for our init function
-  std::vector<Type> returnTypes(m_states.size(), nullptr);
-  for (unsigned i = 0; i < m_states.size(); ++i) {
-    returnTypes[i] = getIntegerTypeOf(m_states.at(i));
-    assert(returnTypes[i]);
-  }
-
-  // create init function signature
-  OperationState state(m_unknownLoc, FuncOp::getOperationName());
-  FuncOp::build(m_builder, state, "init",
-                FunctionType::get(m_context, {}, returnTypes));
-  OwningOpRef<FuncOp> funcOp = cast<FuncOp>(Operation::create(state));
-
-  // create basic block with accompanying m_builder
-  Region &region = funcOp->getBody();
-  OpBuilder::InsertionGuard guard(m_builder);
-  auto *body = m_builder.createBlock(&region);
-  m_builder.setInsertionPointToStart(body);
-
+std::vector<Value> Deserialize::buildInitFunction(const std::vector<Type> &returnTypes) {
   // clear cache so that values are mapped to the right Basic Block
   m_cache.clear();
   for (auto init : m_inits) { toOp(init); }
 
-  // close with a fitting returnOp
-  auto results = collectReturnValuesForInit(returnTypes);
-  buildReturnOp(results);
-
-  return funcOp;
+  return collectReturnValuesForInit(returnTypes);
 }
 
-OwningOpRef<FuncOp> Deserialize::buildNextFunction() {
-  // collect the return types for our init function
-  std::vector<Type> returnTypes(m_states.size(), nullptr);
-  for (unsigned i = 0; i < m_states.size(); ++i) {
-    returnTypes[i] = getIntegerTypeOf(m_states.at(i));
-    assert(returnTypes[i]);
-  }
-
-  // create next function signature
-  OperationState state(m_unknownLoc, FuncOp::getOperationName());
-  FuncOp::build(m_builder, state, "next",
-                FunctionType::get(m_context, returnTypes, returnTypes));
-  OwningOpRef<FuncOp> funcOp = cast<FuncOp>(Operation::create(state));
-  Region &region = funcOp->getBody();
-  OpBuilder::InsertionGuard guard(m_builder);
-  auto *body = m_builder.createBlock(&region, {}, returnTypes);
-  m_builder.setInsertionPointToStart(body);
-
+std::vector<Value> Deserialize::buildNextFunction(
+    const std::vector<Type> &returnTypes, Block *body) {
   // clear cache so that values are mapped to the right Basic Block
   m_cache.clear();
   // initialize states with block arguments
@@ -494,7 +455,7 @@ OwningOpRef<FuncOp> Deserialize::buildNextFunction() {
     setCacheWithId(stateId, body->getArguments()[i]);
   }
 
-  // start with nexts, then add bads, for logic sharing
+  // start with nexts, then add constraints & bads, for logic sharing
   for (auto next : m_nexts) { toOp(next); }
   for (auto constraint : m_constraints) { toOp(constraint); }
   for (auto bad : m_bads) { toOp(bad); }
@@ -504,46 +465,36 @@ OwningOpRef<FuncOp> Deserialize::buildNextFunction() {
   for (unsigned i = 0; i < m_states.size(); ++i) {
     results[i] = getFromCacheById(m_states.at(i)->next);
   }
-  buildReturnOp(results);
-  return funcOp;
+
+  return results;
 }
 
-OwningOpRef<FuncOp> Deserialize::buildMainFunction(const OwningModuleRef &moduleRef) {
-  // Since we initialize all states with init function or undef operation
-  // we should expect that an init function has been created
-  auto module = moduleRef.get();
-  FuncOp initFunc = module.lookupSymbol<FuncOp>("init");
-  assert(initFunc);
-  // Each state needs a next function, thus, we should expect this to be created
-  FuncOp nextFunc = module.lookupSymbol<FuncOp>("next");
-  assert(nextFunc);
-
+OwningOpRef<FuncOp> Deserialize::buildMainFunction() {
   // collecting information about returntypes
   std::vector<Type> returnTypes(m_states.size(), nullptr);
   for (unsigned i = 0; i < m_states.size(); ++i) {
     returnTypes[i] = getIntegerTypeOf(m_states.at(i));
     assert(returnTypes[i]);
   }
-  // create main function signature
+  // create main function
   OperationState state(m_unknownLoc, FuncOp::getOperationName());
   FuncOp::build(m_builder, state, "main",
                 FunctionType::get(m_context, {}, {}));
   OwningOpRef<FuncOp> funcOp = cast<FuncOp>(Operation::create(state));
-  // make call to init function to initialize latches
   Region &region = funcOp->getBody();
   OpBuilder::InsertionGuard guard(m_builder);
   auto *body = m_builder.createBlock(&region, {}, {});
   m_builder.setInsertionPointToStart(body);
-  auto initializedStates = m_builder.create<mlir::CallOp>(m_unknownLoc, initFunc);
+  // make call to init function to initialize latches
+  auto initResults = buildInitFunction(returnTypes);
   auto opPosition = m_builder.getInsertionPoint();
-  // Create infinite loop
+  // Create infinite loop that inlines next function
   Block *loopBlock = m_builder.createBlock(body->getParent(), {}, {returnTypes});
-  auto nextStates = m_builder.create<mlir::CallOp>(m_unknownLoc, nextFunc, 
-                                                loopBlock->getArguments());
-  m_builder.create<BranchOp>(m_unknownLoc, loopBlock, nextStates.getResults());
+  auto nextResults = buildNextFunction(returnTypes, loopBlock);
+  m_builder.create<BranchOp>(m_unknownLoc, loopBlock, nextResults);
   // add call to branch from original basic block
   m_builder.setInsertionPoint(body, opPosition);
-  m_builder.create<BranchOp>(m_unknownLoc, loopBlock, initializedStates.getResults());
+  m_builder.create<BranchOp>(m_unknownLoc, loopBlock, initResults);
 
   return funcOp;
 }
@@ -558,18 +509,7 @@ static OwningModuleRef deserializeModule(const llvm::MemoryBuffer *input,
 
   Deserialize deserialize(context, input->getBufferIdentifier().str());
   if (deserialize.parseModelIsSuccessful()) {
-    OwningOpRef<FuncOp> initFunc = deserialize.buildInitFunction();
-    if (!initFunc)
-      return owningModule;
-
-    OwningOpRef<FuncOp> nextFunc = deserialize.buildNextFunction();
-    if (!nextFunc)
-      return owningModule;
-
-    owningModule->getBody()->push_front(nextFunc.release());
-    owningModule->getBody()->push_front(initFunc.release());
-
-    OwningOpRef<FuncOp> mainFunc = deserialize.buildMainFunction(owningModule);
+    OwningOpRef<FuncOp> mainFunc = deserialize.buildMainFunction();
     if (!mainFunc)
       return owningModule;
 

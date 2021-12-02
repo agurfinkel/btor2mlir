@@ -84,9 +84,7 @@ class Deserialize {
     return m_cache.count(id) != 0;
   }
 
-  OwningOpRef<FuncOp> buildInitFunction();
-  OwningOpRef<FuncOp> buildNextFunction();
-  OwningOpRef<FuncOp> buildMainFunction(const OwningModuleRef &module);
+  OwningOpRef<FuncOp> buildMainFunction();
   
  private: 
 ///===----------------------------------------------------------------------===//
@@ -132,6 +130,9 @@ class Deserialize {
   Operation * createMLIR(const Btor2Line *line, 
                         const SmallVector<Value> &kids,
                         const SmallVector<unsigned> &arguments);
+  std::vector<Value> buildInitFunction(const std::vector<Type> &returnTypes);
+  std::vector<Value> buildNextFunction(const std::vector<Type> &returnTypes, 
+                                    Block *body);
 
   // Builder wrappers
   Type getIntegerTypeOf(Btor2Line * line) {
