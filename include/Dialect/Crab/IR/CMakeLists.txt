@@ -1,0 +1,10 @@
+set(LLVM_TARGET_DEFINITIONS CrabOps.td)
+mlir_tablegen(CrabOps.h.inc -gen-op-decls)
+mlir_tablegen(CrabOps.cpp.inc -gen-op-defs)
+mlir_tablegen(CrabOpsDialect.h.inc -gen-dialect-decls)
+mlir_tablegen(CrabOpsDialect.cpp.inc -gen-dialect-defs)
+mlir_tablegen(CrabOpsEnums.h.inc -gen-enum-decls)
+mlir_tablegen(CrabOpsEnums.cpp.inc -gen-enum-defs)
+add_public_tablegen_target(MLIRCrabOpsIncGen)
+
+add_mlir_doc(CrabOps CrabOps Dialects/ -gen-op-doc)
