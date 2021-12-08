@@ -145,6 +145,84 @@ def UDivOp : CrabBinaryOp<"udiv"> {
     }];
 }
 
+def OrOp : CrabBinaryOp<"or", [Commutative]> {
+    let summary = "integer binary and operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = crab.or(%lhs, %rhs) : i32
+        ```
+    }];
+}
+
+def NorOp : CrabBinaryOp<"nor", [Commutative]> {
+    let summary = "integer binary nor operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = crab.nor(%lhs, %rhs) : i32
+        ```
+    }];
+}
+
+def AndOp : CrabBinaryOp<"and", [Commutative]> {
+    let summary = "integer binary and operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = crab.and(%lhs, %rhs) : i32
+        ```
+    }];
+}
+
+def NandOp : CrabBinaryOp<"nand", [Commutative]> {
+    let summary = "integer binary nand operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = crab.nand(%lhs, %rhs) : i32
+        ```
+    }];
+}
+
+def XOrOp : CrabBinaryOp<"xor", [Commutative]> {
+    let summary = "integer binary xor operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = crab.xor(%lhs, %rhs) : i32
+        ```
+    }];
+}
+
+def XnorOp : CrabBinaryOp<"xnor", [Commutative]> {
+    let summary = "integer binary xnor operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = crab.xnor(%lhs, %rhs) : i32
+        ```
+    }];
+}
+
 //===----------------------------------------------------------------------===//
 // crab constraint ops definitions
 //===----------------------------------------------------------------------===//
