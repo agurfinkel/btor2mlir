@@ -12,6 +12,221 @@
 include "CrabDialect.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
+//===----------------------------------------------------------------------===//
+// crab binary integer ops definitions
+//===----------------------------------------------------------------------===//
+
+// Base class for crab arithmetic operations.  Requires operands and
+// results to be of the same type, but does not constrain them to specific
+// types.
+class CrabArithmeticOp<string mnemonic, list<OpTrait> traits = []> :
+    Op<Crab_Dialect, mnemonic, traits #[NoSideEffect]
+    #ElementwiseMappable.traits> { }
+
+// This operation takes two operands and returns one result,
+// each of these is required to be of the same type.
+//  The custom assembly form of the operation is as follows
+//
+//     <op> %0, %1 : i32
+class CrabBinaryOp<string mnemonic, list<OpTrait> traits = []> :
+    CrabArithmeticOp<mnemonic, !listconcat(traits, [SameOperandsAndResultType])>,
+    Arguments<(ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs)> {
+
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = "`(` $lhs `,` $rhs `)` attr-dict `:` type($lhs)";
+
+  let parser = [{
+    return impl::parseOneResultSameOperandTypeOp(parser, result);
+  }];
+}
+
+def AddOp : CrabBinaryOp<"add", [Commutative]> {
+    let summary = "integer addition operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = crab.add(%lhs, %rhs) : i32
+        ```
+    }];
+}
+
+def SubOp : CrabBinaryOp<"sub"> {
+    let summary = "integer subtraction operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = crab.sub(%lhs, %rhs) : i32
+        ```
+    }];
+}
+
+def MulOp : CrabBinaryOp<"mul", [Commutative]> {
+    let summary = "integer multiplication operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = crab.mul(%lhs, %rhs) : i32
+        ```
+    }];
+}
+
+def SModOp : CrabBinaryOp<"smod"> {
+    let summary = "integer signed modulus operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = crab.smod(%lhs, %rhs) : i32
+        ```
+    }];
+}
+
+def SRemOp : CrabBinaryOp<"srem"> {
+    let summary = "integer signed remainder operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = crab.srem(%lhs, %rhs) : i32
+        ```
+    }];
+}
+
+def URemOp : CrabBinaryOp<"urem"> {
+    let summary = "integer unsigned remainder operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = crab.urem(%lhs, %rhs) : i32
+        ```
+    }];
+}
+
+def SDivOp : CrabBinaryOp<"sdiv"> {
+    let summary = "integer signed division operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = crab.sdiv(%lhs, %rhs) : i32
+        ```
+    }];
+}
+
+def UDivOp : CrabBinaryOp<"udiv"> {
+    let summary = "integer unsigned division operation";
+    let description = [{
+        This operation takes two integer arguments and returns an integer.
+
+        Example:
+        
+        ```mlir
+        %res = crab.udiv(%lhs, %rhs) : i32
+        ```
+    }];
+}
+
+//===----------------------------------------------------------------------===//
+// crab constraint ops definitions
+//===----------------------------------------------------------------------===//
+
+// Base class for crab constraint operations.  Requires operands to be
+// of the same type, but does not constrain them to specific
+// types.
+//  The custom assembly form of the operation is as follows
+//
+//     <op> "predicate"(%0, %1)
+class CrabConstraintOp<string mnemonic, list<OpTrait> traits = [SameTypeOperands]> :
+    Crab_Op<mnemonic, traits>,
+    Arguments<(ins CrabPredicateAttr:$predicate, 
+            SignlessIntegerLike:$lhs, 
+            SignlessIntegerLike:$rhs)> {
+    
+    let description = [{
+        The first argument is an attribute that defines which type of comparison is
+        performed. The following comparisons are supported:
+
+        -   equal (mnemonic: `"eq"`; integer value: `0`)
+        -   not equal (mnemonic: `"ne"`; integer value: `1`)
+        -   signed less than (mnemonic: `"slt"`; integer value: `2`)
+        -   signed less than or equal (mnemonic: `"sle"`; integer value: `3`)
+        -   signed greater than (mnemonic: `"sgt"`; integer value: `4`)
+        -   signed greater than or equal (mnemonic: `"sge"`; integer value: `5`)
+        -   unsigned less than (mnemonic: `"ult"`; integer value: `6`)
+        -   unsigned less than or equal (mnemonic: `"ule"`; integer value: `7`)
+        -   unsigned greater than (mnemonic: `"ugt"`; integer value: `8`)
+        -   unsigned greater than or equal (mnemonic: `"uge"`; integer value: `9`)
+    }];
+
+    let assemblyFormat = "`(` $lhs `,` $rhs `)` attr-dict `:` type($lhs)";
+
+    let parser = [{
+        return impl::parseOneResultSameOperandTypeOp(parser, result);
+    }];
+
+    let extraClassDeclaration = [{
+        static StringRef getPredicateAttrName() { return "predicate"; }
+        static CrabPredicate getPredicateByName(StringRef name);
+
+        CrabPredicate getPredicate() {
+        return (CrabPredicate)(*this)->getAttrOfType<IntegerAttr>(
+            getPredicateAttrName()).getInt();
+        }
+    }];
+
+    let verifier = [{ return success(); }];
+
+    let assemblyFormat = "$predicate `(` $lhs `,` $rhs `)` attr-dict `:` type($lhs)";
+}
+
+def AssertOp : CrabConstraintOp<"assert"> {
+  let summary = "crab assertion";
+  let description = [{
+    The `assert` operation is an assertion tied to a  generic comparison
+    for two arguments that need to have their types matching.
+
+    Example:
+
+    ```mlir
+    // Custom form of scalar "signed less than" comparison.
+    %x = crab.assert ne(%lhs, %rhs) : i32
+    ```
+  }];
+} 
+
+def AssumeOp : CrabConstraintOp<"assume"> {
+  let summary = "crab assertion";
+  let description = [{
+    The `assume` operation is a constraint tied to a  generic comparison
+    for two arguments that need to have their types matching.
+
+    Example:
+
+    ```mlir
+    // Custom form of scalar "signed less than" comparison.
+    %x = crab.assume sle(%lhs, %rhs) : i32
+    ```
+  }];
+} 
 
 //===----------------------------------------------------------------------===//
 // crab constant ops 
