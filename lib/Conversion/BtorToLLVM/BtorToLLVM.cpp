@@ -233,13 +233,13 @@ LogicalResult AssertNotOpLowering::matchAndRewrite(btor::AssertNotOp assertOp, O
 
     // Insert the `abort` declaration if necessary.
     auto module = assertOp->getParentOfType<ModuleOp>();
-    auto abortFunc = module.lookupSymbol<LLVM::LLVMFuncOp>("abort");
+    auto abortFunc = module.lookupSymbol<LLVM::LLVMFuncOp>("__VERIFIER_error");
     if (!abortFunc) {
       OpBuilder::InsertionGuard guard(rewriter);
       rewriter.setInsertionPointToStart(module.getBody());
       auto abortFuncTy = LLVM::LLVMFunctionType::get(LLVM::LLVMVoidType::get(getContext()), {});
       abortFunc = rewriter.create<LLVM::LLVMFuncOp>(rewriter.getUnknownLoc(),
-                                                    "abort", abortFuncTy);
+                                                    "__VERIFIER_error", abortFuncTy);
     }
 
     // Split block at `assert` operation.
