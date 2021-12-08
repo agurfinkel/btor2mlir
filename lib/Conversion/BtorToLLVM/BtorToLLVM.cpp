@@ -231,15 +231,19 @@ LogicalResult AssertNotOpLowering::matchAndRewrite(btor::AssertNotOp assertOp, O
 
     Value notBad = rewriter.create<btor::NotOp>(loc, adaptor.arg());
 
-    // Insert the `abort` declaration if necessary.
+    // Insert the `verifier.error` declaration if necessary.
     auto module = assertOp->getParentOfType<ModuleOp>();
-    auto abortFunc = module.lookupSymbol<LLVM::LLVMFuncOp>("__VERIFIER_error");
-    if (!abortFunc) {
+    auto verifierError = "verifier.error";
+    auto verfifierErrorFunc = module.lookupSymbol<LLVM::LLVMFuncOp>(verifierError);
+    if (!verfifierErrorFunc) {
       OpBuilder::InsertionGuard guard(rewriter);
       rewriter.setInsertionPointToStart(module.getBody());
-      auto abortFuncTy = LLVM::LLVMFunctionType::get(LLVM::LLVMVoidType::get(getContext()), {});
-      abortFunc = rewriter.create<LLVM::LLVMFuncOp>(rewriter.getUnknownLoc(),
-                                                    "__VERIFIER_error", abortFuncTy);
+      auto verfifierErrorFuncTy = LLVM::LLVMFunctionType::get(
+                                    LLVM::LLVMVoidType::get(getContext()), {});
+      verfifierErrorFunc = rewriter.create<LLVM::LLVMFuncOp>(
+                                            rewriter.getUnknownLoc(),
+                                            verifierError, 
+                                            verfifierErrorFuncTy);
     }
 
     // Split block at `assert` operation.
@@ -249,7 +253,7 @@ LogicalResult AssertNotOpLowering::matchAndRewrite(btor::AssertNotOp assertOp, O
 
     // Generate IR to call `abort`.
     Block *failureBlock = rewriter.createBlock(opBlock->getParent());
-    rewriter.create<LLVM::CallOp>(loc, abortFunc, llvm::None);
+    rewriter.create<LLVM::CallOp>(loc, verfifierErrorFunc, llvm::None);
     rewriter.create<LLVM::UnreachableOp>(loc);
 
     // Generate assertion test.
