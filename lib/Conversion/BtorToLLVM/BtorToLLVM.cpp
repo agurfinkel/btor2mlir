@@ -17,7 +17,6 @@ template <typename SourceOp, typename BaseOp>
 class ConvertNotOpToBtorPattern : public ConvertOpToLLVMPattern<SourceOp> {
     public:
         using ConvertOpToLLVMPattern<SourceOp>::ConvertOpToLLVMPattern;
-        // using Super = VectorConvertToLLVMPattern<SourceOp, TargetOp>;
 
         LogicalResult matchAndRewrite(SourceOp op, 
                     typename SourceOp::Adaptor adaptor,
@@ -30,6 +29,33 @@ class ConvertNotOpToBtorPattern : public ConvertOpToLLVMPattern<SourceOp> {
             Value baseOp = rewriter.create<BaseOp>(op.getLoc(),
                                      adaptor.lhs(), adaptor.rhs());
             rewriter.replaceOpWithNewOp<btor::NotOp>(op, baseOp);
+
+            return success();
+  }
+};
+
+template <typename SourceOp, typename TargetOp>
+class ConvertReduceOpToLLVMPattern : public ConvertOpToLLVMPattern<SourceOp> {
+    public:
+        using ConvertOpToLLVMPattern<SourceOp>::ConvertOpToLLVMPattern;
+
+        LogicalResult matchAndRewrite(SourceOp op, 
+                    typename SourceOp::Adaptor adaptor,
+                    ConversionPatternRewriter &rewriter) const override {
+            static_assert(
+                std::is_base_of<
+                        OpTrait::OneResult<SourceOp>, SourceOp>::value,
+                        "expected single result op");
+
+            auto operand = adaptor.operand();
+            auto type = operand.getType();
+            std::vector<int64_t> shape(1, type.getIntOrFloatBitWidth());
+            Type vectorTtype = VectorType::get(shape, rewriter.getI1Type());
+            auto vectorValue = rewriter.create<LLVM::BitcastOp>(op.getLoc(), 
+                    vectorTtype, operand);
+
+            rewriter.replaceOpWithNewOp<TargetOp>(op, 
+                        rewriter.getI1Type(), vectorValue);
 
             return success();
   }
@@ -67,9 +93,9 @@ using UMulOverflowOpLowering =
 using UExtOpLowering = VectorConvertToLLVMPattern<btor::UExtOp, LLVM::ZExtOp>;
 using SExtOpLowering = VectorConvertToLLVMPattern<btor::SExtOp, LLVM::SExtOp>;
 using IteOpLowering = VectorConvertToLLVMPattern<btor::IteOp, LLVM::SelectOp>;
-using RedOrOpLowering = VectorConvertToLLVMPattern<btor::RedOrOp, LLVM::vector_reduce_or>;
-using RedXorOpLowering = VectorConvertToLLVMPattern<btor::RedXorOp, LLVM::vector_reduce_xor>;
-using RedAndOpLowering = VectorConvertToLLVMPattern<btor::RedAndOp, LLVM::vector_reduce_and>;
+using RedOrOpLowering = ConvertReduceOpToLLVMPattern<btor::RedOrOp, LLVM::vector_reduce_or>;
+using RedXorOpLowering = ConvertReduceOpToLLVMPattern<btor::RedXorOp, LLVM::vector_reduce_xor>;
+using RedAndOpLowering = ConvertReduceOpToLLVMPattern<btor::RedAndOp, LLVM::vector_reduce_and>;
 using XnorOpLowering = ConvertNotOpToBtorPattern<btor::XnorOp, btor::XOrOp>;
 using NandOpLowering = ConvertNotOpToBtorPattern<btor::NandOp, btor::AndOp>;
 using NorOpLowering = ConvertNotOpToBtorPattern<btor::NorOp, btor::OrOp>;
