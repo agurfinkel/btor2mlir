@@ -194,6 +194,12 @@ struct SModOpLowering : public ConvertOpToLLVMPattern<btor::SModOp> {
                                 ConversionPatternRewriter &rewriter) const override;
 };
 
+struct UndefOpLowering : public ConvertOpToLLVMPattern<btor::UndefOp> {
+    using ConvertOpToLLVMPattern<btor::UndefOp>::ConvertOpToLLVMPattern;
+    LogicalResult matchAndRewrite(btor::UndefOp op, OpAdaptor adaptor,
+                                ConversionPatternRewriter &rewriter) const override;
+};
+
 } // end anonymous namespace
 
 //===----------------------------------------------------------------------===//
@@ -514,6 +520,17 @@ LogicalResult SModOpLowering::matchAndRewrite(mlir::btor::SModOp smodOp,
 }
 
 //===----------------------------------------------------------------------===//
+// UndefOpLowering
+//===----------------------------------------------------------------------===//
+LogicalResult UndefOpLowering::matchAndRewrite(btor::UndefOp op,
+                                OpAdaptor adaptor,
+                                ConversionPatternRewriter &rewriter) const {
+
+    rewriter.replaceOpWithNewOp<LLVM::UndefOp>(op, op.result().getType());
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
 // Pass Definition
 //===----------------------------------------------------------------------===//
 
@@ -546,7 +563,7 @@ void BtorToLLVMLoweringPass::runOnOperation() {
     /// unary operators
     target.addIllegalOp<btor::NotOp, btor::IncOp, btor::DecOp, btor::NegOp>();
     target.addIllegalOp<btor::RedAndOp, btor::RedXorOp, btor::RedOrOp>();
-    target.addIllegalOp<btor::AssertNotOp, btor::ConstantOp>();
+    target.addIllegalOp<btor::AssertNotOp, btor::ConstantOp, btor::UndefOp>();
 
     /// binary operators
     // logical 
@@ -618,7 +635,8 @@ void mlir::btor::populateBtorToLLVMConversionPatterns(LLVMTypeConverter &convert
     UExtOpLowering,
     SExtOpLowering,
     SliceOpLowering,
-    ConcatOpLowering
+    ConcatOpLowering,
+    UndefOpLowering
   >(converter);       
 }
 
