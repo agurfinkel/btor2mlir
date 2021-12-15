@@ -18,6 +18,10 @@ namespace LLVM {
 class LLVMDialect;
 } // end namespace LLVM
 
+namespace memref {
+class MemRefDialect;
+} // end namespace MemRef
+
 #define GEN_PASS_CLASSES
 #include "Conversion/Passes.h.inc"
 

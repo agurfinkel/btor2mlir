@@ -33,4 +33,17 @@ def ConvertBtorToLLVM : Pass<"convert-btor-to-llvm", "ModuleOp"> {
   let dependentDialects = ["LLVM::LLVMDialect"];
 }
 
+//===----------------------------------------------------------------------===//
+// BtorToMemRef
+//===----------------------------------------------------------------------===//
+
+def ConvertBtorToMemRef : Pass<"convert-btor-to-memref", "ModuleOp"> {
+  let summary = "Convert Btor Dialect to MemRef dialect";
+  let description = [{
+    Convert btor array operations into MemRef instructions
+  }];
+  let constructor = "mlir::btor::createLowerToMemRefPass()";
+  let dependentDialects = ["memref::MemRefDialect"];
+}
+
 #endif // BTOR_CONVERSION_PASSES
