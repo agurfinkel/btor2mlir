@@ -10,6 +10,7 @@
 #define BTOR_BTORDIALECT_H
 
 #include "mlir/IR/Dialect.h"
+#include "mlir/Dialect/StandardOps/IR/Ops.h"
 
 #include "Dialect/Btor/IR/BtorOpsDialect.h.inc"
 
