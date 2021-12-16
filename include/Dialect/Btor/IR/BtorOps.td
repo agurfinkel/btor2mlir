@@ -965,4 +965,129 @@ def InputOp : Btor_Op<"input"> {
     }];
 }
 
+//===----------------------------------------------------------------------===//
+// Btor arrays
+//===----------------------------------------------------------------------===//
+
+class BaseArrayOp<string mnemonic, Resource resource, list<OpTrait> traits = []> :
+    Btor_Op<mnemonic, traits> {
+
+  let results = (outs Res<AnyMemRef, "", [MemAlloc<resource>]>:$array);
+
+  let assemblyFormat = "attr-dict `:` type($array)";
+}
+
+def AnyBtorArray : MemRefOf<[AnySignlessInteger]>;
+
+def ArrayOp : BaseArrayOp<"array", AutomaticAllocationScopeResource> {
+  let summary = "btor array allocation operation";
+  let description = [{
+    The `array` operation allocates the amount of memory specified by 
+    its memref and additional operands. For example:
+
+    ```mlir
+    %0 = btor.array : memref<8xi32>
+    ```
+
+    This operation returns a single SSA value of memref type, which can be used
+    by subsequent load and store operations. 
+  }];
+}
+
+
+def ReadOp : Btor_Op<"read",
+     [TypesMatchWith<"result type matches element type of 'array'",
+                     "array", "result",
+                     "$_self.cast<MemRefType>().getElementType()">,
+                     MemRefsNormalizable]> {
+  let summary = "btor read operation";
+  let description = [{
+    The `read` op reads an element from a btor array specified by an index list. 
+    The output of load is a new value with the same type as the elements of the
+    btor array. The arity of indices is the rank of the btor array.
+
+
+    Example:
+
+    ```mlir
+    %1 = btor.read %A[%0] : memref<8xi32>
+    ```
+  }];
+
+  let arguments = (ins Arg<AnyBtorArray, "the reference to read from",
+                        [MemRead]>:$array,
+                      Index:$index);
+  let results = (outs AnyType:$result);
+
+  let builders = [
+    OpBuilder<(ins "Value":$array, "Value":$index), [{
+      auto arrayType = array.getType().cast<MemRefType>();
+      $_state.addOperands(array);
+      $_state.addOperands(index);
+      $_state.types.push_back(arrayType.getElementType());
+    }]>];
+
+  let extraClassDeclaration = [{
+    Value getMemRef() { return getOperand(0); }
+    void setMemRef(Value value) { setOperand(0, value); }
+    MemRefType getMemRefType() {
+      return getMemRef().getType().cast<MemRefType>();
+    }
+
+    operand_range getIndices() { return {operand_begin() + 1, operand_end()}; }
+  }];
+
+  let assemblyFormat = "$array `[` $index `]` attr-dict `:` type($array)";
+}
+
+def WriteOp : Btor_Op<"write",
+     [TypesMatchWith<"type of 'value' matches element type of 'array'",
+                     "array", "value",
+                     "$_self.cast<MemRefType>().getElementType()">,
+                     MemRefsNormalizable]> {
+  let summary = "store operation";
+  let description = [{
+    Copy the given array and write the given value to the provided
+    location given by index. The value stored should have the same type 
+    as the elemental type of the array. 
+    Example:
+
+    ```mlir
+    %4 = btor.write %2, %0[%1] : memref<8xi32>
+    ```
+  }];
+
+  let arguments = (ins AnyType:$value,
+                       Arg<AnyMemRef, "the reference to store to",
+                           [MemWrite]>:$array,
+                       Index:$index);
+
+  let results = (outs Res<AnyMemRef, "", 
+                        [MemAlloc<AutomaticAllocationScopeResource>]>:$result);
+
+  let builders = [
+    OpBuilder<(ins "Value":$valueToStore, "Value":$array), [{
+      $_state.addOperands(valueToStore);
+      $_state.addOperands(array);
+    }]>];
+
+  let extraClassDeclaration = [{
+      Value getValueToStore() { return getOperand(0); }
+
+      Value getMemRef() { return getOperand(1); }
+      void setMemRef(Value value) { setOperand(1, value); }
+      MemRefType getMemRefType() {
+        return getMemRef().getType().cast<MemRefType>();
+      }
+
+      operand_range getIndices() {
+        return {operand_begin() + 2, operand_end()};
+      }
+  }];
+
+  let assemblyFormat = [{
+    $value `,` $array `[` $index `]` attr-dict `:` type($array) `to` type($result)
+  }];
+}
+
 #endif // BTOR_OPS
