@@ -189,7 +189,7 @@ static ParseResult parseConstantOp(OpAsmParser &parser,
   return parser.addTypeToList(valueAttr.getType(), result.types);
 }
 
-OpFoldResult ConstantOp::fold(ArrayRef<Attribute> operands) {
+OpFoldResult btor::ConstantOp::fold(ArrayRef<Attribute> operands) {
   assert(operands.empty() && "constant has no operands");
   return getValue();
 }

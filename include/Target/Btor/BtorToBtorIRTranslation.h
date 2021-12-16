@@ -13,6 +13,7 @@
 #include "mlir/IR/OwningOpRef.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
+#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 
@@ -135,7 +136,24 @@ class Deserialize {
                                     Block *body);
 
   // Builder wrappers
-  Type getIntegerTypeOf(Btor2Line * line) {
+  Type getMemRefType(Btor2Line * line) {
+    // construct a memref type from two components of line->sort:
+    //  index: refers to a bitvector of fixed width (array size)
+    //  element: refers to a bitvector of fixed width (element type) 
+    std::vector<int64_t> arraySize(1, 0);
+    auto arraySize_idx = line->sort.array.index;
+    arraySize[0] = m_lines.at(arraySize_idx)->sort.bitvec.width;
+    auto elem_idx = line->sort.array.element;
+    auto elementType = 
+        m_builder.getIntegerType(m_lines.at(elem_idx)->sort.bitvec.width);
+    MemRefType::Builder memrefType(arraySize, elementType);
+    return memrefType;
+  }
+
+  Type getTypeOf(Btor2Line * line) {
+    if (line->sort.tag == BTOR2_TAG_SORT_array) {
+       return getMemRefType(line);
+    }
     return m_builder.getIntegerType(line->sort.bitvec.width);
   }
 
@@ -143,8 +161,22 @@ class Deserialize {
                     const std::vector<Type> &returnTypes) {
     std::vector<Value> results(m_states.size(), nullptr);
     std::map<unsigned, Value> undefOpsBySort;
+    std::map<std::pair<unsigned, unsigned>, Value> arrayTypes;
     for (unsigned i = 0, sz = m_states.size(); i < sz; ++i) {
-      if (unsigned initLine = m_states.at(i)->init) {
+      auto state_i = m_states.at(i);
+      if (state_i->sort.tag == BTOR2_TAG_SORT_array) {
+        unsigned index = state_i->sort.array.index;
+        unsigned element = state_i->sort.array.element;
+        auto arraySort = std::make_pair(index, element);
+        if (arrayTypes.count(arraySort) == 0) {
+          auto res = m_builder.create<btor::ArrayOp>(m_unknownLoc, 
+                                                    getMemRefType(state_i));
+          assert(res);
+          assert(res->getNumResults() == 1);
+          arrayTypes[arraySort] = res->getResult(0);
+        }
+        results[i] = arrayTypes.at(arraySort);
+      } else if (unsigned initLine = state_i->init) {
         results[i] = getFromCacheById(initLine);
       } else {
         auto sort = returnTypes.at(i).getIntOrFloatBitWidth();
@@ -156,8 +188,8 @@ class Deserialize {
             undefOpsBySort[sort] = res->getResult(0);
         }
         results[i] = undefOpsBySort.at(sort);
-        }
-        assert(results[i]);
+      }
+      assert(results[i]);
     }
     return results;
   }
@@ -248,15 +280,18 @@ class Deserialize {
                         const int64_t lower) {
     auto opType = val.getType();
     auto operandWidth = opType.getIntOrFloatBitWidth();
-    assert(operandWidth > upper && upper >= lower);
+    assert(operandWidth > upper);
+    assert(upper >= lower);
 
     auto resType = m_builder.getIntegerType(upper - lower + 1);
     auto u = m_builder.create<btor::ConstantOp>(
         m_unknownLoc, opType, m_builder.getIntegerAttr(opType, upper));
-    assert(u && u->getNumResults() == 1);
+    assert(u);
+    assert(u->getNumResults() == 1);
     auto l = m_builder.create<btor::ConstantOp>(
         m_unknownLoc, opType, m_builder.getIntegerAttr(opType, lower));
-    assert(l && l->getNumResults() == 1);
+    assert(l);
+    assert(l->getNumResults() == 1);
 
     auto res = m_builder.create<btor::SliceOp>(m_unknownLoc, resType, val,
                                         u->getResult(0), l->getResult(0));
@@ -277,6 +312,31 @@ class Deserialize {
                         const Value &rhs) {
     auto res = m_builder.create<btor::IteOp>(m_unknownLoc, 
                                         condition, lhs, rhs);
+    return res;
+  }
+
+  // Array Ops
+  Value castIntegerToIndexType(const Value &indexConstant) {
+    auto cast = m_builder.create<arith::IndexCastOp>(m_unknownLoc, 
+                                indexConstant, m_builder.getIndexType());
+    assert(cast); 
+    assert(cast->getNumResults() == 1);
+    assert(cast->getResult(0));
+    return cast->getResult(0);
+  }
+  Operation * buildReadOp(const Value &array, const Value &indexConstant) {
+    
+    auto res = m_builder.create<btor::ReadOp>(m_unknownLoc, array, 
+                                castIntegerToIndexType(indexConstant));
+    return res;
+  }
+
+  Operation * buildWriteOp(const Value &valueToStore,
+                          const Value &array,
+                          const Value &indexConstant) {
+    auto res = m_builder.create<btor::WriteOp>(m_unknownLoc, array.getType(), 
+                                        valueToStore, array, 
+                                        castIntegerToIndexType(indexConstant));
     return res;
   }
 };

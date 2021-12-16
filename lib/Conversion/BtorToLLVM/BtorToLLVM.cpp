@@ -200,6 +200,12 @@ struct UndefOpLowering : public ConvertOpToLLVMPattern<btor::UndefOp> {
                                 ConversionPatternRewriter &rewriter) const override;
 };
 
+struct AssumeOpLowering : public ConvertOpToLLVMPattern<btor::AssumeOp> {
+    using ConvertOpToLLVMPattern<btor::AssumeOp>::ConvertOpToLLVMPattern;
+    LogicalResult matchAndRewrite(btor::AssumeOp op, OpAdaptor adaptor,
+                                ConversionPatternRewriter &rewriter) const override;
+};
+
 } // end anonymous namespace
 
 //===----------------------------------------------------------------------===//
@@ -531,6 +537,15 @@ LogicalResult UndefOpLowering::matchAndRewrite(btor::UndefOp op,
 }
 
 //===----------------------------------------------------------------------===//
+// AssumeOpLowering
+//===----------------------------------------------------------------------===//
+LogicalResult AssumeOpLowering::matchAndRewrite(btor::AssumeOp op, OpAdaptor adaptor,
+                                ConversionPatternRewriter &rewriter) const {
+    rewriter.replaceOpWithNewOp<LLVM::AssumeOp>(op, op.constraint());
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
 // Pass Definition
 //===----------------------------------------------------------------------===//
 
@@ -564,6 +579,7 @@ void BtorToLLVMLoweringPass::runOnOperation() {
     target.addIllegalOp<btor::NotOp, btor::IncOp, btor::DecOp, btor::NegOp>();
     target.addIllegalOp<btor::RedAndOp, btor::RedXorOp, btor::RedOrOp>();
     target.addIllegalOp<btor::AssertNotOp, btor::ConstantOp, btor::UndefOp>();
+    target.addIllegalOp<btor::AssumeOp>();
 
     /// binary operators
     // logical 
@@ -636,7 +652,8 @@ void mlir::btor::populateBtorToLLVMConversionPatterns(LLVMTypeConverter &convert
     SExtOpLowering,
     SliceOpLowering,
     ConcatOpLowering,
-    UndefOpLowering
+    UndefOpLowering,
+    AssumeOpLowering
   >(converter);       
 }
 
