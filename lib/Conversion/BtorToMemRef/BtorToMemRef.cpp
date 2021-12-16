@@ -69,13 +69,23 @@ ReadOpLowering::matchAndRewrite(btor::ReadOp op,
 LogicalResult
 WriteOpLowering::matchAndRewrite(btor::WriteOp op, 
                                  PatternRewriter &rewriter) const {
+  
+  Value result = op.result();
+  // The btor.write operation has form: result = btor.write %val, %arr[%index]
+  // if result is not live after this point, simply map to a memref store
+  // else do a copy + write 
+  if (result.use_empty()) {
+    rewriter.create<memref::StoreOp>(op.getLoc(), op.value(), op.array(), op.index());
+    rewriter.eraseOp(op);
+    return success();
+  }
+
   Type type = op.getType();
   Location loc = op.getLoc();
   MemRefType memrefType = type.cast<MemRefType>();
-  auto newArray = rewriter.create<memref::AllocOp>(loc, memrefType);
+  auto newArray = rewriter.replaceOpWithNewOp<memref::AllocOp>(op, memrefType);
   rewriter.create<memref::CopyOp>(loc, op.array(), newArray);
   rewriter.create<memref::StoreOp>(loc, op.value(), newArray, op.index());
-  rewriter.replaceOpWithNewOp<memref::AllocOp>(op, memrefType);
   return success();
 }
 //===----------------------------------------------------------------------===//
