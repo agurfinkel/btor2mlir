@@ -161,17 +161,22 @@ class Deserialize {
                     const std::vector<Type> &returnTypes) {
     std::vector<Value> results(m_states.size(), nullptr);
     std::map<unsigned, Value> undefOpsBySort;
+    std::map<std::pair<unsigned, unsigned>, Value> arrayTypes;
     for (unsigned i = 0, sz = m_states.size(); i < sz; ++i) {
       auto state_i = m_states.at(i);
       if (state_i->sort.tag == BTOR2_TAG_SORT_array) {
-        auto res = m_builder.create<btor::ArrayOp>(m_unknownLoc, 
-                                                  getMemRefType(state_i));
-        assert(res);
-        assert(res->getNumResults() == 1);
-        results[i] = res->getResult(0);
-        continue;
-      }
-      if (unsigned initLine = state_i->init) {
+        unsigned index = state_i->sort.array.index;
+        unsigned element = state_i->sort.array.element;
+        auto arraySort = std::make_pair(index, element);
+        if (arrayTypes.count(arraySort) == 0) {
+          auto res = m_builder.create<btor::ArrayOp>(m_unknownLoc, 
+                                                    getMemRefType(state_i));
+          assert(res);
+          assert(res->getNumResults() == 1);
+          arrayTypes[arraySort] = res->getResult(0);
+        }
+        results[i] = arrayTypes.at(arraySort);
+      } else if (unsigned initLine = state_i->init) {
         results[i] = getFromCacheById(initLine);
       } else {
         auto sort = returnTypes.at(i).getIntOrFloatBitWidth();
