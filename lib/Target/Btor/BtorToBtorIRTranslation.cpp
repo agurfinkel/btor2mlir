@@ -291,8 +291,16 @@ Operation * Deserialize::createMLIR(const Btor2Line *line,
     res = buildIteOp(kids[0], kids[1], kids[2]);
     break;
 
+  // array ops
+  case BTOR2_TAG_read: // read op: array, index
+    res = buildReadOp(kids[0], kids[1]);
+    break;
+
+  case BTOR2_TAG_write: // write op: value, array, index
+    res = buildWriteOp(kids[2], kids[0], kids[1]);
+    break;
+
   // unmapped ops
-  case BTOR2_TAG_read:
   case BTOR2_TAG_init:
   case BTOR2_TAG_next:
   case BTOR2_TAG_sort:
@@ -300,7 +308,6 @@ Operation * Deserialize::createMLIR(const Btor2Line *line,
   case BTOR2_TAG_fair:
   case BTOR2_TAG_justice:
   case BTOR2_TAG_output:
-  case BTOR2_TAG_write:
   default:
     break;
   }
@@ -346,12 +353,10 @@ bool Deserialize::needsMLIROp(Btor2Line * line) {
   case BTOR2_TAG_init:
   case BTOR2_TAG_next:
   case BTOR2_TAG_state:
-  case BTOR2_TAG_read:
   case BTOR2_TAG_sort:
   case BTOR2_TAG_fair:
   case BTOR2_TAG_justice:
   case BTOR2_TAG_output:
-  case BTOR2_TAG_write:
     isValid = false;
     break;
   default:
@@ -473,7 +478,7 @@ OwningOpRef<FuncOp> Deserialize::buildMainFunction() {
   // collecting information about returntypes
   std::vector<Type> returnTypes(m_states.size(), nullptr);
   for (unsigned i = 0; i < m_states.size(); ++i) {
-    returnTypes[i] = getIntegerTypeOf(m_states.at(i));
+    returnTypes[i] = getTypeOf(m_states.at(i));
     assert(returnTypes[i]);
   }
   // create main function

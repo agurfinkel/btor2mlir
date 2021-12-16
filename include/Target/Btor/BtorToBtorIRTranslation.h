@@ -13,6 +13,7 @@
 #include "mlir/IR/OwningOpRef.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
+#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 
@@ -274,15 +275,18 @@ class Deserialize {
                         const int64_t lower) {
     auto opType = val.getType();
     auto operandWidth = opType.getIntOrFloatBitWidth();
-    assert(operandWidth > upper && upper >= lower);
+    assert(operandWidth > upper);
+    assert(upper >= lower);
 
     auto resType = m_builder.getIntegerType(upper - lower + 1);
     auto u = m_builder.create<btor::ConstantOp>(
         m_unknownLoc, opType, m_builder.getIntegerAttr(opType, upper));
-    assert(u && u->getNumResults() == 1);
+    assert(u);
+    assert(u->getNumResults() == 1);
     auto l = m_builder.create<btor::ConstantOp>(
         m_unknownLoc, opType, m_builder.getIntegerAttr(opType, lower));
-    assert(l && l->getNumResults() == 1);
+    assert(l);
+    assert(l->getNumResults() == 1);
 
     auto res = m_builder.create<btor::SliceOp>(m_unknownLoc, resType, val,
                                         u->getResult(0), l->getResult(0));
@@ -303,6 +307,31 @@ class Deserialize {
                         const Value &rhs) {
     auto res = m_builder.create<btor::IteOp>(m_unknownLoc, 
                                         condition, lhs, rhs);
+    return res;
+  }
+
+  // Array Ops
+  Value castIntegerToIndexType(const Value &indexConstant) {
+    auto cast = m_builder.create<arith::IndexCastOp>(m_unknownLoc, 
+                                indexConstant, m_builder.getIndexType());
+    assert(cast); 
+    assert(cast->getNumResults() == 1);
+    assert(cast->getResult(0));
+    return cast->getResult(0);
+  }
+  Operation * buildReadOp(const Value &array, const Value &indexConstant) {
+    
+    auto res = m_builder.create<btor::ReadOp>(m_unknownLoc, array, 
+                                castIntegerToIndexType(indexConstant));
+    return res;
+  }
+
+  Operation * buildWriteOp(const Value &valueToStore,
+                          const Value &array,
+                          const Value &indexConstant) {
+    auto res = m_builder.create<btor::WriteOp>(m_unknownLoc, array.getType(), 
+                                        valueToStore, array, 
+                                        castIntegerToIndexType(indexConstant));
     return res;
   }
 };
