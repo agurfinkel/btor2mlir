@@ -135,7 +135,24 @@ class Deserialize {
                                     Block *body);
 
   // Builder wrappers
-  Type getIntegerTypeOf(Btor2Line * line) {
+  Type getMemRefType(Btor2Line * line) {
+    // construct a memref type from two components of line->sort:
+    //  index: refers to a bitvector of fixed width (array size)
+    //  element: refers to a bitvector of fixed width (element type) 
+    std::vector<int64_t> arraySize(1, 0);
+    auto arraySize_idx = line->sort.array.index;
+    arraySize[0] = m_lines.at(arraySize_idx)->sort.bitvec.width;
+    auto elem_idx = line->sort.array.element;
+    auto elementType = 
+        m_builder.getIntegerType(m_lines.at(elem_idx)->sort.bitvec.width);
+    MemRefType::Builder memrefType(arraySize, elementType);
+    return memrefType;
+  }
+
+  Type getTypeOf(Btor2Line * line) {
+    if (line->sort.tag == BTOR2_TAG_SORT_array) {
+       return getMemRefType(line);
+    }
     return m_builder.getIntegerType(line->sort.bitvec.width);
   }
 
@@ -144,7 +161,16 @@ class Deserialize {
     std::vector<Value> results(m_states.size(), nullptr);
     std::map<unsigned, Value> undefOpsBySort;
     for (unsigned i = 0, sz = m_states.size(); i < sz; ++i) {
-      if (unsigned initLine = m_states.at(i)->init) {
+      auto state_i = m_states.at(i);
+      if (state_i->sort.tag == BTOR2_TAG_SORT_array) {
+        auto res = m_builder.create<btor::ArrayOp>(m_unknownLoc, 
+                                                  getMemRefType(state_i));
+        assert(res);
+        assert(res->getNumResults() == 1);
+        results[i] = res->getResult(0);
+        continue;
+      }
+      if (unsigned initLine = state_i->init) {
         results[i] = getFromCacheById(initLine);
       } else {
         auto sort = returnTypes.at(i).getIntOrFloatBitWidth();
@@ -156,8 +182,8 @@ class Deserialize {
             undefOpsBySort[sort] = res->getResult(0);
         }
         results[i] = undefOpsBySort.at(sort);
-        }
-        assert(results[i]);
+      }
+      assert(results[i]);
     }
     return results;
   }
