@@ -14,4 +14,19 @@
 
 #include "Dialect/Btor/IR/BtorOpsDialect.h.inc"
 
+// namespace mlir {
+// namespace btor {
+
+// class BtorDialect : public Dialect {
+// public:
+//   /// Parse an instance of a type registered to the dialect.
+//   Type parseType(DialectAsmParser &parser) const override;
+
+//   /// Print an instance of a type registered to the dialect.
+//   void printType(Type type, DialectAsmPrinter &printer) const override;
+// };
+
+// } // namespace btor
+// } // namespace mlir
+
 #endif // BTOR_BTORDIALECT_H

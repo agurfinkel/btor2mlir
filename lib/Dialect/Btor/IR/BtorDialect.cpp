@@ -22,6 +22,7 @@ using namespace mlir::btor;
 //===----------------------------------------------------------------------===//
 
 void BtorDialect::initialize() {
+  // addTypes<ArrayType>();
   addOperations<
 #define GET_OP_LIST
 #include "Dialect/Btor/IR/BtorOps.cpp.inc"

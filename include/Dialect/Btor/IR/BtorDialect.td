@@ -45,6 +45,16 @@ def Btor_Dialect : Dialect {
 }
 
 //===----------------------------------------------------------------------===//
+// Btor type definitions
+//===----------------------------------------------------------------------===//
+
+def BtorArrayType : TypeDef<Btor_Dialect, "BtorArrayType"> {
+  let parameters = (ins SignlessIntegerLike:$a, SignlessIntegerLike:$b);
+  let mnemonic = "array";
+  let assemblyFormat = "`<` params `>`";
+}
+
+//===----------------------------------------------------------------------===//
 // Base btor operation definition.
 //===----------------------------------------------------------------------===//
 

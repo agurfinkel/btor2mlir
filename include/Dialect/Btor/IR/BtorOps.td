@@ -1037,7 +1037,7 @@ def ReadOp : Btor_Op<"read",
     operand_range getIndices() { return {operand_begin() + 1, operand_end()}; }
   }];
 
-  let assemblyFormat = "$array `[` $index `]` attr-dict `:` type($array)";
+  let assemblyFormat = "$array `[` $index `]` attr-dict `:` type($array) `to` type($result)";
 }
 
 def WriteOp : Btor_Op<"write",

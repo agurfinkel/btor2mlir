@@ -1,0 +1,15 @@
+1 sort bitvec 8
+2 sort bitvec 32
+3 sort array 1 2
+4 one 1
+5 state 3
+6 read 2 5 4
+7 write 3 5 4 6
+8 next 3 5 7
+9 sort array 1 1
+10 state 9
+11 state 9
+12 write 9 10 4 4
+13 next 9 10 12
+;14 init 9 11 12
+15 next 9 11 12
