@@ -24,69 +24,56 @@ using namespace mlir;
 using namespace mlir::btor;
 
 
-// /// A custom unary operation printer that omits the "std." prefix from the
-// /// operation names.
-// static void printBtorUnaryOp(Operation *op, OpAsmPrinter &p) {
-//   assert(op->getNumOperands() == 1 && "unary op should have one operand");
-//   assert(op->getNumResults() == 1 && "unary op should have one result");
+/// A custom unary operation printer that omits the "std." prefix from the
+/// operation names.
+static void printBtorUnaryOp(OpAsmPrinter &p, Operation *op) {
+  assert(op->getNumOperands() == 1 && "unary op should have one operand");
+  assert(op->getNumResults() == 1 && "unary op should have one result");
 
-//   p << ' ' << op->getOperand(0);
-//   p.printOptionalAttrDict(op->getAttrs());
-//   p << " : " << op->getOperand(0).getType();
-// }
+  p << ' ' << op->getOperand(0);
+  p.printOptionalAttrDict(op->getAttrs());
+  p << " : " << op->getOperand(0).getType();
+}
 
-// /// A custom unary operation parser that ensures result has same type
-// /// as given operand
-// static ParseResult parseUnaryOp(OpAsmParser &parser, OperationState &result) {  
-//   Type operandType;
-//   SmallVector<OpAsmParser::OperandType, 1> operands;
-//   if (parser.parseOperandList(operands, /*requiredOperandCount=*/1) ||
-//       parser.parseOptionalAttrDict(result.attributes) ||
-//       parser.parseColonType(operandType))
-//     return failure();
+/// A custom unary operation parser that ensures result has type i1
+static ParseResult parseUnaryDifferentResultOp(OpAsmParser &parser,
+                                  OperationState &result) {  
+  Type operandType;
+  SmallVector<OpAsmParser::UnresolvedOperand, 1> operands;
+  if (parser.parseOperandList(operands, /*requiredOperandCount=*/1) ||
+      parser.parseOptionalAttrDict(result.attributes) ||
+      parser.parseColonType(operandType))
+    return failure();
   
-//   result.addTypes(operandType);
-//   return parser.resolveOperands(operands, {operandType},
-//                                 parser.getNameLoc(), result.operands);
-// }
+  result.addTypes(parser.getBuilder().getI1Type());
+  return parser.resolveOperands(operands,
+                                {operandType},
+                                parser.getNameLoc(), result.operands);
+}
 
-// /// A custom unary operation parser that ensures result has type i1
-// static ParseResult parseUnaryDifferentResultOp(OpAsmParser &parser,
-//                                   OperationState &result) {  
-//   Type operandType;
-//   SmallVector<OpAsmParser::OperandType, 1> operands;
-//   if (parser.parseOperandList(operands, /*requiredOperandCount=*/1) ||
-//       parser.parseOptionalAttrDict(result.attributes) ||
-//       parser.parseColonType(operandType))
-//     return failure();
-  
-//   result.addTypes(parser.getBuilder().getI1Type());
-//   return parser.resolveOperands(operands,
-//                                 {operandType},
-//                                 parser.getNameLoc(), result.operands);
-// }
+ParseResult RedAndOp::parse(OpAsmParser &parser, OperationState &result) {
+    return parseUnaryDifferentResultOp(parser, result);
+}
 
-// /// A custom binary operation printer that omits the "btor." prefix from the
-// /// operation names.
-// static void printBtorBinaryOp(Operation *op, OpAsmPrinter &p) {
-//   assert(op->getNumOperands() == 2 && "binary op should have two operands");
-//   assert(op->getNumResults() == 1 && "binary op should have one result");
+ParseResult RedOrOp::parse(OpAsmParser &parser, OperationState &result) {
+    return parseUnaryDifferentResultOp(parser, result);
+}
 
-//   // If not all the operand and result types are the same, just use the
-//   // generic assembly form to avoid omitting information in printing.
-//   auto resultType = op->getResult(0).getType();
-//   if (op->getOperand(0).getType() != resultType ||
-//       op->getOperand(1).getType() != resultType) {
-//     p.printGenericOp(op);
-//     return;
-//   }
+ParseResult RedXorOp::parse(OpAsmParser &parser, OperationState &result) {
+    return parseUnaryDifferentResultOp(parser, result);
+}
 
-//   p << ' ' << op->getOperand(0) << ", " << op->getOperand(1);
-//   p.printOptionalAttrDict(op->getAttrs());
+void RedAndOp::print(OpAsmPrinter &p) {
+    printBtorUnaryOp(p, *this);
+}
 
-//   // Now we can output only one type for all operands and the result.
-//   p << " : " << op->getResult(0).getType();
-// }
+void RedOrOp::print(OpAsmPrinter &p) {
+    printBtorUnaryOp(p, *this);
+}
+
+void RedXorOp::print(OpAsmPrinter &p) {
+    printBtorUnaryOp(p, *this);
+}
 
 //===----------------------------------------------------------------------===//
 // General helpers for comparison ops
@@ -164,33 +151,6 @@ static Type getI1SameShape(Type type) {
 //                                 {conditionType, resultType, resultType},
 //                                 parser.getNameLoc(), result.operands);
 // }
-
-// //===----------------------------------------------------------------------===//
-// // ConstantOp
-// //===----------------------------------------------------------------------===//
-
-// static void printConstantOp(OpAsmPrinter &p, mlir::btor::ConstantOp &op) {
-//   p << " ";
-//   p.printOptionalAttrDict(op->getAttrs(), /*elidedAttrs=*/{"value"});
-//   p << op.getValue();
-// }
-
-// static ParseResult parseConstantOp(OpAsmParser &parser,
-//                                    OperationState &result) {
-//   Attribute valueAttr;
-//   if (parser.parseOptionalAttrDict(result.attributes) ||
-//       parser.parseAttribute(valueAttr, "value", result.attributes))
-//     return failure();
-
-//   // Add the attribute type to the list.
-//   return parser.addTypeToList(valueAttr.getType(), result.types);
-// }
-
-// OpFoldResult ConstantOp::fold(ArrayRef<Attribute> operands) {
-//   assert(operands.empty() && "constant has no operands");
-//   return getValue();
-// }
-
 
 //===----------------------------------------------------------------------===//
 // Overflow Operations
@@ -341,39 +301,39 @@ LogicalResult ConcatOp::verify() {
   return success();
 }
 
-// //===----------------------------------------------------------------------===//
-// // Input Operation
-// //===----------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
+// Input Operation
+//===----------------------------------------------------------------------===//
 
-// static void printInputOp(OpAsmPrinter &p, mlir::btor::InputOp &op) {
-//     p << " "  << op.value() << " : " << op->getOperand(0).getType();
-//     p << " ";
-//     p.printOptionalAttrDict(op->getAttrs());
-// }
+void InputOp::print(OpAsmPrinter &p) {
+    p << " "  << value() << " : " << getOperand().getType();
+    p << " ";
+    p.printOptionalAttrDict((*this)->getAttrs());
+}
 
-// static ParseResult parseInputOp(OpAsmParser &parser,OperationState &result) {  
-//     SmallVector<OpAsmParser::OperandType> ops;
-//     NamedAttrList attrs;
-//     Attribute idAttr;
-//     Type type;
+ParseResult InputOp::parse(OpAsmParser &parser,OperationState &result) {  
+    SmallVector<OpAsmParser::UnresolvedOperand> ops;
+    NamedAttrList attrs;
+    Attribute idAttr;
+    Type type;
 
-//     if (parser.parseAttribute(idAttr, "id", attrs) ||
-//         parser.parseComma() ||
-//         parser.parseOperandList(ops, 1) ||
-//         parser.parseOptionalAttrDict(attrs) || 
-//         parser.parseColonType(type) ||
-//         parser.resolveOperands(ops, type, result.operands)
-//         )
-//         return failure();
+    if (parser.parseAttribute(idAttr, "id", attrs) ||
+        parser.parseComma() ||
+        parser.parseOperandList(ops, 1) ||
+        parser.parseOptionalAttrDict(attrs) || 
+        parser.parseColonType(type) ||
+        parser.resolveOperands(ops, type, result.operands)
+        )
+        return failure();
 
-//     if (!idAttr.isa<mlir::IntegerAttr>())
-//         return parser.emitError(parser.getNameLoc(),
-//                                 "expected integer id attribute");
+    if (!idAttr.isa<mlir::IntegerAttr>())
+        return parser.emitError(parser.getNameLoc(),
+                                "expected integer id attribute");
 
-//     result.attributes = attrs;
-//     result.addTypes({type});
-//   return success();
-// }
+    result.attributes = attrs;
+    result.addTypes({type});
+  return success();
+}
 
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
