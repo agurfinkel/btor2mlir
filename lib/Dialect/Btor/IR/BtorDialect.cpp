@@ -6,16 +6,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Dialect/Btor/IR/BtorDialect.h"
-#include "Dialect/Btor/IR/BtorOps.h"
-
-#include "Dialect/Btor/IR/BtorOpsDialect.cpp.inc"
-
-// Pull in all enum type definitions and utility function declarations.
-#include "Dialect/Btor/IR/BtorOpsEnums.cpp.inc"
+#include "Dialect/Btor/IR/Btor.h"
+#include "mlir/IR/Builders.h"
 
 using namespace mlir;
 using namespace mlir::btor;
+
+#include "Dialect/Btor/IR/BtorOpsDialect.cpp.inc"
 
 //===----------------------------------------------------------------------===//
 // Btor dialect.

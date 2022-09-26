@@ -9,16 +9,31 @@
 #ifndef BTOR_OPS
 #define BTOR_OPS
 
-include "BtorDialect.td"
+include "BtorBase.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/Interfaces/InferTypeOpInterface.td"
+include "mlir/Interfaces/InferIntRangeInterface.td"
+include "mlir/IR/OpAsmInterface.td"
 
+include "mlir/Interfaces/CastInterfaces.td"
+include "mlir/Interfaces/VectorInterfaces.td"
+
+
+//===----------------------------------------------------------------------===//
+// Base btor operation definition.
+//===----------------------------------------------------------------------===//
+
+class Btor_Op<string mnemonic, list<Trait> traits = []> :
+        Op<Btor_Dialect, mnemonic, traits>;
+
+/*
 //===----------------------------------------------------------------------===//
 // btor integer bit cast ops definitions
 //===----------------------------------------------------------------------===//
 
 // Base class for Btor Cast operations Requires a single operand and result. 
 class Btor_CastOp<string mnemonic, TypeConstraint From, TypeConstraint To,
-                   list<OpTrait> traits = []> :
+                   list<Trait> traits = []> :
     Btor_Op<mnemonic, traits # [SameOperandsAndResultShape]>,
     Arguments<(ins From:$in)>,
     Results<(outs To:$out)> {
@@ -58,7 +73,7 @@ def UExtOp : BtorCastOp<"uext"> {
     ```
   }];
 
-  let verifier = [{ return verifyExtOp<IntegerType>(*this); }];
+  //let verifier = [{ return verifyExtOp<IntegerType>(*this); }];
 }
 
 def SExtOp : BtorCastOp<"sext"> {
@@ -77,7 +92,7 @@ def SExtOp : BtorCastOp<"sext"> {
     ```
   }];
 
-  let verifier = [{ return verifyExtOp<IntegerType>(*this); }];
+  //let verifier = [{ return verifyExtOp<IntegerType>(*this); }];
 }
 
 //===----------------------------------------------------------------------===//
@@ -119,13 +134,13 @@ def IteOp : Btor_Op<"ite", [NoSideEffect,
     Value getFalseValue() { return false_value(); }
   }];
 
-  let parser = [{
+  /*let parser = [{
     return parseIteOp(parser, result);
-  }];
+  }];*/
 
-  let printer = [{
+  /*let printer = [{
     return printIteOp(p, this);
-  }];
+  }];*/
 }
 
 def SliceOp : Btor_Op<"slice", [NoSideEffect,
@@ -160,13 +175,13 @@ def SliceOp : Btor_Op<"slice", [NoSideEffect,
       }]>
     ];
 
-  let parser = [{
+  /*let parser = [{
     return parseSliceOp(parser, result);
-  }];
+  }];*/
 
-  let verifier = [{ return verifySliceOp<IntegerType>(*this); }];
+  //let verifier = [{ return verifySliceOp<IntegerType>(*this); }];
 }
-
+*/
 //===----------------------------------------------------------------------===//
 // btor binary integer ops definitions
 //===----------------------------------------------------------------------===//
@@ -174,47 +189,31 @@ def SliceOp : Btor_Op<"slice", [NoSideEffect,
 // Base class for btor arithmetic operations.  Requires operands and
 // results to be of the same type, but does not constrain them to specific
 // types.
-class BtorArithmeticOp<string mnemonic, list<OpTrait> traits = []> :
-    Op<Btor_Dialect, mnemonic, traits #[NoSideEffect]
-    #ElementwiseMappable.traits> { }
+class BtorArithmeticOp<string mnemonic, list<Trait> traits = []> :
+    Op<Btor_Dialect, mnemonic, traits>;
 
 // This operation takes two operands and returns one result,
 // each of these is required to be of the same type.
 //  The custom assembly form of the operation is as follows
 //
 //     <op> %0, %1 : i32
-class BtorBinaryOp<string mnemonic, list<OpTrait> traits = []> :
+class BtorBinaryOp<string mnemonic, list<Trait> traits = []> :
     BtorArithmeticOp<mnemonic, !listconcat(traits, [SameOperandsAndResultType])>,
-    Arguments<(ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs)> {
-
-  let results = (outs AnyType:$result);
-
-  let parser = [{
-    return impl::parseOneResultSameOperandTypeOp(parser, result);
-  }];
-
-  let printer = [{
-    return printBtorBinaryOp(this->getOperation(), p);
-  }];
-}
+    Arguments<(ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs)>,
+    Results<(outs SignlessIntegerLike:$result)> {
+        let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($result)";
+    }
 
 // This operation takes two operands or the same type
 // and returns one result of type I1
 //
 //     <op> %0, %1 : i1
-class BtorBinaryDifferentResultTypeOp<string mnemonic, list<OpTrait> traits = []> :
+class BtorBinaryDifferentResultTypeOp<string mnemonic, list<Trait> traits = []> :
     BtorArithmeticOp<mnemonic, traits>,
     Arguments<(ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs)> {
 
   let results = (outs BoolLike:$result);
-
-  let parser = [{
-    return parseBinaryOverflowOp(parser, result);
-  }];
-
-  let printer = [{
-    return printBtorBinaryDifferentResultTypeOp(this->getOperation(), p);
-  }];
+  let hasCustomAssemblyFormat = 1;
 }
 
 def AddOp : BtorBinaryOp<"add", [Commutative]> {
@@ -532,7 +531,8 @@ def CmpOp : Btor_Op<"cmp", [NoSideEffect, SameTypeOperands,
   let builders = [
     OpBuilder<(ins "BtorPredicate":$predicate, "Value":$lhs,
                  "Value":$rhs), [{
-      ::buildCmpOp($_builder, $_state, predicate, lhs, rhs);
+      build($_builder, $_state, ::getI1SameShape(lhs.getType()),
+            predicate, lhs, rhs);
     }]>];
 
   
@@ -545,8 +545,6 @@ def CmpOp : Btor_Op<"cmp", [NoSideEffect, SameTypeOperands,
           getPredicateAttrName()).getInt();
     }
   }];
-
-  let verifier = [{ return success(); }];
 
   let assemblyFormat = "$predicate `,` $lhs `,` $rhs attr-dict `:` type($lhs)";
 } 
@@ -650,7 +648,7 @@ def ConcatOp : Btor_Op<"concat"> {
     let summary = "integer concatenation operation";
     let description = [{
         This operation takes two integer arguments of length N and M
-        and eturns an integer of length N+M
+        and returns an integer of length N+M
 
         Example:
         
@@ -663,51 +661,48 @@ def ConcatOp : Btor_Op<"concat"> {
                       SignlessIntegerLike:$rhs);
     let results = (outs SignlessIntegerLike:$result);
 
-    let parser = [{
-      return parseConcatOp(parser, result);
-    }];
-
-    let verifier = [{ return verifyConcatOp<IntegerType>(*this); }];
+    let hasCustomAssemblyFormat = 1;
+    let hasVerifier = 1;
 }
-
+/*
 //===----------------------------------------------------------------------===//
 // btor unary integer ops definitions
 //===----------------------------------------------------------------------===//
 
 // Base class for unary ops. Requires single operand and result. Individual
 // classes will have `operand` accessor.
-class BtorUnaryOp<string mnemonic, list<OpTrait> traits = []> :
+class BtorUnaryOp<string mnemonic, list<Trait> traits = []> :
     Op<Btor_Dialect, mnemonic, !listconcat(traits, [NoSideEffect])>,
     Arguments<(ins SignlessIntegerLike:$operand)> {
 
   let results = (outs AnyType);
 
-  let printer = [{
+  /*let printer = [{
     return printBtorUnaryOp(this->getOperation(), p);
-  }];
+  }];*/
 
-  let parser = [{
+  /*let parser = [{
     return parseUnaryOp(parser, result);
-  }];
+  }];*/
 }
 
 // This operation takes an operand
 // and returns one result of type I1
 //
 //     <op> %0 : i1
-class BtorUnaryDifferentResultTypeOp<string mnemonic, list<OpTrait> traits = []> :
+class BtorUnaryDifferentResultTypeOp<string mnemonic, list<Trait> traits = []> :
     Op<Btor_Dialect, mnemonic, !listconcat(traits, [NoSideEffect])>,
     Arguments<(ins SignlessIntegerLike:$operand)> {
 
   let results = (outs BoolLike:$result);
 
-  let parser = [{
+  /*let parser = [{
     return parseUnaryDifferentResultOp(parser, result);
-  }];
+  }];*/
 
-  let printer = [{
+  /*let printer = [{
     return printBtorUnaryOp(this->getOperation(), p);
-  }];
+  }];*/
 }
 
 def NotOp : BtorUnaryOp<"not", [SameOperandsAndResultType]> {
@@ -849,7 +844,10 @@ def AssertNotOp : Btor_Op<"assert_not"> {
     let assemblyFormat = "`(` $arg `)` attr-dict";
 }
 
-def ConstantOp : Btor_Op<"const", [ConstantLike, NoSideEffect]> {
+def ConstantOp : Btor_Op<"const", [ConstantLike, NoSideEffect,
+  DeclareOpInterfaceMethods<OpAsmOpInterface, ["getAsmResultNames"]>,
+  AllTypesMatch<["value", "result"]>,
+  DeclareOpInterfaceMethods<InferIntRangeInterface>]> {
   let summary = "integer constant";
   let description = [{
     The `constant` operation produces an SSA value equal to some constant
@@ -864,28 +862,20 @@ def ConstantOp : Btor_Op<"const", [ConstantLike, NoSideEffect]> {
   }];
 
   let arguments = (ins AnyAttr:$value);
-  let results = (outs AnyType);
+  let results = (outs AnyType:$result);
 
   let builders = [
-    OpBuilder<(ins "Attribute":$value),
-    [{ build($_builder, $_state, value.getType(), value); }]>,
     OpBuilder<(ins "Attribute":$value, "Type":$type),
     [{ build($_builder, $_state, type, value); }]>,
   ];
 
   let extraClassDeclaration = [{
-    Attribute getValue() { return (*this)->getAttr("value"); }
-  }];
-
-  let parser = [{
-    return parseConstantOp(parser, result);
-  }];
-
-  let printer = [{
-    return printConstantOp(p, *this);
+    static bool isBuildableWith(Attribute value, Type type);
   }];
 
   let hasFolder = 1;
+  let assemblyFormat = "attr-dict $value";
+  let hasVerifier = 1;
 }
 
 def AssumeOp : Btor_Op<"assume"> {
@@ -956,13 +946,13 @@ def InputOp : Btor_Op<"input"> {
         }]>
     ];
 
-    let printer = [{
+    /*let printer = [{
       return printInputOp(p, *this);
-    }];
+    }];*/
 
-    let parser = [{
+    /*let parser = [{
       return parseInputOp(parser, result);
-    }];
+    }];*/
 }
-
+*/
 #endif // BTOR_OPS
