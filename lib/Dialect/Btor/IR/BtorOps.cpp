@@ -85,72 +85,81 @@ static Type getI1SameShape(Type type) {
   return i1Type;
 }
 
-// //===----------------------------------------------------------------------===//
-// // SliceOp
-// //===----------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
+// SliceOp
+//===----------------------------------------------------------------------===//
 
-// static ParseResult parseSliceOp(OpAsmParser &parser, OperationState &result) {
+ParseResult SliceOp::parse(OpAsmParser &parser, OperationState &result) {
   
-//   Type resultType, operandType;
-//   SmallVector<OpAsmParser::OperandType, 3> operands;
-//   if (parser.parseOperandList(operands, /*requiredOperandCount=*/3) ||
-//       parser.parseOptionalAttrDict(result.attributes) || parser.parseColon() ||
-//       parser.parseType(operandType) || parser.parseOptionalComma() || 
-//       parser.parseType(resultType))
-//     return failure();
+  Type resultType, operandType;
+  SmallVector<OpAsmParser::UnresolvedOperand, 3> operands;
+  if (parser.parseOperandList(operands, /*requiredOperandCount=*/3) ||
+      parser.parseOptionalAttrDict(result.attributes) || parser.parseColon() ||
+      parser.parseType(operandType) || parser.parseOptionalComma() || 
+      parser.parseType(resultType))
+    return failure();
 
-//   result.addTypes(resultType);
-//   return parser.resolveOperands(operands,
-//                                 {operandType, operandType, operandType},
-//                                 parser.getNameLoc(), result.operands);
-// }
+  result.addTypes(resultType);
+  return parser.resolveOperands(operands,
+                                {operandType, operandType, operandType},
+                                parser.getNameLoc(), result.operands);
+}
 
-// template <typename ValType, typename Op>
-// static LogicalResult verifySliceOp(Op op) {
-//   Type srcType = getElementTypeOrSelf(op.in().getType());
-//   Type dstType = getElementTypeOrSelf(op.getType());
+/// A custom slice operation printer
+void SliceOp::print(OpAsmPrinter &p) {
+  assert(getNumOperands() == 3 && "slice op should have one operand");
+  assert((*this)->getNumResults() == 1 && "slice op should have one result");
 
-//   if (srcType.cast<ValType>().getWidth() <= dstType.cast<ValType>().getWidth())
-//     return op.emitError("result type ")
-//            << dstType << " must be less than operand type " << srcType;
+  p << ' ' << getOperand(0) << ", " << getOperand(1) << ", " << getOperand(2);
+  p.printOptionalAttrDict((*this)->getAttrs());
+  p << " : " << getOperand(0).getType() << ", " << getType();
+}
 
-//   return success();
-// }
+LogicalResult SliceOp::verify() {
+  Type srcType = getElementTypeOrSelf(in().getType());
+  Type dstType = getElementTypeOrSelf(getType());
 
-// //===----------------------------------------------------------------------===//
-// // IteOp
-// //===----------------------------------------------------------------------===//
+  if (srcType.cast<IntegerType>().getWidth() <= dstType.cast<IntegerType>().getWidth())
+    return emitError("result type ")
+           << dstType << " must be less than operand type " << srcType;
 
-// static void printIteOp(OpAsmPrinter &p, IteOp *op) {
-//   p << " " << op->getOperands();
-//   p << " : ";
-//   if (ShapedType condType = op->getCondition().getType().dyn_cast<ShapedType>())
-//     p << condType << ", ";
-//   p << op->getType();
-// }
+  return success();
+}
 
-// static ParseResult parseIteOp(OpAsmParser &parser, OperationState &result) {
-//   Type conditionType, resultType;
-//   SmallVector<OpAsmParser::OperandType, 3> operands;
-//   if (parser.parseOperandList(operands, /*requiredOperandCount=*/3) ||
-//       parser.parseOptionalAttrDict(result.attributes) ||
-//       parser.parseColonType(resultType))
-//     return failure();
+//===----------------------------------------------------------------------===//
+// IteOp
+//===----------------------------------------------------------------------===//
 
-//   // Check for the explicit condition type if this is a masked tensor or vector.
-//   if (succeeded(parser.parseOptionalComma())) {
-//     conditionType = resultType;
-//     if (parser.parseType(resultType))
-//       return failure();
-//   } else {
-//     conditionType = parser.getBuilder().getI1Type();
-//   }
+void IteOp::print(OpAsmPrinter &p) {
+  p << " " << getOperands();
+  p << " : ";
+  if (ShapedType condType = getCondition().getType().dyn_cast<ShapedType>())
+    p << condType << ", ";
+  p << getType();
+}
 
-//   result.addTypes(resultType);
-//   return parser.resolveOperands(operands,
-//                                 {conditionType, resultType, resultType},
-//                                 parser.getNameLoc(), result.operands);
-// }
+ParseResult IteOp::parse(OpAsmParser &parser, OperationState &result) {
+  Type conditionType, resultType;
+  SmallVector<OpAsmParser::UnresolvedOperand, 3> operands;
+  if (parser.parseOperandList(operands, /*requiredOperandCount=*/3) ||
+      parser.parseOptionalAttrDict(result.attributes) ||
+      parser.parseColonType(resultType))
+    return failure();
+
+  // Check for the explicit condition type if this is a masked tensor or vector.
+  if (succeeded(parser.parseOptionalComma())) {
+    conditionType = resultType;
+    if (parser.parseType(resultType))
+      return failure();
+  } else {
+    conditionType = parser.getBuilder().getI1Type();
+  }
+
+  result.addTypes(resultType);
+  return parser.resolveOperands(operands,
+                                {conditionType, resultType, resultType},
+                                parser.getNameLoc(), result.operands);
+}
 
 //===----------------------------------------------------------------------===//
 // Overflow Operations
@@ -238,21 +247,29 @@ void USubOverflowOp::print(OpAsmPrinter& printer) {
     printBinaryOverflowOp(printer, *this);
 }   
 
-// //===----------------------------------------------------------------------===//
-// // Extension Operations
-// //===----------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
+// Extension Operations
+//===----------------------------------------------------------------------===//
 
-// template <typename ValType, typename Op>
-// static LogicalResult verifyExtOp(Op op) {
-//   Type srcType = getElementTypeOrSelf(op.in().getType());
-//   Type dstType = getElementTypeOrSelf(op.getType());
+template <typename ValType, typename Op>
+static LogicalResult verifyExtOp(Op op) {
+  Type srcType = getElementTypeOrSelf(op.in().getType());
+  Type dstType = getElementTypeOrSelf(op.getType());
 
-//   if (srcType.cast<ValType>().getWidth() >= dstType.cast<ValType>().getWidth())
-//     return op.emitError("result type ")
-//            << dstType << " must be wider than operand type " << srcType;
+  if (srcType.cast<ValType>().getWidth() >= dstType.cast<ValType>().getWidth())
+    return op.emitError("result type ")
+           << dstType << " must be wider than operand type " << srcType;
 
-//   return success();
-// }
+  return success();
+}
+
+LogicalResult UExtOp::verify() {
+  return verifyExtOp<IntegerType>(*this);
+}
+
+LogicalResult SExtOp::verify() {
+  return verifyExtOp<IntegerType>(*this);
+}
 
 //===----------------------------------------------------------------------===//
 // ConcatOp
@@ -286,7 +303,6 @@ void ConcatOp::print(OpAsmPrinter &p) {
     << getOperand(1).getType() << ", " << getResult().getType();
 }
 
-// template <typename ValType, typename Op>
 LogicalResult ConcatOp::verify() {
   Type firstType = getElementTypeOrSelf(lhs().getType());
   Type secondType = getElementTypeOrSelf(rhs().getType());

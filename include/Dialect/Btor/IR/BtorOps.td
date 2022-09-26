@@ -26,7 +26,7 @@ include "mlir/Interfaces/VectorInterfaces.td"
 class Btor_Op<string mnemonic, list<Trait> traits = []> :
         Op<Btor_Dialect, mnemonic, traits>;
 
-/*
+
 //===----------------------------------------------------------------------===//
 // btor integer bit cast ops definitions
 //===----------------------------------------------------------------------===//
@@ -37,12 +37,6 @@ class Btor_CastOp<string mnemonic, TypeConstraint From, TypeConstraint To,
     Btor_Op<mnemonic, traits # [SameOperandsAndResultShape]>,
     Arguments<(ins From:$in)>,
     Results<(outs To:$out)> {
-  let builders = [
-    OpBuilder<(ins "Value":$source, "Type":$destType), [{
-      impl::buildCastOp($_builder, $_state, source, destType);
-    }]>
-  ];
-
   let assemblyFormat = "$in attr-dict `:` type($in) `to` type($out)";
 }
 
@@ -73,7 +67,7 @@ def UExtOp : BtorCastOp<"uext"> {
     ```
   }];
 
-  //let verifier = [{ return verifyExtOp<IntegerType>(*this); }];
+  let hasVerifier = 1;
 }
 
 def SExtOp : BtorCastOp<"sext"> {
@@ -92,7 +86,7 @@ def SExtOp : BtorCastOp<"sext"> {
     ```
   }];
 
-  //let verifier = [{ return verifyExtOp<IntegerType>(*this); }];
+  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -118,15 +112,7 @@ def IteOp : Btor_Op<"ite", [NoSideEffect,
   let arguments = (ins BoolLike:$condition,
                       SignlessIntegerLike:$true_value,
                       SignlessIntegerLike:$false_value);
-  let results = (outs AnyType:$result);
-
-  let builders = [
-    OpBuilder<(ins "Value":$condition, "Value":$trueValue, "Value":$falseValue),
-     [{
-       $_state.addOperands({condition, trueValue, falseValue});
-       $_state.addTypes(trueValue.getType());
-      }]>
-    ];
+  let results = (outs SignlessIntegerLike:$result);
   
   let extraClassDeclaration = [{
     Value getCondition() { return condition(); }
@@ -134,13 +120,7 @@ def IteOp : Btor_Op<"ite", [NoSideEffect,
     Value getFalseValue() { return false_value(); }
   }];
 
-  /*let parser = [{
-    return parseIteOp(parser, result);
-  }];*/
-
-  /*let printer = [{
-    return printIteOp(p, this);
-  }];*/
+  let hasCustomAssemblyFormat = 1;
 }
 
 def SliceOp : Btor_Op<"slice", [NoSideEffect,
@@ -163,7 +143,7 @@ def SliceOp : Btor_Op<"slice", [NoSideEffect,
   let arguments = (ins SignlessIntegerLike:$in,
                       SignlessIntegerLike:$upper_bound,
                       SignlessIntegerLike:$lower_bound);
-  let results = (outs AnyType:$result);
+  let results = (outs SignlessIntegerLike:$result);
 
   let builders = [
     OpBuilder<(ins "Value":$in, 
@@ -175,13 +155,10 @@ def SliceOp : Btor_Op<"slice", [NoSideEffect,
       }]>
     ];
 
-  /*let parser = [{
-    return parseSliceOp(parser, result);
-  }];*/
-
-  //let verifier = [{ return verifySliceOp<IntegerType>(*this); }];
+  let hasCustomAssemblyFormat = 1;
+  let hasVerifier = 1;
 }
-*/
+
 //===----------------------------------------------------------------------===//
 // btor binary integer ops definitions
 //===----------------------------------------------------------------------===//
