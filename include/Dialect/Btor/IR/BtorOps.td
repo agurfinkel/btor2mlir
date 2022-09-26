@@ -664,7 +664,7 @@ def ConcatOp : Btor_Op<"concat"> {
     let hasCustomAssemblyFormat = 1;
     let hasVerifier = 1;
 }
-/*
+
 //===----------------------------------------------------------------------===//
 // btor unary integer ops definitions
 //===----------------------------------------------------------------------===//
@@ -672,18 +672,12 @@ def ConcatOp : Btor_Op<"concat"> {
 // Base class for unary ops. Requires single operand and result. Individual
 // classes will have `operand` accessor.
 class BtorUnaryOp<string mnemonic, list<Trait> traits = []> :
-    Op<Btor_Dialect, mnemonic, !listconcat(traits, [NoSideEffect])>,
-    Arguments<(ins SignlessIntegerLike:$operand)> {
-
-  let results = (outs AnyType);
-
-  /*let printer = [{
-    return printBtorUnaryOp(this->getOperation(), p);
-  }];*/
-
-  /*let parser = [{
-    return parseUnaryOp(parser, result);
-  }];*/
+    Op<Btor_Dialect, mnemonic, !listconcat(traits, [NoSideEffect,
+        SameOperandsAndResultType])>,
+    Arguments<(ins SignlessIntegerLike:$operand)>,
+    Results<(outs SignlessIntegerLike:$result)> {
+    
+    let assemblyFormat = "$operand attr-dict `:` type($result)";
 }
 
 // This operation takes an operand
@@ -695,17 +689,10 @@ class BtorUnaryDifferentResultTypeOp<string mnemonic, list<Trait> traits = []> :
     Arguments<(ins SignlessIntegerLike:$operand)> {
 
   let results = (outs BoolLike:$result);
-
-  /*let parser = [{
-    return parseUnaryDifferentResultOp(parser, result);
-  }];*/
-
-  /*let printer = [{
-    return printBtorUnaryOp(this->getOperation(), p);
-  }];*/
+  let hasCustomAssemblyFormat = 1;
 }
 
-def NotOp : BtorUnaryOp<"not", [SameOperandsAndResultType]> {
+def NotOp : BtorUnaryOp<"not"> {
   let summary = "integer negation";
   let description = [{
     Syntax:
@@ -722,7 +709,7 @@ def NotOp : BtorUnaryOp<"not", [SameOperandsAndResultType]> {
   }];
 }
 
-def IncOp : BtorUnaryOp<"inc", [SameOperandsAndResultType]> {
+def IncOp : BtorUnaryOp<"inc"> {
   let summary = "integer increment by one";
   let description = [{
     Syntax:
@@ -739,7 +726,7 @@ def IncOp : BtorUnaryOp<"inc", [SameOperandsAndResultType]> {
   }];
 }
 
-def DecOp : BtorUnaryOp<"dec", [SameOperandsAndResultType]> {
+def DecOp : BtorUnaryOp<"dec"> {
   let summary = "integer decrement by one";
   let description = [{
     Syntax:
@@ -756,7 +743,7 @@ def DecOp : BtorUnaryOp<"dec", [SameOperandsAndResultType]> {
   }];
 }
 
-def NegOp : BtorUnaryOp<"neg", [SameOperandsAndResultType]> {
+def NegOp : BtorUnaryOp<"neg"> {
   let summary = "integer negation";
   let description = [{
     Syntax:
@@ -785,7 +772,7 @@ def RedAndOp : BtorUnaryDifferentResultTypeOp<"redand"> {
 
     ```mlir
     // Scalar redand value.
-    %a = btor.redand %b : i32
+    %a = btor.redand %b : i1
     ```
   }];
 }
@@ -802,7 +789,7 @@ def RedOrOp : BtorUnaryDifferentResultTypeOp<"redor"> {
 
     ```mlir
     // Scalar redand value.
-    %a = btor.redand %b : i32
+    %a = btor.redand %b : i1
     ```
   }];
 }
@@ -819,7 +806,7 @@ def RedXorOp : BtorUnaryDifferentResultTypeOp<"redxor"> {
 
     ```mlir
     // Scalar redand value.
-    %a = btor.redand %b : i32
+    %a = btor.redand %b : i1
     ```
   }];
 }
@@ -845,9 +832,7 @@ def AssertNotOp : Btor_Op<"assert_not"> {
 }
 
 def ConstantOp : Btor_Op<"const", [ConstantLike, NoSideEffect,
-  DeclareOpInterfaceMethods<OpAsmOpInterface, ["getAsmResultNames"]>,
-  AllTypesMatch<["value", "result"]>,
-  DeclareOpInterfaceMethods<InferIntRangeInterface>]> {
+  AllTypesMatch<["value", "result"]>]> {
   let summary = "integer constant";
   let description = [{
     The `constant` operation produces an SSA value equal to some constant
@@ -873,9 +858,7 @@ def ConstantOp : Btor_Op<"const", [ConstantLike, NoSideEffect,
     static bool isBuildableWith(Attribute value, Type type);
   }];
 
-  let hasFolder = 1;
   let assemblyFormat = "attr-dict $value";
-  let hasVerifier = 1;
 }
 
 def AssumeOp : Btor_Op<"assume"> {
@@ -946,13 +929,7 @@ def InputOp : Btor_Op<"input"> {
         }]>
     ];
 
-    /*let printer = [{
-      return printInputOp(p, *this);
-    }];*/
-
-    /*let parser = [{
-      return parseInputOp(parser, result);
-    }];*/
+    let hasCustomAssemblyFormat = 1;
 }
-*/
+
 #endif // BTOR_OPS
