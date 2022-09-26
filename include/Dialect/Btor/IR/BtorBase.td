@@ -1,4 +1,4 @@
-//===- BtorDialect.td - Btor dialect -----------*- tablegen -*-===//
+//===- BtorBase.td - Btor dialect -----------*- tablegen -*-===//
 //
 // This file is licensed under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,9 +6,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef BTOR_DIALECT
-#define BTOR_DIALECT
+#ifndef BTOR_BASE
+#define BTOR_BASE
 
+include "mlir/IR/EnumAttr.td"
 include "mlir/IR/OpBase.td"
 
 //===----------------------------------------------------------------------===//
@@ -42,12 +43,5 @@ def Btor_Dialect : Dialect {
     let summary = "A BTOR2 MLIR dialect";
     let cppNamespace = "::mlir::btor";
 }
-
-//===----------------------------------------------------------------------===//
-// Base btor operation definition.
-//===----------------------------------------------------------------------===//
-
-class Btor_Op<string mnemonic, list<OpTrait> traits = []> :
-        Op<Btor_Dialect, mnemonic, traits>;
 
 #endif // BTOR_DIALECT

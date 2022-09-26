@@ -9,5 +9,6 @@ add_mlir_dialect_library(MLIRBtor
         MLIRBtorOpsIncGen
 
 	LINK_LIBS PUBLIC
+    MLIRDialect
 	MLIRIR
 	)

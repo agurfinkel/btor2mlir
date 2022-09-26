@@ -19,16 +19,16 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/ToolOutputFile.h"
 
-#include "Dialect/Btor/IR/BtorDialect.h"
+#include "Dialect/Btor/IR/Btor.h"
 #include "Conversion/Passes.h"
 
 int main(int argc, char **argv) {
   mlir::registerAllPasses();
-  mlir::btor::registerBtorConversionPasses();
+  // mlir::btor::registerBtorConversionPasses();
 
   mlir::DialectRegistry registry;
   registry.insert<mlir::btor::BtorDialect>();
-  registry.insert<mlir::StandardOpsDialect>();
+  registry.insert<mlir::arith::ArithmeticDialect, mlir::func::FuncDialect>();
   // Add the following to include *all* MLIR Core dialects, or selectively
   // include what you need like above. You only need to register dialects that
   // will be *parsed* by the tool, not the one generated
