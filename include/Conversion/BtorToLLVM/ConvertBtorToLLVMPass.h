@@ -14,7 +14,7 @@ namespace btor {
     void populateBtorToLLVMConversionPatterns(LLVMTypeConverter &converter,
                                                 RewritePatternSet &patterns);
 
-    /// Creates a pass to convert the Btor dialect into the Standard dialect.
+    /// Creates a pass to convert the Btor dialect into the LLVM dialect.
     std::unique_ptr<mlir::Pass> createLowerToLLVMPass();
 
 } // namespace btor

@@ -1,7 +1,7 @@
 #ifndef BTOR_CONVERSION_PASSES_H
 #define BTOR_CONVERSION_PASSES_H
 
-#include "Conversion/BtorToStandard/ConvertBtorToStandardPass.h"
+#include "Conversion/BtorToMath/ConvertBtorToMathPass.h"
 #include "Conversion/BtorToLLVM/ConvertBtorToLLVMPass.h"
 
 namespace mlir {

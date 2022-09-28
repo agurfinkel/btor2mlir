@@ -1,11 +1,12 @@
 #include "Conversion/BtorToLLVM/ConvertBtorToLLVMPass.h"
-#include "Dialect/Btor/IR/BtorOps.h"
+#include "Dialect/Btor/IR/Btor.h"
 
 #include "../PassDetail.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Conversion/LLVMCommon/ConversionTarget.h"
 #include "mlir/Conversion/LLVMCommon/VectorPattern.h"
 #include "mlir/IR/TypeRange.h"
+#include "mlir/IR/TypeUtilities.h"
 
 using namespace mlir;
 

@@ -4,20 +4,20 @@
 include "mlir/Pass/PassBase.td"
 
 //===----------------------------------------------------------------------===//
-// BtorToStandard
+// BtorToArithmetic
 //===----------------------------------------------------------------------===//
 
-def ConvertBtorToStandard : Pass<"convert-btor-to-std", "ModuleOp"> {
-  let summary = "Convert operations from the Btor to the Standard dialect";
+def ConvertBtorToArithmetic : Pass<"convert-btor-to-math", "ModuleOp"> {
+  let summary = "Convert Btor Dialect to Arithmetic dialect";
   let description = [{
-    Convert btor operations into the Standard dialect operations.
+    Convert btor operations into the Arithmetic dialect operations.
 
-    If other operations are present and their results are required by the Standard 
-    dialect operations, the pass will fail.  Any Standard operations or types
+    If other operations are present and their results are required by the Arithmetic 
+    dialect operations, the pass will fail.  Any Arithmetic operations or types
     already present in the IR will be kept as is.
   }];
-  let constructor = "mlir::btor::createLowerToStandardPass()";
-  let dependentDialects = ["StandardOpsDialect"];
+  let constructor = "mlir::btor::createLowerToMathPass()";
+  let dependentDialects = ["ArithmeticDialect"];
 }
 
 //===----------------------------------------------------------------------===//

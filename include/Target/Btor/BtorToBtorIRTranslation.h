@@ -7,14 +7,15 @@
 #ifndef TARGET_BTOR_BTORTOBTORIRTRANSLATION_H
 #define TARGET_BTOR_BTORTOBTORIRTRANSLATION_H
 
-#include "Dialect/Btor/IR/BtorDialect.h"
-#include "Dialect/Btor/IR/BtorOps.h"
+#include "Dialect/Btor/IR/Btor.h"
 
 #include "mlir/IR/OwningOpRef.h"
 #include "mlir/Support/LLVM.h"
-#include "mlir/Dialect/StandardOps/IR/Ops.h"
+#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 
 #include <vector>
 #include <map>
@@ -84,7 +85,7 @@ class Deserialize {
     return m_cache.count(id) != 0;
   }
 
-  OwningOpRef<FuncOp> buildMainFunction();
+  OwningOpRef<mlir::func::FuncOp> buildMainFunction();
   
  private: 
 ///===----------------------------------------------------------------------===//
@@ -224,7 +225,7 @@ class Deserialize {
   }
 
   void buildReturnOp(const std::vector<Value> &results) {
-    m_builder.create<ReturnOp>(m_unknownLoc, results);
+    m_builder.create<mlir::func::ReturnOp>(m_unknownLoc, results);
   }
 
    Operation * buildInputOp(const unsigned width) {

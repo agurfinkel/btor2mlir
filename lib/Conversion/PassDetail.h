@@ -4,7 +4,8 @@
 #include "mlir/Pass/Pass.h"
 
 namespace mlir {
-class StandardOpsDialect;
+class ArithmeticDialect;
+class ModuleOp;
 
 // Forward declaration from Dialect.h
 template <typename ConcreteDialect>

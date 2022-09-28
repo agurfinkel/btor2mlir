@@ -15,7 +15,7 @@
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Translation.h"
 
-#include "Dialect/Btor/IR/BtorDialect.h"
+#include "Dialect/Btor/IR/Btor.h"
 #include "Target/Btor/BtorToBtorIRTranslation.h"
 
 int main(int argc, char **argv) {
