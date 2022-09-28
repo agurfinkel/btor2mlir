@@ -1,5 +1,5 @@
-#include "Conversion/BtorToStandard/ConvertBtorToStandardPass.h"
-#include "Dialect/Btor/IR/BtorOps.h"
+#include "Conversion/BtorToMath/ConvertBtorToMathPass.h"
+#include "Dialect/Btor/IR/Btor.h"
 
 #include "../PassDetail.h"
 #include "mlir/Pass/Pass.h"
@@ -9,10 +9,10 @@
 using namespace mlir;
 using namespace mlir::btor;
 
-#define PASS_NAME "convert-btor-to-std"
+#define PASS_NAME "convert-btor-to-math"
 
 namespace {
-struct BtorToStandardLoweringPass : public PassWrapper<BtorToStandardLoweringPass, OperationPass<ModuleOp>> {
+struct BtorToMathLoweringPass : public PassWrapper<BtorToMathLoweringPass, OperationPass<ModuleOp>> {
     void getDependentDialects(DialectRegistry &registry) const override {
         registry.insert<LLVM::LLVMDialect>();
     }
@@ -385,7 +385,7 @@ LogicalResult ConstantLowering::matchAndRewrite(mlir::btor::ConstantOp constOp, 
 // Populate Lowering Patterns
 //===----------------------------------------------------------------------===//
 
-void mlir::btor::populateBtorToStdConversionPatterns(RewritePatternSet &patterns) {
+void mlir::btor::populateBtorToMathConversionPatterns(RewritePatternSet &patterns) {
   patterns.add<AddLowering, MulLowering, AndLowering>(patterns.getContext());
   patterns.add<CmpLowering, AssertLowering, NotLowering>(patterns.getContext());
   patterns.add<XOrLowering, XnorLowering, NandLowering>(patterns.getContext());
@@ -397,9 +397,9 @@ void mlir::btor::populateBtorToStdConversionPatterns(RewritePatternSet &patterns
   patterns.add<RotateLLowering, ConstantLowering>(patterns.getContext());
 }
 
-void BtorToStandardLoweringPass::runOnOperation() {
+void BtorToMathLoweringPass::runOnOperation() {
     RewritePatternSet patterns(&getContext());
-    populateBtorToStdConversionPatterns(patterns);
+    populateBtorToMathConversionPatterns(patterns);
     /// Configure conversion to lower out btor.add; Anything else is fine.
     ConversionTarget target(getContext());
     target.addIllegalOp<mlir::btor::AddOp, mlir::btor::MulOp, mlir::btor::AndOp>();
@@ -418,7 +418,7 @@ void BtorToStandardLoweringPass::runOnOperation() {
 }
 
 /// Create a pass for lowering operations the remaining `Btor` operations
-// to the Standard dialect for codegen.
-std::unique_ptr<mlir::Pass> mlir::btor::createLowerToStandardPass() {
-    return std::make_unique<BtorToStandardLoweringPass>(); 
+// to the Math dialect for codegen.
+std::unique_ptr<mlir::Pass> mlir::btor::createLowerToMathPass() {
+    return std::make_unique<BtorToMathLoweringPass>(); 
 }

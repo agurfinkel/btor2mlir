@@ -49,7 +49,14 @@ def SignlessFixedWidthIntegerLike : TypeConstraint<Or<[
 // Cast from an integer type to another integer type.
 class BtorCastOp<string mnemonic> :
     Btor_CastOp<mnemonic, SignlessFixedWidthIntegerLike,
-                          SignlessFixedWidthIntegerLike>;
+                          SignlessFixedWidthIntegerLike> {
+  let builders = [
+    OpBuilder<(ins "Value":$in, "Type":$type),
+     [{
+        build($_builder, $_state, type, in);
+      }]>
+    ];
+}
 
 
 def UExtOp : BtorCastOp<"uext"> {
@@ -808,8 +815,8 @@ def AssertNotOp : Btor_Op<"assert_not"> {
     let assemblyFormat = "`(` $arg `)` attr-dict";
 }
 
-def ConstantOp : Btor_Op<"const", [ConstantLike, NoSideEffect,
-  AllTypesMatch<["value", "result"]>]> {
+def ConstantOp : Btor_Op<"constant", [ConstantLike, NoSideEffect,
+    AllTypesMatch<["value", "result"]>]> {
   let summary = "integer constant";
   let description = [{
     The `constant` operation produces an SSA value equal to some constant
@@ -836,6 +843,8 @@ def ConstantOp : Btor_Op<"const", [ConstantLike, NoSideEffect,
   }];
 
   let assemblyFormat = "attr-dict $value";
+  let hasFolder = 1;
+  let hasVerifier = 1;
 }
 
 def AssumeOp : Btor_Op<"assume"> {

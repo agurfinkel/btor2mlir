@@ -12,7 +12,6 @@
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/TypeUtilities.h"
 #include "mlir/IR/Operation.h"
-
 #include "mlir/Dialect/CommonFolders.h"
 #include "mlir/IR/Matchers.h"
 #include "mlir/IR/PatternMatch.h"
@@ -159,6 +158,30 @@ ParseResult IteOp::parse(OpAsmParser &parser, OperationState &result) {
   return parser.resolveOperands(operands,
                                 {conditionType, resultType, resultType},
                                 parser.getNameLoc(), result.operands);
+}
+
+//===----------------------------------------------------------------------===//
+// ConstantOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult ConstantOp::verify() {
+  auto type = getType();
+  // The value's type must match the return type.
+  if (value().getType() != type) {
+    return emitOpError() << "value type " << value().getType()
+                         << " must match return type: " << type;
+  }
+  // Only integer attribute are acceptable.
+  if (!value().isa<IntegerAttr>()) {
+    return emitOpError(
+        "value must be an integer attribute");
+  }
+  return success();
+}
+
+OpFoldResult ConstantOp::fold(ArrayRef<Attribute> operands) {
+  assert(operands.empty() && "constant has no operands");
+  return value();
 }
 
 //===----------------------------------------------------------------------===//

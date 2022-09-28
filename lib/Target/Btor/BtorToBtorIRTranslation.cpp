@@ -1,12 +1,11 @@
 #include "Target/Btor/BtorToBtorIRTranslation.h"
-#include "Dialect/Btor/IR/BtorDialect.h"
-#include "Dialect/Btor/IR/BtorOps.h"
+#include "Dialect/Btor/IR/Btor.h"
 
-#include "mlir/Dialect/StandardOps/IR/Ops.h"
+#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/Dialect.h"
-#include "mlir/Translation.h"
+#include "mlir/Tools/mlir-translate/Translation.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
@@ -16,6 +15,8 @@
 
 using namespace mlir;
 using namespace mlir::btor;
+using namespace mlir::func;
+using namespace mlir::cf;
 
 void Deserialize::parseModelLine(Btor2Line *l) {
   setLineWithId(l->id, l);
@@ -483,13 +484,14 @@ OwningOpRef<FuncOp> Deserialize::buildMainFunction() {
   OwningOpRef<FuncOp> funcOp = cast<FuncOp>(Operation::create(state));
   Region &region = funcOp->getBody();
   OpBuilder::InsertionGuard guard(m_builder);
-  auto *body = m_builder.createBlock(&region, {}, {});
+  auto *body = m_builder.createBlock(&region, {}, {}, {});
   m_builder.setInsertionPointToStart(body);
   // make call to init function to initialize latches
   auto initResults = buildInitFunction(returnTypes);
   auto opPosition = m_builder.getInsertionPoint();
   // Create infinite loop that inlines next function
-  Block *loopBlock = m_builder.createBlock(body->getParent(), {}, {returnTypes});
+  std::vector<Location> returnLocs(m_states.size(), funcOp->getLoc());
+  Block *loopBlock = m_builder.createBlock(body->getParent(), {}, {returnTypes}, {returnLocs});
   auto nextResults = buildNextFunction(returnTypes, loopBlock);
   m_builder.create<BranchOp>(m_unknownLoc, loopBlock, nextResults);
   // add call to branch from original basic block
@@ -499,12 +501,13 @@ OwningOpRef<FuncOp> Deserialize::buildMainFunction() {
   return funcOp;
 }
 
-static OwningModuleRef deserializeModule(const llvm::MemoryBuffer *input,
+static OwningOpRef<ModuleOp> deserializeModule(const llvm::MemoryBuffer *input,
                                          MLIRContext *context) {
   context->loadDialect<btor::BtorDialect>();
-  context->loadDialect<StandardOpsDialect>();
+  context->loadDialect<arith::ArithmeticDialect, mlir::func::FuncDialect, 
+                       mlir::cf::ControlFlowDialect>();
 
-  OwningModuleRef owningModule(ModuleOp::create(FileLineColLoc::get(
+  OwningOpRef<ModuleOp> owningModule(ModuleOp::create(FileLineColLoc::get(
       context, input->getBufferIdentifier(), /*line=*/0, /*column=*/0)));
 
   Deserialize deserialize(context, input->getBufferIdentifier().str());
