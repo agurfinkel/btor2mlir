@@ -9,6 +9,13 @@
 #ifndef SMT_OPS
 #define SMT_OPS
 
-include "SmtDialect.td"
+include "SmtBase.td"
+
+//===----------------------------------------------------------------------===//
+// Base Smt operation definition.
+//===----------------------------------------------------------------------===//
+
+class Smt_Op<string mnemonic, list<Trait> traits = []> :
+        Op<Smt_Dialect, mnemonic, traits>;
 
 #endif // SMT_OPS
