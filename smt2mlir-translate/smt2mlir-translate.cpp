@@ -15,7 +15,7 @@
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Translation.h"
 
-#include "Dialect/Smt/IR/SmtDialect.h"
+#include "Dialect/Smt/IR/Smt.h"
 
 int main(int argc, char **argv) {
   mlir::registerAllTranslations();

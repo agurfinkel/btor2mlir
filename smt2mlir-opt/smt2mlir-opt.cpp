@@ -19,7 +19,7 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/ToolOutputFile.h"
 
-#include "Dialect/Smt/IR/SmtDialect.h"
+#include "Dialect/Smt/IR/Smt.h"
 #include "Conversion/Passes.h"
 
 int main(int argc, char **argv) {
@@ -27,7 +27,6 @@ int main(int argc, char **argv) {
 
   mlir::DialectRegistry registry;
   registry.insert<mlir::smt::SmtDialect>();
-  registry.insert<mlir::StandardOpsDialect>();
 
   return mlir::asMainReturnCode(
       mlir::MlirOptMain(argc, argv, "Smt optimizer driver\n", registry));

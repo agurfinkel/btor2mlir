@@ -6,8 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Dialect/Smt/IR/SmtDialect.h"
-#include "Dialect/Smt/IR/SmtOps.h"
+#include "Dialect/Smt/IR/Smt.h"
 
 #include "Dialect/Smt/IR/SmtOpsDialect.cpp.inc"
 

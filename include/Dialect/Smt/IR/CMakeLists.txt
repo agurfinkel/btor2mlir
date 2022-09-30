@@ -1,10 +1,6 @@
 set(LLVM_TARGET_DEFINITIONS SmtOps.td)
-mlir_tablegen(SmtOps.h.inc -gen-op-decls)
-mlir_tablegen(SmtOps.cpp.inc -gen-op-defs)
-mlir_tablegen(SmtOpsDialect.h.inc -gen-dialect-decls)
-mlir_tablegen(SmtOpsDialect.cpp.inc -gen-dialect-defs)
 mlir_tablegen(SmtOpsEnums.h.inc -gen-enum-decls)
 mlir_tablegen(SmtOpsEnums.cpp.inc -gen-enum-defs)
-add_public_tablegen_target(MLIRSmtOpsIncGen)
+add_mlir_dialect(SmtOps smt)
 
 add_mlir_doc(SmtOps SmtOps Dialects/ -gen-op-doc)

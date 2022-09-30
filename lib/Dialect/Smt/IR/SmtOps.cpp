@@ -6,8 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Dialect/Smt/IR/SmtDialect.h"
-#include "Dialect/Smt/IR/SmtOps.h"
+#include "Dialect/Smt/IR/Smt.h"
 
 #define GET_OP_CLASSES
 #include "Dialect/Smt/IR/SmtOps.cpp.inc"

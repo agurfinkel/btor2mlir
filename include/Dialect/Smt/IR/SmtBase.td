@@ -9,6 +9,7 @@
 #ifndef SMT_DIALECT
 #define SMT_DIALECT
 
+include "mlir/IR/EnumAttr.td"
 include "mlir/IR/OpBase.td"
 
 //===----------------------------------------------------------------------===//
@@ -42,12 +43,5 @@ def Smt_Dialect : Dialect {
     let summary = "An SMT2 MLIR dialect";
     let cppNamespace = "::mlir::smt";
 }
-
-//===----------------------------------------------------------------------===//
-// Base Smt operation definition.
-//===----------------------------------------------------------------------===//
-
-class Smt_Op<string mnemonic, list<OpTrait> traits = []> :
-        Op<Smt_Dialect, mnemonic, traits>;
 
 #endif // SMT_DIALECT
