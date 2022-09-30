@@ -190,7 +190,7 @@ OpFoldResult ConstantOp::fold(ArrayRef<Attribute> operands) {
 
 static ParseResult parseBinaryOverflowOp(OpAsmParser &parser,
                                   OperationState &result) {  
-  Type operandType, resultType;
+  Type operandType;
   SmallVector<OpAsmParser::UnresolvedOperand, 2> operands;
   if (parser.parseOperandList(operands, /*requiredOperandCount=*/2) ||
       parser.parseOptionalAttrDict(result.attributes) ||

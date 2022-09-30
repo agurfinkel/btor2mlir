@@ -302,7 +302,6 @@ Operation * Deserialize::createMLIR(const Btor2Line *line,
   case BTOR2_TAG_justice:
   case BTOR2_TAG_output:
   case BTOR2_TAG_write:
-  default:
     break;
   }
   return res;
