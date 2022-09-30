@@ -7,7 +7,7 @@ include "mlir/Pass/PassBase.td"
 // BtorToArithmetic
 //===----------------------------------------------------------------------===//
 
-def ConvertBtorToArithmetic : Pass<"convert-btor-to-arith"> {
+def ConvertBtorToArithmetic : Pass<"convert-btor-to-arith", "ModuleOp"> {
   let summary = "Convert Btor Dialect to Arithmetic dialect";
   let description = [{
     Convert btor operations into the Arithmetic dialect operations.
