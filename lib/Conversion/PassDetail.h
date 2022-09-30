@@ -2,14 +2,18 @@
 #define BTORCONVERSION_PASSDETAIL_H_
 
 #include "mlir/Pass/Pass.h"
+#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 
 namespace mlir {
-class ArithmeticDialect;
 class ModuleOp;
 
 // Forward declaration from Dialect.h
 template <typename ConcreteDialect>
 void registerDialect(DialectRegistry &registry);
+
+namespace arith {
+class ArithmeticDialect;
+} // namespace arith
 
 namespace btor {
 class BtorDialect;

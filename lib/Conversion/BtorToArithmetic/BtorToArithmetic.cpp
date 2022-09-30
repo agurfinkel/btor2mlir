@@ -1,4 +1,4 @@
-#include "Conversion/BtorToMath/ConvertBtorToMathPass.h"
+#include "Conversion/BtorToArithmetic/ConvertBtorToArithmeticPass.h"
 #include "Dialect/Btor/IR/Btor.h"
 
 #include "../PassDetail.h"
@@ -8,18 +8,6 @@
 
 using namespace mlir;
 using namespace mlir::btor;
-
-#define PASS_NAME "convert-btor-to-math"
-
-namespace {
-struct BtorToMathLoweringPass : public PassWrapper<BtorToMathLoweringPass, OperationPass<ModuleOp>> {
-    void getDependentDialects(DialectRegistry &registry) const override {
-        registry.insert<LLVM::LLVMDialect>();
-    }
-    StringRef getArgument() const final { return PASS_NAME; }
-    void runOnOperation() override;
-};
-} // end anonymous namespace
 
 //===----------------------------------------------------------------------===//
 // Lowering Declarations
@@ -263,14 +251,14 @@ LogicalResult AssertLowering::matchAndRewrite(mlir::btor::AssertNotOp assertOp, 
 
 // Convert btor.cmp predicate into the LLVM dialect ICmpOpPredicate.  The two
 // enums share the numerical values so we just need to cast.
-template <typename LLVMPredType, typename BtorPredType>
-static LLVMPredType convertBtorCmpPredicate(BtorPredType pred) {
-  return static_cast<LLVMPredType>(pred);
+template <typename CmpIPredicate, typename BtorPredType>
+static CmpIPredicate convertBtorCmpPredicate(BtorPredType pred) {
+  return static_cast<mlir::arith::CmpIPredicate>(pred);
 }
 
 LogicalResult CmpLowering::matchAndRewrite(mlir::btor::CmpOp cmpOp, PatternRewriter &rewriter) const {
-    auto btorPred = convertBtorCmpPredicate<LLVM::ICmpPredicate>(cmpOp.getPredicate());
-    rewriter.replaceOpWithNewOp<LLVM::ICmpOp>(cmpOp, btorPred, cmpOp.lhs(), cmpOp.rhs());
+    auto btorPred = convertBtorCmpPredicate<arith::CmpIPredicate>(cmpOp.getPredicate());
+    rewriter.replaceOpWithNewOp<arith::CmpIOp>(cmpOp, btorPred, cmpOp.lhs(), cmpOp.rhs());
     return success();
 }
 
@@ -385,7 +373,7 @@ LogicalResult ConstantLowering::matchAndRewrite(mlir::btor::ConstantOp constOp, 
 // Populate Lowering Patterns
 //===----------------------------------------------------------------------===//
 
-void mlir::btor::populateBtorToMathConversionPatterns(RewritePatternSet &patterns) {
+void mlir::btor::populateBtorToArithmeticConversionPatterns(RewritePatternSet &patterns) {
   patterns.add<AddLowering, MulLowering, AndLowering>(patterns.getContext());
   patterns.add<CmpLowering, AssertLowering, NotLowering>(patterns.getContext());
   patterns.add<XOrLowering, XnorLowering, NandLowering>(patterns.getContext());
@@ -397,28 +385,32 @@ void mlir::btor::populateBtorToMathConversionPatterns(RewritePatternSet &pattern
   patterns.add<RotateLLowering, ConstantLowering>(patterns.getContext());
 }
 
-void BtorToMathLoweringPass::runOnOperation() {
-    RewritePatternSet patterns(&getContext());
-    populateBtorToMathConversionPatterns(patterns);
-    /// Configure conversion to lower out btor.add; Anything else is fine.
-    ConversionTarget target(getContext());
-    target.addIllegalOp<mlir::btor::AddOp, mlir::btor::MulOp, mlir::btor::AndOp>();
-    target.addIllegalOp<mlir::btor::CmpOp, mlir::btor::AssertNotOp, mlir::btor::NotOp>();
-    target.addIllegalOp<mlir::btor::XOrOp, mlir::btor::XnorOp, mlir::btor::NandOp>();
-    target.addIllegalOp<mlir::btor::OrOp, mlir::btor::NorOp, mlir::btor::IncOp>();
-    target.addIllegalOp<mlir::btor::DecOp, mlir::btor::SubOp, mlir::btor::SRemOp>();
-    target.addIllegalOp<mlir::btor::URemOp, mlir::btor::ShiftLLOp, mlir::btor::ShiftRLOp>();
-    target.addIllegalOp<mlir::btor::UDivOp, mlir::btor::SDivOp, mlir::btor::ShiftRAOp>();
-    target.addIllegalOp<mlir::btor::NegOp, mlir::btor::IteOp, mlir::btor::RotateLOp>();
-    target.addIllegalOp<mlir::btor::RotateROp, mlir::btor::ConstantOp>();
-    target.markUnknownOpDynamicallyLegal([](Operation *) { return true; });
-    if (failed(applyPartialConversion(getOperation(), target, std::move(patterns)))) {
-        signalPassFailure();
+namespace {
+struct ConvertBtorToArithmeticPass : public ConvertBtorToArithmeticBase<ConvertBtorToArithmeticPass> {
+    void runOnOperation() override {
+        RewritePatternSet patterns(&getContext());
+        populateBtorToArithmeticConversionPatterns(patterns);
+        /// Configure conversion to lower out btor.add; Anything else is fine.
+        ConversionTarget target(getContext());
+        target.addIllegalOp<mlir::btor::AddOp, mlir::btor::MulOp, mlir::btor::AndOp>();
+        target.addIllegalOp<mlir::btor::CmpOp, mlir::btor::AssertNotOp, mlir::btor::NotOp>();
+        target.addIllegalOp<mlir::btor::XOrOp, mlir::btor::XnorOp, mlir::btor::NandOp>();
+        target.addIllegalOp<mlir::btor::OrOp, mlir::btor::NorOp, mlir::btor::IncOp>();
+        target.addIllegalOp<mlir::btor::DecOp, mlir::btor::SubOp, mlir::btor::SRemOp>();
+        target.addIllegalOp<mlir::btor::URemOp, mlir::btor::ShiftLLOp, mlir::btor::ShiftRLOp>();
+        target.addIllegalOp<mlir::btor::UDivOp, mlir::btor::SDivOp, mlir::btor::ShiftRAOp>();
+        target.addIllegalOp<mlir::btor::NegOp, mlir::btor::IteOp, mlir::btor::RotateLOp>();
+        target.addIllegalOp<mlir::btor::RotateROp, mlir::btor::ConstantOp>();
+        target.markUnknownOpDynamicallyLegal([](Operation *) { return true; });
+        if (failed(applyPartialConversion(getOperation(), target, std::move(patterns)))) {
+            signalPassFailure();
+        }
     }
-}
+};
+} // end anonymous namespace
 
 /// Create a pass for lowering operations the remaining `Btor` operations
 // to the Math dialect for codegen.
-std::unique_ptr<mlir::Pass> mlir::btor::createLowerToMathPass() {
-    return std::make_unique<BtorToMathLoweringPass>(); 
+std::unique_ptr<mlir::Pass> mlir::btor::createConvertBtorToArithmeticPass() {
+    return std::make_unique<ConvertBtorToArithmeticPass>(); 
 }
