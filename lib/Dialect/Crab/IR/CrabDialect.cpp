@@ -6,8 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Dialect/Crab/IR/CrabDialect.h"
-#include "Dialect/Crab/IR/CrabOps.h"
+#include "Dialect/Crab/IR/Crab.h"
 
 #include "Dialect/Crab/IR/CrabOpsDialect.cpp.inc"
 
