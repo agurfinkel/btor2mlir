@@ -15,7 +15,7 @@
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Translation.h"
 
-#include "Dialect/Crab/IR/CrabDialect.h"
+#include "Dialect/Crab/IR/Crab.h"
 
 int main(int argc, char **argv) {
   mlir::registerAllTranslations();

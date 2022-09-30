@@ -9,14 +9,14 @@
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/InitAllDialects.h"
-#include "mlir/Parser.h"
+#include "mlir/Parser/Parser.h"
 #include "mlir/Support/FileUtilities.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/ToolOutputFile.h"
 
-#include "Dialect/Crab/IR/CrabDialect.h"
+#include "Dialect/Crab/IR/Crab.h"
 
 using namespace mlir;
 using namespace llvm;
@@ -30,7 +30,7 @@ namespace {
                                                 cl::init("-"));
 }
 
-static OwningModuleRef processCrabBuffer(raw_ostream &os, 
+static OwningOpRef<ModuleOp> processCrabBuffer(raw_ostream &os, 
                                 std::unique_ptr<MemoryBuffer> ownedBuffer,
                                 DialectRegistry &registry) {
     // Tell sourceMgr about this buffer; parser will pick this up
@@ -40,7 +40,7 @@ static OwningModuleRef processCrabBuffer(raw_ostream &os,
     MLIRContext context(registry);
     SourceMgrDiagnosticVerifierHandler sourceMgrHandler(sourceMgr, &context);
 
-    OwningModuleRef module(parseSourceFile(sourceMgr, &context));
+    OwningOpRef<ModuleOp> module(parseSourceFile<ModuleOp>(sourceMgr, &context));
     if (module) {
         module->print(os);
         os << '\n';
@@ -53,7 +53,9 @@ int main(int argc, char **argv) {
     // Register our used dialects
     mlir::DialectRegistry registry;
     registry.insert<mlir::crab::CrabDialect>();
-    registry.insert<mlir::StandardOpsDialect>();
+    registry.insert<arith::ArithmeticDialect,
+                    func::FuncDialect,
+                    cf::ControlFlowDialect>();
 
     // Set up needed tools
     InitLLVM y(argc, argv);
@@ -73,7 +75,7 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-    OwningModuleRef module = processCrabBuffer(output->os(), std::move(file), registry);
+    OwningOpRef<ModuleOp> module = processCrabBuffer(output->os(), std::move(file), registry);
     assert(module);
 
     return EXIT_SUCCESS;

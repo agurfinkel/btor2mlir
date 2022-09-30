@@ -14,7 +14,6 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/InferIntRangeInterface.td"
 include "mlir/IR/OpAsmInterface.td"
-
 include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/VectorInterfaces.td"
 
@@ -837,10 +836,6 @@ def ConstantOp : Btor_Op<"constant", [ConstantLike, NoSideEffect,
     OpBuilder<(ins "Attribute":$value, "Type":$type),
     [{ build($_builder, $_state, type, value); }]>,
   ];
-
-  let extraClassDeclaration = [{
-    static bool isBuildableWith(Attribute value, Type type);
-  }];
 
   let assemblyFormat = "attr-dict $value";
   let hasFolder = 1;

@@ -9,8 +9,17 @@
 #ifndef CRAB_OPS
 #define CRAB_OPS
 
-include "CrabDialect.td"
+include "CrabBase.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/Interfaces/InferTypeOpInterface.td"
+include "mlir/Interfaces/InferIntRangeInterface.td"
+
+//===----------------------------------------------------------------------===//
+// Base crab operation definition.
+//===----------------------------------------------------------------------===//
+
+class Crab_Op<string mnemonic, list<Trait> traits = []> :
+        Op<Crab_Dialect, mnemonic, traits>;
 
 //===----------------------------------------------------------------------===//
 // crab binary integer ops definitions
@@ -19,7 +28,7 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 // Base class for crab arithmetic operations.  Requires operands and
 // results to be of the same type, but does not constrain them to specific
 // types.
-class CrabArithmeticOp<string mnemonic, list<OpTrait> traits = []> :
+class CrabArithmeticOp<string mnemonic, list<Trait> traits = []> :
     Op<Crab_Dialect, mnemonic, traits #[NoSideEffect]
     #ElementwiseMappable.traits> { }
 
@@ -28,17 +37,13 @@ class CrabArithmeticOp<string mnemonic, list<OpTrait> traits = []> :
 //  The custom assembly form of the operation is as follows
 //
 //     <op> %0, %1 : i32
-class CrabBinaryOp<string mnemonic, list<OpTrait> traits = []> :
+class CrabBinaryOp<string mnemonic, list<Trait> traits = []> :
     CrabArithmeticOp<mnemonic, !listconcat(traits, [SameOperandsAndResultType])>,
     Arguments<(ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs)> {
 
   let results = (outs AnyType:$result);
 
   let assemblyFormat = "`(` $lhs `,` $rhs `)` attr-dict `:` type($lhs)";
-
-  let parser = [{
-    return impl::parseOneResultSameOperandTypeOp(parser, result);
-  }];
 }
 
 def AddOp : CrabBinaryOp<"add", [Commutative]> {
@@ -233,7 +238,7 @@ def XnorOp : CrabBinaryOp<"xnor", [Commutative]> {
 //  The custom assembly form of the operation is as follows
 //
 //     <op> "predicate"(%0, %1)
-class CrabConstraintOp<string mnemonic, list<OpTrait> traits = [SameTypeOperands]> :
+class CrabConstraintOp<string mnemonic, list<Trait> traits = [SameTypeOperands]> :
     Crab_Op<mnemonic, traits>,
     Arguments<(ins CrabPredicateAttr:$predicate, 
             SignlessIntegerLike:$lhs, 
@@ -257,10 +262,6 @@ class CrabConstraintOp<string mnemonic, list<OpTrait> traits = [SameTypeOperands
 
     let assemblyFormat = "`(` $lhs `,` $rhs `)` attr-dict `:` type($lhs)";
 
-    let parser = [{
-        return impl::parseOneResultSameOperandTypeOp(parser, result);
-    }];
-
     let extraClassDeclaration = [{
         static StringRef getPredicateAttrName() { return "predicate"; }
         static CrabPredicate getPredicateByName(StringRef name);
@@ -270,8 +271,6 @@ class CrabConstraintOp<string mnemonic, list<OpTrait> traits = [SameTypeOperands
             getPredicateAttrName()).getInt();
         }
     }];
-
-    let verifier = [{ return success(); }];
 
     let assemblyFormat = "$predicate `(` $lhs `,` $rhs `)` attr-dict `:` type($lhs)";
 }
@@ -310,7 +309,8 @@ def AssumeOp : CrabConstraintOp<"assume"> {
 // crab constant ops 
 //===----------------------------------------------------------------------===//
 
-def ConstantOp : Crab_Op<"const", [ConstantLike, NoSideEffect]> {
+def ConstantOp : Crab_Op<"const", [ConstantLike, NoSideEffect,
+    AllTypesMatch<["value", "result"]>]> {
   let summary = "integer constant";
   let description = [{
     The `constant` operation produces an SSA value equal to some constant
@@ -325,27 +325,14 @@ def ConstantOp : Crab_Op<"const", [ConstantLike, NoSideEffect]> {
   }];
 
   let arguments = (ins AnyAttr:$value);
-  let results = (outs AnyType);
+  let results = (outs AnyType:$result);
 
   let builders = [
-    OpBuilder<(ins "Attribute":$value),
-    [{ build($_builder, $_state, value.getType(), value); }]>,
     OpBuilder<(ins "Attribute":$value, "Type":$type),
     [{ build($_builder, $_state, type, value); }]>,
   ];
 
-  let extraClassDeclaration = [{
-    Attribute getValue() { return (*this)->getAttr("value"); }
-  }];
-
-  let parser = [{
-    return parseConstantOp(parser, result);
-  }];
-
-  let printer = [{
-    return printConstantOp(p, *this);
-  }];
-
+  let assemblyFormat = "attr-dict $value";
   let hasFolder = 1;
 }
 

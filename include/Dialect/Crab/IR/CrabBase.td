@@ -9,6 +9,7 @@
 #ifndef CRAB_DIALECT
 #define CRAB_DIALECT
 
+include "mlir/IR/EnumAttr.td"
 include "mlir/IR/OpBase.td"
 
 //===----------------------------------------------------------------------===//
@@ -42,12 +43,5 @@ def Crab_Dialect : Dialect {
     let summary = "A Crab MLIR dialect";
     let cppNamespace = "::mlir::crab";
 }
-
-//===----------------------------------------------------------------------===//
-// Base crab operation definition.
-//===----------------------------------------------------------------------===//
-
-class Crab_Op<string mnemonic, list<OpTrait> traits = []> :
-        Op<Crab_Dialect, mnemonic, traits>;
 
 #endif // CRAB_DIALECT
