@@ -272,7 +272,7 @@ Operation * Deserialize::createMLIR(const Btor2Line *line,
     res = buildInputOp(line->sort.bitvec.width);
     break;
   case BTOR2_TAG_constraint:
-    res = buildUnaryOp<btor::AssumeOp>(kids[0]);
+    res = buildUnaryOp<btor::ConstraintOp>(kids[0]);
     break;
 
 
