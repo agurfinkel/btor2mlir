@@ -4,7 +4,7 @@ module {
     func.func @next( %arg0: i3, %arg1: i3 ) -> (i3, i3) {
         // create assumption
         %cmp_ne = btor.cmp "ne", %arg0, %arg1 : i3
-        btor.assume ( %cmp_ne )
+        btor.constraint ( %cmp_ne )
         // apply transition relation
         %c_0 = btor.constant 1 : i3
         %add_1 = btor.add %arg0, %c_0 : i3
