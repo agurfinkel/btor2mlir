@@ -222,6 +222,13 @@ struct UndefOpLowering : public ConvertOpToLLVMPattern<btor::UndefOp> {
                   ConversionPatternRewriter &rewriter) const override;
 };
 
+struct ConstraintOpLowering : public ConvertOpToLLVMPattern<btor::ConstraintOp> {
+  using ConvertOpToLLVMPattern<btor::ConstraintOp>::ConvertOpToLLVMPattern;
+  LogicalResult
+  matchAndRewrite(btor::ConstraintOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override;
+};
+
 } // end anonymous namespace
 
 //===----------------------------------------------------------------------===//
@@ -574,6 +581,16 @@ UndefOpLowering::matchAndRewrite(btor::UndefOp op, OpAdaptor adaptor,
 }
 
 //===----------------------------------------------------------------------===//
+// ConstraintOpLowering
+//===----------------------------------------------------------------------===//
+LogicalResult
+ConstraintOpLowering::matchAndRewrite(btor::ConstraintOp op, OpAdaptor adaptor,
+                                  ConversionPatternRewriter &rewriter) const {
+  rewriter.replaceOpWithNewOp<LLVM::AssumeOp>(op, op.constraint());
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
 // Pass Definition
 //===----------------------------------------------------------------------===//
 
@@ -652,8 +669,8 @@ void mlir::btor::populateBtorToLLVMConversionPatterns(
       IffOpLowering, ImpliesOpLowering, XnorOpLowering, NandOpLowering,
       NorOpLowering, IncOpLowering, DecOpLowering, NegOpLowering,
       RedOrOpLowering, RedAndOpLowering, RedXorOpLowering, UExtOpLowering,
-      SExtOpLowering, SliceOpLowering, ConcatOpLowering, UndefOpLowering>(
-      converter);
+      SExtOpLowering, SliceOpLowering, ConcatOpLowering, UndefOpLowering,
+      ConstraintOpLowering>(converter);
 }
 
 /// Create a pass for lowering operations the remaining `Btor` operations

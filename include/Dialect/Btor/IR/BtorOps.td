@@ -842,8 +842,8 @@ def ConstantOp : Btor_Op<"constant", [ConstantLike, NoSideEffect,
   let hasVerifier = 1;
 }
 
-def AssumeOp : Btor_Op<"assume"> {
-    let summary = "btor assumption";
+def ConstraintOp : Btor_Op<"constraint"> {
+    let summary = "btor constraint";
     let description = [{
         This operation takes one boolean argument and assumes 
         it holds for the program.
@@ -852,14 +852,14 @@ def AssumeOp : Btor_Op<"assume"> {
         
         ```mlir
         %0 = constant 1 : i1
-        // Apply the assume operation to %0
-        btor.assume ( %0 )
+        // Apply the constraint operation to %0
+        btor.constraint ( %0 )
         ```
     }];
 
-    let arguments = (ins I1:$arg);
+    let arguments = (ins I1:$constraint);
 
-    let assemblyFormat = "`(` $arg `)` attr-dict";
+    let assemblyFormat = "`(` $constraint `)` attr-dict";
 }
 
 def UndefOp : Btor_Op<"undef"> {
