@@ -7,6 +7,7 @@ add_mlir_dialect_library(MLIRBtor
 
         DEPENDS
         MLIRBtorOpsIncGen
+        MLIRBtorTypesIncGen
 
 	LINK_LIBS PUBLIC
     MLIRDialect
