@@ -103,7 +103,7 @@ void SliceOp::print(OpAsmPrinter &p) {
 
   p << ' ' << getOperand(0) << ", " << getOperand(1) << ", " << getOperand(2);
   p.printOptionalAttrDict((*this)->getAttrs());
-  p << " : " << getOperand(0).getType() << ", " << getType();
+  p << " : " << getType();
 }
 
 LogicalResult SliceOp::verify() {
@@ -314,8 +314,7 @@ void ConcatOp::print(OpAsmPrinter &p) {
   p.printOptionalAttrDict((*this)->getAttrs());
 
   // Now we can output the types for all operands and the result.
-  p << " : " << getOperand(0).getType() << ", " << getOperand(1).getType()
-    << ", " << getResult().getType();
+  p << " : " << getResult().getType();
 }
 
 LogicalResult ConcatOp::verify() {
@@ -380,23 +379,71 @@ ParseResult InputOp::parse(OpAsmParser &parser, OperationState &result) {
 //   p << " : " << op->getResult(0).getType();
 // }
 
-// void ReadOp::print(OpAsmPrinter &p) { printArrayOp(p, (*this)); }
-// // "$array `[` $index `]` attr-dict `:` type($result)";
-// ParseResult ReadOp::parse(OpAsmParser &parser, OperationState &result) {
-//   Type resultType, firstOperandType;
-//   SmallVector<OpAsmParser::UnresolvedOperand, 1> operands;
-//   if (parser.parseOperandList(operands, /*requiredOperandCount=*/2) ||
-//       parser.parseOptionalAttrDict(result.attributes) || parser.parseColon() ||
-//       parser.parseType(firstOperandType) || parser.parseOptionalComma() ||
-//       parser.parseType(resultType))
-//     assert(true &&
-//          "indexed array op should have two operands");
-//     return failure();
+void ReadOp::print(OpAsmPrinter &p) {
+  p << " " << base() << "[" << index() << "]";
+  p.printOptionalAttrDict((*this)->getAttrs());
+  p << " : " << result().getType();
+}
 
-//   result.addTypes(resultType);
-//   return parser.resolveOperands(operands, {firstOperandType},
-//                                 parser.getNameLoc(), result.operands);
-// }
+LogicalResult ReadOp::verify() {
+  auto type = getType().getIntOrFloatBitWidth();
+  // The value's type must match the return type.
+  if (getArrayType().getElementType().getIntOrFloatBitWidth() != type) {
+    return emitOpError() << "element type of the array must match "
+                         << " bitwidth of return type: " << type;
+  }
+  return success();
+}
+
+ParseResult ReadOp::parse(OpAsmParser &parser, OperationState &result) {
+  OpAsmParser::UnresolvedOperand base, index;
+  ArrayType baseType;
+  Type resultType;
+  if (parser.parseOperand(base) || parser.parseLSquare() || 
+      parser.parseOperand(index) || parser.parseRSquare() ||
+      parser.parseOptionalAttrDict(result.attributes) || 
+      parser.parseColon() || parser.parseType(baseType) ||
+      parser.parseOptionalComma() || parser.parseType(resultType))
+    return failure();
+
+  result.addTypes(resultType);
+  return parser.resolveOperands({base, index}, {baseType, baseType.getShape()},
+                                parser.getNameLoc(), result.operands);
+}
+
+void WriteOp::print(OpAsmPrinter &p) {
+  p << " " << value() << ", " << base() << "[" << index() << "]";
+  p.printOptionalAttrDict((*this)->getAttrs());
+  p << " : " << result().getType();
+}
+
+LogicalResult WriteOp::verify() {
+  auto type = value().getType().getIntOrFloatBitWidth();
+  // The value's type must match the array's element type.
+  if (getArrayType().getElementType().getIntOrFloatBitWidth() != type) {
+    return emitOpError() << "element type of the array must match "
+                         << " bitwidth of given value: " << type;
+  }
+  return success();
+}
+
+ParseResult WriteOp::parse(OpAsmParser &parser, OperationState &result) {
+  OpAsmParser::UnresolvedOperand value, base, index;
+  ArrayType resultType;
+  Type valueType;
+  if (parser.parseOperand(value) || parser.parseComma() ||
+      parser.parseOperand(base) || parser.parseLSquare() || 
+      parser.parseOperand(index) || parser.parseRSquare() ||
+      parser.parseOptionalAttrDict(result.attributes) || 
+      parser.parseColon() || parser.parseType(valueType) ||
+      parser.parseOptionalComma() || parser.parseType(resultType))
+    return failure();
+
+  result.addTypes(resultType);
+  return parser.resolveOperands({value, base, index}, 
+                                {valueType, resultType, resultType.getShape()},
+                                parser.getNameLoc(), result.operands);
+}
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
