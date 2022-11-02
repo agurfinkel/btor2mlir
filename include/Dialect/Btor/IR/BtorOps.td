@@ -10,13 +10,13 @@
 #define BTOR_OPS
 
 include "BtorBase.td"
+include "BtorTypes.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/InferIntRangeInterface.td"
 include "mlir/IR/OpAsmInterface.td"
 include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/VectorInterfaces.td"
-
 
 //===----------------------------------------------------------------------===//
 // Base btor operation definition.
@@ -39,10 +39,8 @@ class Btor_CastOp<string mnemonic, TypeConstraint From, TypeConstraint To,
   let assemblyFormat = "$in attr-dict `:` type($in) `to` type($out)";
 }
 
-def SignlessFixedWidthIntegerLike : TypeConstraint<Or<[
-        AnySignlessInteger.predicate,
-        VectorOf<[AnySignlessInteger]>.predicate,
-        TensorOf<[AnySignlessInteger]>.predicate]>,
+def SignlessFixedWidthIntegerLike : TypeConstraint<
+    AnySignlessInteger.predicate,
     "signless-fixed-width-integer-like">;
 
 // Cast from an integer type to another integer type.
@@ -911,6 +909,86 @@ def InputOp : Btor_Op<"input"> {
     ];
 
     let hasCustomAssemblyFormat = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// Btor arrays
+//===----------------------------------------------------------------------===//
+
+def Btor_Array :
+    DialectType<Btor_Dialect, CPred<"$_self.isa<ArrayType>()">, "btor array type">;
+
+def ArrayOp : Btor_Op<"nd_array"> {
+  let summary = "btor array allocation operation";
+  let description = [{
+    The `nd_array` operation represents a btor array from 
+    bitvec -> bitvec. For example:
+
+    ```mlir
+    %0 = btor.nd_array : !btor.array<i8,i32>
+    ```
+
+    This operation returns a single SSA value of a btor array type used
+    by subsequent read and write operations. 
+  }];
+
+  let results = (outs Btor_Array:$result);
+  let assemblyFormat = "attr-dict `:` type($result)";
+}
+
+
+def ReadOp : Btor_Op<"read"> {
+  let summary = "btor read operation";
+  let description = [{
+    The `read` op reads an element from a btor array specified by an index. 
+    The output of load is a new value with the same type as the elements of the
+    btor array.
+
+    Example:
+
+    ```mlir
+    %1 = btor.read %A[%0] : !btor.array<i8,i32>
+    ```
+  }];
+
+  let arguments = (ins Btor_Array:$base, SignlessIntegerLike:$index);
+  let results = (outs SignlessIntegerLike:$result);
+
+  let extraClassDeclaration = [{
+    ArrayType getArrayType() {
+      return base().getType().cast<ArrayType>();
+    }
+  }];
+
+  let hasVerifier = 1;
+  let hasCustomAssemblyFormat = 1;
+}
+
+def WriteOp : Btor_Op<"write"> {
+  let summary = "btor write operation";
+  let description = [{
+    Copy the given array and write the given value to the provided
+    location given by index. The value stored should have the same type 
+    as the elemental type of the array. 
+    Example:
+
+    ```mlir
+    %4 = btor.write %2, %A[%1] : !btor.array<i8, i32>
+    ```
+  }];
+
+  let arguments = (ins SignlessIntegerLike:$value, Btor_Array:$base,
+                       SignlessIntegerLike:$index);
+
+  let results = (outs Btor_Array:$result);
+    let extraClassDeclaration = [{
+    ArrayType getArrayType() {
+      return base().getType().cast<ArrayType>();
+    }
+  }];
+
+  let hasVerifier = 1;
+  let hasCustomAssemblyFormat = 1;
 }
 
 #endif // BTOR_OPS
