@@ -9,16 +9,16 @@
 
 #include "Dialect/Btor/IR/Btor.h"
 
-#include "mlir/IR/OwningOpRef.h"
-#include "mlir/Support/LLVM.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
-#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
+#include "mlir/IR/OwningOpRef.h"
+#include "mlir/Support/LLVM.h"
 
-#include <vector>
 #include <map>
+#include <vector>
 
 #include "btor2parser/btor2parser.h"
 
@@ -33,35 +33,36 @@ namespace btor {
 
 class Deserialize {
 
- public:
-///===----------------------------------------------------------------------===//
-/// Constructors and Destructors
-///===----------------------------------------------------------------------===//
+public:
+  ///===----------------------------------------------------------------------===//
+  /// Constructors and Destructors
+  ///===----------------------------------------------------------------------===//
 
-  Deserialize(MLIRContext *context, const std::string &s) : m_context(context), 
-    m_builder(OpBuilder(m_context)), m_unknownLoc(UnknownLoc::get(m_context)) {
-        m_modelFile = fopen(s.c_str(), "r");
-    }
-
-  ~Deserialize() {
-      if (m_model) {
-        btor2parser_delete(m_model);
-      }
-      if (m_modelFile) {
-        fclose(m_modelFile);
-      }
+  Deserialize(MLIRContext *context, const std::string &s)
+      : m_context(context), m_builder(OpBuilder(m_context)),
+        m_unknownLoc(UnknownLoc::get(m_context)) {
+    m_modelFile = fopen(s.c_str(), "r");
   }
 
-///===----------------------------------------------------------------------===//
-/// Parse btor2 file
-///===----------------------------------------------------------------------===//
-  
+  ~Deserialize() {
+    if (m_model) {
+      btor2parser_delete(m_model);
+    }
+    if (m_modelFile) {
+      fclose(m_modelFile);
+    }
+  }
+
+  ///===----------------------------------------------------------------------===//
+  /// Parse btor2 file
+  ///===----------------------------------------------------------------------===//
+
   bool parseModelIsSuccessful();
 
-///===----------------------------------------------------------------------===//
-/// Create MLIR module
-///===----------------------------------------------------------------------===//
-  
+  ///===----------------------------------------------------------------------===//
+  /// Create MLIR module
+  ///===----------------------------------------------------------------------===//
+
   Value getFromCacheById(const int64_t id) {
     assert(valueAtIdIsInCache(id));
     return m_cache.at(id);
@@ -73,7 +74,7 @@ class Deserialize {
     assert(valueAtIdIsInCache(id));
   }
 
-  void setCacheWithId(const int64_t id, Operation * op) {
+  void setCacheWithId(const int64_t id, Operation *op) {
     assert(hasReturnValue(getLineById(id)));
     assert(op);
     assert(op->getNumResults() == 1);
@@ -81,17 +82,15 @@ class Deserialize {
     setCacheWithId(id, op->getResult(0));
   }
 
-  bool valueAtIdIsInCache(const int64_t id) {
-    return m_cache.count(id) != 0;
-  }
+  bool valueAtIdIsInCache(const int64_t id) { return m_cache.count(id) != 0; }
 
   OwningOpRef<mlir::func::FuncOp> buildMainFunction();
-  
- private: 
-///===----------------------------------------------------------------------===//
-/// Parse btor2 file
-///===----------------------------------------------------------------------===//
-  
+
+private:
+  ///===----------------------------------------------------------------------===//
+  /// Parse btor2 file
+  ///===----------------------------------------------------------------------===//
+
   Btor2Parser *m_model = nullptr;
   FILE *m_modelFile = nullptr;
 
@@ -103,100 +102,140 @@ class Deserialize {
   std::vector<Btor2Line *> m_lines;
 
   std::map<int64_t, Value> m_cache;
+  std::map<int64_t, Btor2Line *> m_sorts;
 
   void parseModelLine(Btor2Line *l);
 
-  Btor2Line * getLineById(unsigned id) {
-      assert(id < m_lines.size());
-      return m_lines.at(id);
+  Btor2Line *getLineById(unsigned id) {
+    assert(id < m_lines.size());
+    return m_lines.at(id);
   }
 
-  void setLineWithId(unsigned id, Btor2Line * line) {
-      assert(id < m_lines.size());
-      assert(!m_lines.at(id));
-      m_lines[id] = line;
+  void setLineWithId(unsigned id, Btor2Line *line) {
+    assert(id < m_lines.size());
+    assert(!m_lines.at(id));
+    m_lines[id] = line;
   }
-///===----------------------------------------------------------------------===//
-/// Create MLIR module
-///===----------------------------------------------------------------------===//
+  ///===----------------------------------------------------------------------===//
+  /// Create MLIR module
+  ///===----------------------------------------------------------------------===//
 
   MLIRContext *m_context;
   OpBuilder m_builder;
   Location m_unknownLoc;
-  
+
   void toOp(Btor2Line *line);
-  bool needsMLIROp(Btor2Line * line);
-  bool hasReturnValue(Btor2Line * line);
+  bool needsMLIROp(Btor2Line *line);
+  bool hasReturnValue(Btor2Line *line);
   void createNegateLine(int64_t curAt, const Value &child);
-  Operation * createMLIR(const Btor2Line *line, 
-                        const SmallVector<Value> &kids,
+  Operation *createMLIR(const Btor2Line *line, const SmallVector<Value> &kids,
                         const SmallVector<unsigned> &arguments);
   std::vector<Value> buildInitFunction(const std::vector<Type> &returnTypes);
-  std::vector<Value> buildNextFunction(const std::vector<Type> &returnTypes, 
-                                    Block *body);
+  std::vector<Value> buildNextFunction(const std::vector<Type> &returnTypes,
+                                       Block *body);
 
   // Builder wrappers
-  Type getIntegerTypeOf(Btor2Line * line) {
+  Type getTypeOf(Btor2Line *line) {
+    if (line->sort.tag == BTOR2_TAG_SORT_array) {
+      auto indexType = m_builder.getIntegerType(
+          m_sorts.at(line->sort.array.index)->sort.bitvec.width);
+      auto elementType = m_builder.getIntegerType(
+          m_sorts.at(line->sort.array.element)->sort.bitvec.width);
+      return btor::ArrayType::get(m_context, indexType, elementType);
+      ;
+    }
     return m_builder.getIntegerType(line->sort.bitvec.width);
   }
 
-  std::vector<Value> collectReturnValuesForInit(
-                    const std::vector<Type> &returnTypes) {
+  std::vector<Value>
+  collectReturnValuesForInit(const std::vector<Type> &returnTypes) {
     std::vector<Value> results(m_states.size(), nullptr);
     std::map<unsigned, Value> undefOpsBySort;
+    std::map<std::pair<unsigned, unsigned>, Value> arrayTypes;
     for (unsigned i = 0, sz = m_states.size(); i < sz; ++i) {
+      auto state_i = m_states.at(i);
+      std::pair<unsigned, unsigned> arraySort;
+      if (state_i->sort.tag == BTOR2_TAG_SORT_array) {
+        unsigned index =
+            m_sorts.at(state_i->sort.array.index)->sort.bitvec.width;
+        unsigned element =
+            m_sorts.at(state_i->sort.array.element)->sort.bitvec.width;
+        arraySort = std::make_pair(index, element);
+      }
+
       if (unsigned initLine = m_states.at(i)->init) {
-        results[i] = getFromCacheById(initLine);
+        if (state_i->sort.tag == BTOR2_TAG_SORT_array) {
+          if (arrayTypes.count(arraySort) == 0) {
+            auto res = m_builder.create<btor::InitArrayOp>(
+                m_unknownLoc, getTypeOf(state_i), getFromCacheById(initLine));
+            assert(res);
+            assert(res->getNumResults() == 1);
+            arrayTypes[arraySort] = res->getResult(0);
+          }
+          results[i] = arrayTypes.at(arraySort);
+        } else {
+          results[i] = getFromCacheById(initLine);
+        }
       } else {
-        auto sort = returnTypes.at(i).getIntOrFloatBitWidth();
-        if (undefOpsBySort.count(sort) == 0) {
+        if (state_i->sort.tag == BTOR2_TAG_SORT_array) {
+          if (arrayTypes.count(arraySort) == 0) {
+            auto res = m_builder.create<btor::ArrayOp>(m_unknownLoc,
+                                                       getTypeOf(state_i));
+            assert(res);
+            assert(res->getNumResults() == 1);
+            arrayTypes[arraySort] = res->getResult(0);
+          }
+          results[i] = arrayTypes.at(arraySort);
+        } else {
+          auto sort = returnTypes.at(i).getIntOrFloatBitWidth();
+          if (undefOpsBySort.count(sort) == 0) {
             auto res = m_builder.create<btor::UndefOp>(m_unknownLoc,
-                                        returnTypes.at(i));
-            assert(res); 
+                                                       returnTypes.at(i));
+            assert(res);
             assert(res->getNumResults() == 1);
             undefOpsBySort[sort] = res->getResult(0);
+          }
+          results[i] = undefOpsBySort.at(sort);
         }
-        results[i] = undefOpsBySort.at(sort);
-        }
-        assert(results[i]);
+      }
+      assert(results[i]);
     }
     return results;
   }
 
   // Binary Operations
   template <typename btorOp>
-  Operation * buildBinaryOp(const Value &lhs, const Value &rhs) {
+  Operation *buildBinaryOp(const Value &lhs, const Value &rhs) {
     auto res = m_builder.create<btorOp>(m_unknownLoc, lhs, rhs);
     return res;
   }
 
   template <typename btorOp>
-  Operation * buildComparisonOp(const btor::BtorPredicate pred,
-                                const Value &lhs, const Value &rhs) {
+  Operation *buildComparisonOp(const btor::BtorPredicate pred, const Value &lhs,
+                               const Value &rhs) {
     auto res = m_builder.create<btorOp>(m_unknownLoc, pred, lhs, rhs);
     return res;
   }
 
   template <typename btorOp>
-  Operation * buildOverflowOp(const Value &lhs, const Value &rhs) {
-    auto res = m_builder.create<btorOp>(m_unknownLoc, 
-                                    m_builder.getIntegerType(1), 
-                                    lhs, rhs);
+  Operation *buildOverflowOp(const Value &lhs, const Value &rhs) {
+    auto res = m_builder.create<btorOp>(m_unknownLoc,
+                                        m_builder.getIntegerType(1), lhs, rhs);
     return res;
   }
 
-  Operation * buildConcatOp(const Value &lhs, const Value &rhs) {
+  Operation *buildConcatOp(const Value &lhs, const Value &rhs) {
     auto newWidth = lhs.getType().getIntOrFloatBitWidth() +
-               rhs.getType().getIntOrFloatBitWidth();
+                    rhs.getType().getIntOrFloatBitWidth();
     Type resType = m_builder.getIntegerType(newWidth);
-    auto res = m_builder.create<btor::ConcatOp>(m_unknownLoc, resType, lhs, rhs);
+    auto res =
+        m_builder.create<btor::ConcatOp>(m_unknownLoc, resType, lhs, rhs);
     return res;
   }
 
   // Unary Operations
-  Operation * buildConstantOp(const unsigned width, 
-                            const std::string &str,
-                            const unsigned radix) {
+  Operation *buildConstantOp(const unsigned width, const std::string &str,
+                             const unsigned radix) {
     Type type = m_builder.getIntegerType(width);
     mlir::APInt value(width, 0, radix);
     if (str.compare("ones") == 0) {
@@ -206,21 +245,19 @@ class Deserialize {
     } else if (str.compare("zero") != 0) {
       value = mlir::APInt(width, str, radix);
     }
-    auto res = m_builder.create<btor::ConstantOp>(m_unknownLoc, type,
-                        m_builder.getIntegerAttr(type, value));
+    auto res = m_builder.create<btor::ConstantOp>(
+        m_unknownLoc, type, m_builder.getIntegerAttr(type, value));
     return res;
   }
 
-  template <typename btorOp>
-  Operation * buildUnaryOp(const Value &val) {
+  template <typename btorOp> Operation *buildUnaryOp(const Value &val) {
     auto res = m_builder.create<btorOp>(m_unknownLoc, val);
     return res;
   }
 
-  template <typename btorOp>
-  Operation * buildReductionOp(const Value &val) {
-    auto res = m_builder.create<btor::RedAndOp>(m_unknownLoc, 
-                                m_builder.getIntegerType(1), val);
+  template <typename btorOp> Operation *buildReductionOp(const Value &val) {
+    auto res = m_builder.create<btor::RedAndOp>(
+        m_unknownLoc, m_builder.getIntegerType(1), val);
     return res;
   }
 
@@ -228,25 +265,23 @@ class Deserialize {
     m_builder.create<mlir::func::ReturnOp>(m_unknownLoc, results);
   }
 
-   Operation * buildInputOp(const unsigned width) {
+  Operation *buildInputOp(const unsigned width) {
     Type type = m_builder.getIntegerType(width);
     mlir::APInt value(width, 0, 10);
-    auto op = m_builder.create<btor::ConstantOp>(m_unknownLoc, type,
-                        m_builder.getIntegerAttr(type, value));
+    auto op = m_builder.create<btor::ConstantOp>(
+        m_unknownLoc, type, m_builder.getIntegerAttr(type, value));
     assert(op);
     assert(op->getNumResults() == 1);
     assert(op->getResult(0));
     Value constValue = op->getResult(0);
-    auto res = m_builder.create<btor::InputOp>(m_unknownLoc, type,
-                                m_builder.getI64IntegerAttr(0), 
-                                constValue);
+    auto res = m_builder.create<btor::InputOp>(
+        m_unknownLoc, type, m_builder.getI64IntegerAttr(0), constValue);
     return res;
   }
 
   // Indexed Operations
-  Operation * buildSliceOp(const Value &val, 
-                        const int64_t upper, 
-                        const int64_t lower) {
+  Operation *buildSliceOp(const Value &val, const int64_t upper,
+                          const int64_t lower) {
     auto opType = val.getType();
     auto operandWidth = opType.getIntOrFloatBitWidth();
     assert(operandWidth > upper && upper >= lower);
@@ -259,25 +294,37 @@ class Deserialize {
         m_unknownLoc, opType, m_builder.getIntegerAttr(opType, lower));
     assert(l && l->getNumResults() == 1);
 
-    auto res = m_builder.create<btor::SliceOp>(m_unknownLoc, resType, val,
-                                        u->getResult(0), l->getResult(0));
+    auto res = m_builder.create<btor::SliceOp>(
+        m_unknownLoc, resType, val, u->getResult(0), l->getResult(0));
     return res;
   }
 
   template <typename btorOp>
-  Operation * buildExtOp(const Value &val,
-                        const unsigned width) {
+  Operation *buildExtOp(const Value &val, const unsigned width) {
     auto res = m_builder.create<btorOp>(m_unknownLoc, val,
-                            m_builder.getIntegerType(width));
+                                        m_builder.getIntegerType(width));
     return res;
   }
 
   // Ternary Operations
-  Operation * buildIteOp(const Value &condition, 
-                        const Value &lhs, 
+  Operation *buildIteOp(const Value &condition, const Value &lhs,
                         const Value &rhs) {
-    auto res = m_builder.create<btor::IteOp>(m_unknownLoc, 
-                                        condition, lhs, rhs);
+    auto res = m_builder.create<btor::IteOp>(m_unknownLoc, condition, lhs, rhs);
+    return res;
+  }
+
+  // Array Operations
+  Operation *buildReadOp(const Value &array, const Value &index) {
+    auto elementType = array.getType().cast<ArrayType>().getElementType();
+    auto res =
+        m_builder.create<btor::ReadOp>(m_unknownLoc, elementType, array, index);
+    return res;
+  }
+
+  Operation *buildWriteOp(const Value &array, const Value &index,
+                          const Value &value) {
+    auto res = m_builder.create<btor::WriteOp>(m_unknownLoc, array.getType(),
+                                               value, array, index);
     return res;
   }
 };
