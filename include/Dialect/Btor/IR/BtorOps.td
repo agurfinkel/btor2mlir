@@ -936,6 +936,28 @@ def ArrayOp : Btor_Op<"nd_array"> {
   let assemblyFormat = "attr-dict `:` type($result)";
 }
 
+def InitArrayOp : Btor_Op<"array"> {
+  let summary = "btor initialized array allocation operation";
+  let description = [{
+    The `array` operation represents a btor array from 
+    bitvec -> bitvec that has been initialized with a value. 
+    
+    For example:
+
+    ```mlir
+    %4 = btor.array %1 : !btor.array<i8,i32>
+    ```
+
+    This operation returns a single SSA value of a btor array type used
+    by subsequent read and write operations. 
+  }];
+
+  let arguments = (ins SignlessIntegerLike:$init);
+  let results = (outs Btor_Array:$result);
+  // let assemblyFormat = "$init attr-dict `:` type($result)";
+  let hasVerifier = 1;
+  let hasCustomAssemblyFormat = 1;
+}
 
 def ReadOp : Btor_Op<"read"> {
   let summary = "btor read operation";

@@ -364,20 +364,8 @@ ParseResult InputOp::parse(OpAsmParser &parser, OperationState &result) {
 }
 
 //===----------------------------------------------------------------------===//
-// Array Operations
+// Read Operations
 //===----------------------------------------------------------------------===//
-
-// static void printArrayOp(OpAsmPrinter &p, Operation *op) {
-//   assert(op->getNumOperands() == 2 &&
-//          "indexed array op should have two operands");
-//   assert(op->getNumResults() == 1 && "indexed array op should have one result");
-
-//   p << ' ' << op->getOperand(0) << ", " << op->getOperand(1);
-//   p.printOptionalAttrDict(op->getAttrs());
-
-//   // Now we can output only one type for all operands and the result.
-//   p << " : " << op->getResult(0).getType();
-// }
 
 void ReadOp::print(OpAsmPrinter &p) {
   p << " " << base() << "[" << index() << "]";
@@ -410,6 +398,10 @@ ParseResult ReadOp::parse(OpAsmParser &parser, OperationState &result) {
   return parser.resolveOperands({base, index}, {baseType, baseType.getShape()},
                                 parser.getNameLoc(), result.operands);
 }
+
+//===----------------------------------------------------------------------===//
+// Write Operations
+//===----------------------------------------------------------------------===//
 
 void WriteOp::print(OpAsmPrinter &p) {
   p << " " << value() << ", " << base() << "[" << index() << "]";
@@ -444,6 +436,42 @@ ParseResult WriteOp::parse(OpAsmParser &parser, OperationState &result) {
                                 {valueType, resultType, resultType.getShape()},
                                 parser.getNameLoc(), result.operands);
 }
+
+//===----------------------------------------------------------------------===//
+// Initialzied Array Operations
+//===----------------------------------------------------------------------===//
+
+void InitArrayOp::print(OpAsmPrinter &p) {
+  p << " " << init();
+  p.printOptionalAttrDict((*this)->getAttrs());
+  p << " : " << result().getType();
+}
+
+LogicalResult InitArrayOp::verify() {
+  auto type = init().getType().getIntOrFloatBitWidth();
+  // The value's type must match the array's element type.
+  auto elementType = result().getType().cast<ArrayType>().getElementType();
+  if (elementType.getIntOrFloatBitWidth() != type) {
+    return emitOpError() << "element type of the array must match "
+                         << " bitwidth of given value: " << type;
+  }
+  return success();
+}
+
+ParseResult InitArrayOp::parse(OpAsmParser &parser, OperationState &result) {
+  OpAsmParser::UnresolvedOperand init;
+  ArrayType resultType;
+  if (parser.parseOperand(init) ||
+      parser.parseOptionalAttrDict(result.attributes) || 
+      parser.parseColon() || parser.parseType(resultType))
+    return failure();
+
+  result.addTypes(resultType);
+  return parser.resolveOperands({init}, 
+                                {resultType.getElementType()},
+                                parser.getNameLoc(), result.operands);
+}
+
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
