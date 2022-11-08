@@ -66,13 +66,6 @@ bool Deserialize::parseModelIsSuccessful() {
   while ((line = btor2parser_iter_next(&it))) {
     parseModelLine(line);
   }
-  // ensure each state has a next function
-  for (auto state : m_states) {
-    if (!getLineById(state->next)) {
-      std::cerr << "state " << state->id << " without next function\n";
-      return false;
-    }
-  }
 
   return true;
 }
@@ -472,6 +465,10 @@ std::vector<Value> Deserialize::buildNextFunction(
   // close with a fitting returnOp
   std::vector<Value> results(m_states.size(), nullptr);
   for (unsigned i = 0; i < m_states.size(); ++i) {
+    if (!getLineById(m_states.at(i)->next)) { 
+      results[i] = getFromCacheById(m_states.at(i)->id);
+      continue;
+    }
     results[i] = getFromCacheById(m_states.at(i)->next);
   }
 
