@@ -33,4 +33,17 @@ def ConvertBtorToLLVM : Pass<"convert-btor-to-llvm", "ModuleOp"> {
   let dependentDialects = ["LLVM::LLVMDialect"];
 }
 
+//===----------------------------------------------------------------------===//
+// BtorToVector
+//===----------------------------------------------------------------------===//
+
+def ConvertBtorToVector : Pass<"convert-btor-to-vector", "ModuleOp"> {
+  let summary = "Convert Btor Dialect to Vector dialect";
+  let description = [{
+    Convert btor array operations into vector instructions
+  }];
+  let constructor = "mlir::btor::createLowerToVectorPass()";
+  let dependentDialects = ["vector::VectorDialect"];
+}
+
 #endif // BTOR_CONVERSION_PASSES

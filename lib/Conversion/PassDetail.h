@@ -3,6 +3,7 @@
 
 #include "mlir/Pass/Pass.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Vector/IR/VectorOps.h"
 
 namespace mlir {
 class ModuleOp;
@@ -22,6 +23,10 @@ class BtorDialect;
 namespace LLVM {
 class LLVMDialect;
 } // end namespace LLVM
+
+namespace vector {
+class VectorDialect;
+} // end namespace vector
 
 #define GEN_PASS_CLASSES
 #include "Conversion/Passes.h.inc"

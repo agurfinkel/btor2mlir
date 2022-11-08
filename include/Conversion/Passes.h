@@ -3,6 +3,7 @@
 
 #include "Conversion/BtorToArithmetic/ConvertBtorToArithmeticPass.h"
 #include "Conversion/BtorToLLVM/ConvertBtorToLLVMPass.h"
+#include "Conversion/BtorToVector/ConvertBtorToVectorPass.h"
 
 namespace mlir {
 namespace btor {
