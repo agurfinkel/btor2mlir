@@ -4,3 +4,4 @@ run-script.sh
 include/Target/Btor/btor2parser
 clang-debug
 .vscode
+hwmcc20
