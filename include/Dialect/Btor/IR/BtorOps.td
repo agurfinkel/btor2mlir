@@ -114,9 +114,9 @@ def IteOp : Btor_Op<"ite", [NoSideEffect,
     }];
 
   let arguments = (ins BoolLike:$condition,
-                      SignlessIntegerLike:$true_value,
-                      SignlessIntegerLike:$false_value);
-  let results = (outs SignlessIntegerLike:$result);
+                      AnyType:$true_value,
+                      AnyType:$false_value);
+  let results = (outs AnyType:$result);
   
   let extraClassDeclaration = [{
     Value getCondition() { return condition(); }
@@ -969,7 +969,7 @@ def ReadOp : Btor_Op<"read"> {
     Example:
 
     ```mlir
-    %1 = btor.read %A[%0] : !btor.array<i8,i32>
+    %1 = btor.read %A[%0] : !btor.array<i8,i32>, i32
     ```
   }];
 

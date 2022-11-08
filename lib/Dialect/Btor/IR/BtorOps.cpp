@@ -103,7 +103,7 @@ void SliceOp::print(OpAsmPrinter &p) {
 
   p << ' ' << getOperand(0) << ", " << getOperand(1) << ", " << getOperand(2);
   p.printOptionalAttrDict((*this)->getAttrs());
-  p << " : " << getType();
+  p << " : " << getOperand(0).getType() << ", " << getType();
 }
 
 LogicalResult SliceOp::verify() {
@@ -277,7 +277,7 @@ static LogicalResult verifyExtOp(Op op) {
   Type srcType = getElementTypeOrSelf(op.in().getType());
   Type dstType = getElementTypeOrSelf(op.getType());
 
-  if (srcType.cast<ValType>().getWidth() >= dstType.cast<ValType>().getWidth())
+  if (srcType.cast<ValType>().getWidth() > dstType.cast<ValType>().getWidth())
     return op.emitError("result type ")
            << dstType << " must be wider than operand type " << srcType;
 
@@ -314,7 +314,8 @@ void ConcatOp::print(OpAsmPrinter &p) {
   p.printOptionalAttrDict((*this)->getAttrs());
 
   // Now we can output the types for all operands and the result.
-  p << " : " << getResult().getType();
+  p << " : " << getOperand(0).getType() << ", " ;
+  p << getOperand(1).getType() << ", " << getResult().getType();
 }
 
 LogicalResult ConcatOp::verify() {
@@ -337,9 +338,9 @@ LogicalResult ConcatOp::verify() {
 //===----------------------------------------------------------------------===//
 
 void InputOp::print(OpAsmPrinter &p) {
-  p << " " << value() << " : " << getOperand().getType();
-  p << " ";
-  p.printOptionalAttrDict((*this)->getAttrs());
+  p << " " << id() << ", " << value() << " ";
+  p << " : " << getOperand().getType();
+  
 }
 
 ParseResult InputOp::parse(OpAsmParser &parser, OperationState &result) {
@@ -370,7 +371,7 @@ ParseResult InputOp::parse(OpAsmParser &parser, OperationState &result) {
 void ReadOp::print(OpAsmPrinter &p) {
   p << " " << base() << "[" << index() << "]";
   p.printOptionalAttrDict((*this)->getAttrs());
-  p << " : " << result().getType();
+  p << " : " << base().getType() << ", " << result().getType();
 }
 
 LogicalResult ReadOp::verify() {
@@ -422,18 +423,17 @@ LogicalResult WriteOp::verify() {
 ParseResult WriteOp::parse(OpAsmParser &parser, OperationState &result) {
   OpAsmParser::UnresolvedOperand value, base, index;
   ArrayType resultType;
-  Type valueType;
   if (parser.parseOperand(value) || parser.parseComma() ||
       parser.parseOperand(base) || parser.parseLSquare() || 
       parser.parseOperand(index) || parser.parseRSquare() ||
       parser.parseOptionalAttrDict(result.attributes) || 
-      parser.parseColon() || parser.parseType(valueType) ||
-      parser.parseOptionalComma() || parser.parseType(resultType))
+      parser.parseColon() || parser.parseType(resultType))
     return failure();
 
   result.addTypes(resultType);
   return parser.resolveOperands({value, base, index}, 
-                                {valueType, resultType, resultType.getShape()},
+                                {resultType.getElementType(), 
+                                resultType, resultType.getShape()},
                                 parser.getNameLoc(), result.operands);
 }
 
