@@ -137,11 +137,10 @@ private:
   // Builder wrappers
   Type getTypeOf(Btor2Line *line) {
     if (line->sort.tag == BTOR2_TAG_SORT_array) {
-      auto indexType = m_builder.getIntegerType(
-          m_sorts.at(line->sort.array.index)->sort.bitvec.width);
+      unsigned indexWidth = pow(2, m_sorts.at(line->sort.array.index)->sort.bitvec.width);
       auto elementType = m_builder.getIntegerType(
           m_sorts.at(line->sort.array.element)->sort.bitvec.width);
-      return btor::ArrayType::get(m_context, indexType, elementType);
+      return VectorType::get(ArrayRef<int64_t>{indexWidth}, elementType);
       ;
     }
     return m_builder.getIntegerType(line->sort.bitvec.width);
@@ -315,7 +314,7 @@ private:
 
   // Array Operations
   Operation *buildReadOp(const Value &array, const Value &index) {
-    auto elementType = array.getType().cast<ArrayType>().getElementType();
+    auto elementType = array.getType().cast<VectorType>().getElementType();
     auto res =
         m_builder.create<btor::ReadOp>(m_unknownLoc, elementType, array, index);
     return res;
