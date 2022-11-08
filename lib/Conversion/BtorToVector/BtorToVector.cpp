@@ -12,21 +12,22 @@ using namespace mlir::btor;
 // Lowering Declarations
 //===----------------------------------------------------------------------===//
 
-// struct AddLowering : public OpRewritePattern<mlir::btor::AddOp> {
-//   using OpRewritePattern<mlir::btor::AddOp>::OpRewritePattern;
-//   LogicalResult matchAndRewrite(mlir::btor::AddOp addOp,
-//                                 PatternRewriter &rewriter) const override;
-// };
+struct ArrayOpLowering : public OpRewritePattern<mlir::btor::ArrayOp> {
+  using OpRewritePattern<mlir::btor::ArrayOp>::OpRewritePattern;
+  LogicalResult matchAndRewrite(mlir::btor::ArrayOp arrayOp,
+                                PatternRewriter &rewriter) const override;
+};
 
 //===----------------------------------------------------------------------===//
 // Lowering Definitions
 //===----------------------------------------------------------------------===//
 
-// LogicalResult AddLowering::matchAndRewrite(mlir::btor::AddOp addOp,
-//                                            PatternRewriter &rewriter) const {
-//   rewriter.replaceOpWithNewOp<arith::AddIOp>(addOp, addOp.lhs(), addOp.rhs());
-//   return success();
-// }
+LogicalResult ArrayOpLowering::matchAndRewrite(mlir::btor::ArrayOp arrayOp,
+                                           PatternRewriter &rewriter) const {
+  VectorType resVectorType = arrayOp.getArrayType();
+  rewriter.replaceOpWithNewOp<arith::ConstantOp>(arrayOp, resVectorType, rewriter.getZeroAttr(resVectorType));
+  return success();
+}
 
 //===----------------------------------------------------------------------===//
 // Populate Lowering Patterns
@@ -34,7 +35,7 @@ using namespace mlir::btor;
 
 void mlir::btor::populateBtorToVectorConversionPatterns(
     RewritePatternSet &patterns) {
-//   patterns.add<>(patterns.getContext());
+  patterns.add<ArrayOpLowering>(patterns.getContext());
 }
 
 namespace {
@@ -48,9 +49,10 @@ struct ConvertBtorToVectorPass
     /// Configure conversion to lower out btor; Anything else is fine.
     // init operators
     target.addIllegalOp<btor::ArrayOp, btor::InitArrayOp>();
+    // target.addIllegalOp<btor::ArrayType>();
 
     /// indexed operators
-    target.addIllegalOp<btor::ReadOp, btor::WriteOp>();
+    // target.addIllegalOp<btor::ReadOp, btor::WriteOp>();
 
     target.markUnknownOpDynamicallyLegal([](Operation *) { return true; });
     if (failed(applyPartialConversion(getOperation(), target,
