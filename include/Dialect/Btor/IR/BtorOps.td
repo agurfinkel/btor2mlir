@@ -925,14 +925,21 @@ def ArrayOp : Btor_Op<"nd_array"> {
     bitvec -> bitvec. For example:
 
     ```mlir
-    %0 = btor.nd_array : !btor.array<i8,i32>
+    %0 = btor.nd_array : vector<8,i32>
     ```
 
     This operation returns a single SSA value of a btor array type used
     by subsequent read and write operations. 
   }];
 
-  let results = (outs Btor_Array:$result);
+  let extraClassDeclaration = [{
+    VectorType getArrayType() {
+      return result().getType().cast<VectorType>();
+    }
+  }];
+
+  let results = (outs AnyVector:$result);
+  let hasVerifier = 1;
   let assemblyFormat = "attr-dict `:` type($result)";
 }
 
@@ -945,15 +952,21 @@ def InitArrayOp : Btor_Op<"array"> {
     For example:
 
     ```mlir
-    %4 = btor.array %1 : !btor.array<i8,i32>
+    %4 = btor.array %1 : vector<8,i32>
     ```
 
     This operation returns a single SSA value of a btor array type used
     by subsequent read and write operations. 
   }];
 
+  let extraClassDeclaration = [{
+    VectorType getArrayType() {
+      return result().getType().cast<VectorType>();
+    }
+  }];
+
   let arguments = (ins SignlessIntegerLike:$init);
-  let results = (outs Btor_Array:$result);
+  let results = (outs AnyVector:$result);
   // let assemblyFormat = "$init attr-dict `:` type($result)";
   let hasVerifier = 1;
   let hasCustomAssemblyFormat = 1;
@@ -969,16 +982,16 @@ def ReadOp : Btor_Op<"read"> {
     Example:
 
     ```mlir
-    %1 = btor.read %A[%0] : !btor.array<i8,i32>, i32
+    %1 = btor.read %A[%0] : vector<8,i32>, i32
     ```
   }];
 
-  let arguments = (ins Btor_Array:$base, SignlessIntegerLike:$index);
+  let arguments = (ins AnyVector:$base, SignlessIntegerLike:$index);
   let results = (outs SignlessIntegerLike:$result);
 
   let extraClassDeclaration = [{
-    ArrayType getArrayType() {
-      return base().getType().cast<ArrayType>();
+    VectorType getArrayType() {
+      return base().getType().cast<VectorType>();
     }
   }];
 
@@ -999,13 +1012,13 @@ def WriteOp : Btor_Op<"write"> {
     ```
   }];
 
-  let arguments = (ins SignlessIntegerLike:$value, Btor_Array:$base,
+  let arguments = (ins SignlessIntegerLike:$value, AnyVector:$base,
                        SignlessIntegerLike:$index);
 
-  let results = (outs Btor_Array:$result);
-    let extraClassDeclaration = [{
-    ArrayType getArrayType() {
-      return base().getType().cast<ArrayType>();
+  let results = (outs AnyVector:$result);
+  let extraClassDeclaration = [{
+    VectorType getArrayType() {
+      return base().getType().cast<VectorType>();
     }
   }];
 

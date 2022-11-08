@@ -381,13 +381,22 @@ LogicalResult ReadOp::verify() {
     return emitOpError() << "element type of the array must match "
                          << " bitwidth of return type: " << type;
   }
+  if (getArrayType().getShape().size() != 1) {
+    return emitOpError() << "provide only one shape attribute ";
+  }
+  auto shape = getArrayType().getShape()[0];
+  auto indicator = shape & (shape - 1);
+  if (indicator != 0) {
+    return emitOpError() << "given shape: " <<  shape 
+                         << " has to be a power of two";
+  }
   return success();
 }
 
 ParseResult ReadOp::parse(OpAsmParser &parser, OperationState &result) {
   OpAsmParser::UnresolvedOperand base, index;
-  ArrayType baseType;
-  Type resultType;
+  VectorType baseType;
+  Type resultType; IntegerType indexType;
   if (parser.parseOperand(base) || parser.parseLSquare() || 
       parser.parseOperand(index) || parser.parseRSquare() ||
       parser.parseOptionalAttrDict(result.attributes) || 
@@ -396,7 +405,8 @@ ParseResult ReadOp::parse(OpAsmParser &parser, OperationState &result) {
     return failure();
 
   result.addTypes(resultType);
-  return parser.resolveOperands({base, index}, {baseType, baseType.getShape()},
+  indexType = parser.getBuilder().getIntegerType(log2(baseType.getShape()[0]));
+  return parser.resolveOperands({base, index}, {baseType, indexType},
                                 parser.getNameLoc(), result.operands);
 }
 
@@ -417,12 +427,21 @@ LogicalResult WriteOp::verify() {
     return emitOpError() << "element type of the array must match "
                          << " bitwidth of given value: " << type;
   }
+  if (getArrayType().getShape().size() != 1) {
+    return emitOpError() << "provide only one shape attribute ";
+  }
+  auto shape = getArrayType().getShape()[0];
+  auto indicator = shape & (shape - 1);
+  if (indicator != 0) {
+    return emitOpError() << "given shape: " <<  shape 
+                         << " has to be a power of two";
+  }
   return success();
 }
 
 ParseResult WriteOp::parse(OpAsmParser &parser, OperationState &result) {
   OpAsmParser::UnresolvedOperand value, base, index;
-  ArrayType resultType;
+  VectorType resultType; IntegerType indexType;
   if (parser.parseOperand(value) || parser.parseComma() ||
       parser.parseOperand(base) || parser.parseLSquare() || 
       parser.parseOperand(index) || parser.parseRSquare() ||
@@ -431,10 +450,28 @@ ParseResult WriteOp::parse(OpAsmParser &parser, OperationState &result) {
     return failure();
 
   result.addTypes(resultType);
+  indexType = parser.getBuilder().getIntegerType(log2(resultType.getShape()[0]));
   return parser.resolveOperands({value, base, index}, 
                                 {resultType.getElementType(), 
-                                resultType, resultType.getShape()},
+                                resultType, indexType},
                                 parser.getNameLoc(), result.operands);
+}
+
+//===----------------------------------------------------------------------===//
+// Array Operations
+//===----------------------------------------------------------------------===//
+
+LogicalResult ArrayOp::verify() {
+  if (getArrayType().getShape().size() != 1) {
+    return emitOpError() << "provide only one shape attribute ";
+  }
+  auto shape = getArrayType().getShape()[0];
+  auto indicator = shape & (shape - 1);
+  if (indicator != 0) {
+    return emitOpError() << "given shape: " <<  shape 
+                         << " has to be a power of two";
+  }
+  return success();
 }
 
 //===----------------------------------------------------------------------===//
@@ -450,17 +487,26 @@ void InitArrayOp::print(OpAsmPrinter &p) {
 LogicalResult InitArrayOp::verify() {
   auto type = init().getType().getIntOrFloatBitWidth();
   // The value's type must match the array's element type.
-  auto elementType = result().getType().cast<ArrayType>().getElementType();
+  auto elementType = result().getType().cast<VectorType>().getElementType();
   if (elementType.getIntOrFloatBitWidth() != type) {
     return emitOpError() << "element type of the array must match "
                          << " bitwidth of given value: " << type;
+  }
+  if (getArrayType().getShape().size() != 1) {
+    return emitOpError() << "provide only one shape attribute ";
+  }
+  auto shape = getArrayType().getShape()[0];
+  auto indicator = shape & (shape - 1);
+  if (indicator != 0) {
+    return emitOpError() << "given shape: " <<  shape 
+                         << " has to be a power of two";
   }
   return success();
 }
 
 ParseResult InitArrayOp::parse(OpAsmParser &parser, OperationState &result) {
   OpAsmParser::UnresolvedOperand init;
-  ArrayType resultType;
+  VectorType resultType;
   if (parser.parseOperand(init) ||
       parser.parseOptionalAttrDict(result.attributes) || 
       parser.parseColon() || parser.parseType(resultType))
