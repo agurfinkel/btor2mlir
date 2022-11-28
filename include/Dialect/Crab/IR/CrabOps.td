@@ -12,7 +12,7 @@
 include "CrabBase.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
-include "mlir/Interfaces/InferIntRangeInterface.td"
+// include "mlir/Interfaces/InferIntRangeInterface.td"
 
 //===----------------------------------------------------------------------===//
 // Base crab operation definition.

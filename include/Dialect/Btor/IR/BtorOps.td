@@ -12,7 +12,7 @@
 include "BtorBase.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
-include "mlir/Interfaces/InferIntRangeInterface.td"
+// include "mlir/Interfaces/InferIntRangeInterface.td"
 include "mlir/IR/OpAsmInterface.td"
 include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/VectorInterfaces.td"
@@ -73,7 +73,7 @@ def UExtOp : BtorCastOp<"uext"> {
     ```
   }];
 
-  let hasVerifier = 1;
+//   let verifier = 1;
 }
 
 def SExtOp : BtorCastOp<"sext"> {
@@ -92,7 +92,7 @@ def SExtOp : BtorCastOp<"sext"> {
     ```
   }];
 
-  let hasVerifier = 1;
+//   let verifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -126,7 +126,7 @@ def IteOp : Btor_Op<"ite", [NoSideEffect,
     Value getFalseValue() { return false_value(); }
   }];
 
-  let hasCustomAssemblyFormat = 1;
+//   let hasCustomAssemblyFormat = 1;
 }
 
 def SliceOp : Btor_Op<"slice", [NoSideEffect,
@@ -161,8 +161,8 @@ def SliceOp : Btor_Op<"slice", [NoSideEffect,
       }]>
     ];
 
-  let hasCustomAssemblyFormat = 1;
-  let hasVerifier = 1;
+//   let hasCustomAssemblyFormat = 1;
+//   let verifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -196,7 +196,7 @@ class BtorBinaryDifferentResultTypeOp<string mnemonic, list<Trait> traits = []> 
     Arguments<(ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs)> {
 
   let results = (outs BoolLike:$result);
-  let hasCustomAssemblyFormat = 1;
+//   let hasCustomAssemblyFormat = 1;
 }
 
 def AddOp : BtorBinaryOp<"add", [Commutative]> {
@@ -644,8 +644,8 @@ def ConcatOp : Btor_Op<"concat"> {
                       SignlessIntegerLike:$rhs);
     let results = (outs SignlessIntegerLike:$result);
 
-    let hasCustomAssemblyFormat = 1;
-    let hasVerifier = 1;
+    // let hasCustomAssemblyFormat = 1;
+    // let verifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -672,7 +672,7 @@ class BtorUnaryDifferentResultTypeOp<string mnemonic, list<Trait> traits = []> :
     Arguments<(ins SignlessIntegerLike:$operand)> {
 
   let results = (outs BoolLike:$result);
-  let hasCustomAssemblyFormat = 1;
+//   let hasCustomAssemblyFormat = 1;
 }
 
 def NotOp : BtorUnaryOp<"not"> {
@@ -839,7 +839,7 @@ def ConstantOp : Btor_Op<"constant", [ConstantLike, NoSideEffect,
 
   let assemblyFormat = "attr-dict $value";
   let hasFolder = 1;
-  let hasVerifier = 1;
+//   let verifier = 1;
 }
 
 def ConstraintOp : Btor_Op<"constraint"> {
@@ -910,7 +910,7 @@ def InputOp : Btor_Op<"input"> {
         }]>
     ];
 
-    let hasCustomAssemblyFormat = 1;
+    // let hasCustomAssemblyFormat = 1;
 }
 
 #endif // BTOR_OPS

@@ -13,6 +13,6 @@ add_mlir_conversion_library(MLIRBtorToLLVM
     
     LINK_LIBS PUBLIC
     MLIRLLVMCommonConversion
-    MLIRLLVMDialect
+    MLIRLLVMIR
     MLIRTransforms
     )
