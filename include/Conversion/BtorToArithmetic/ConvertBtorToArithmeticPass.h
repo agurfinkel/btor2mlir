@@ -11,11 +11,11 @@ class RewritePatternSet;
 // using OwningRewritePatternList = RewritePatternSet;
 
 namespace btor {
-    /// Collect a set of patterns to lower from btor.add to Math dialect
-    void populateBtorToArithmeticConversionPatterns(RewritePatternSet &patterns);
+  /// Collect a set of patterns to lower from btor to arithmetic dialect
+  void populateBtorToArithmeticConversionPatterns(RewritePatternSet &patterns);
 
-    /// Creates a pass to convert the Btor dialect into the Math dialect.
-    std::unique_ptr<Pass> createConvertBtorToArithmeticPass();
+  /// Creates a pass to convert the Btor dialect into the arithmetic dialect.
+  std::unique_ptr<Pass> createConvertBtorToArithmeticPass();
 
 } // namespace btor
 } // namespace mlir
