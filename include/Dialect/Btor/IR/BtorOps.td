@@ -113,9 +113,9 @@ def IteOp : Btor_Op<"ite", [NoSideEffect,
     }];
 
   let arguments = (ins BoolLike:$condition,
-                      SignlessIntegerLike:$true_value,
-                      SignlessIntegerLike:$false_value);
-  let results = (outs SignlessIntegerLike:$result);
+                      AnyType:$true_value,
+                      AnyType:$false_value);
+  let results = (outs AnyType:$result);
   
   let extraClassDeclaration = [{
     Value getCondition() { return condition(); }
@@ -168,6 +168,10 @@ def SliceOp : Btor_Op<"slice", [NoSideEffect,
     return parseSliceOp(parser, result);
   }];
   
+  let printer = [{
+    return printSliceOp(p, this->getOperation());
+  }];
+
   let verifier = [{ return verifySliceOp<IntegerType>(*this); }];
 }
 
@@ -941,6 +945,130 @@ def InputOp : Btor_Op<"input"> {
     let printer = [{
       return printInputOp(p, *this);
     }];
+}
+
+//===----------------------------------------------------------------------===//
+// Btor arrays
+//===----------------------------------------------------------------------===//
+
+def ArrayOp : Btor_Op<"nd_array"> {
+  let summary = "btor array allocation operation";
+  let description = [{
+    The `nd_array` operation represents a btor array from 
+    bitvec -> bitvec. For example:
+
+    ```mlir
+    %0 = btor.nd_array : vector<8,i32>
+    ```
+
+    This operation returns a single SSA value of a btor array type used
+    by subsequent read and write operations. 
+  }];
+
+  let results = (outs AnyVector:$result);
+  let assemblyFormat = "attr-dict `:` type($result)";
+  let verifier = [{ return verifyArrayOp(*this); }];
+  let extraClassDeclaration = [{
+    VectorType getArrayType() {
+      return result().getType().cast<VectorType>();
+    }
+  }];
+}
+
+def InitArrayOp : Btor_Op<"array"> {
+  let summary = "btor initialized array allocation operation";
+  let description = [{
+    The `array` operation represents a btor array from 
+    bitvec -> bitvec that has been initialized with a value. 
+
+    For example:
+
+    ```mlir
+    %4 = btor.array %1 : vector<8,i32>
+    ```
+
+    This operation returns a single SSA value of a btor array type used
+    by subsequent read and write operations. 
+  }];
+
+  let arguments = (ins SignlessIntegerLike:$init);
+  let results = (outs AnyVector:$result);
+  let extraClassDeclaration = [{
+    VectorType getArrayType() {
+      return result().getType().cast<VectorType>();
+    }
+  }];
+  let verifier = [{ return verifyInitArrayOp(*this); }];
+  let parser = [{
+    return parseInitArrayOp(parser, result);
+  }];
+  let printer = [{
+    return printInitArrayOp(p, *this);
+  }];
+}
+
+def ReadOp : Btor_Op<"read"> {
+  let summary = "btor read operation";
+  let description = [{
+    The `read` op reads an element from a btor array specified by an index. 
+    The output of load is a new value with the same type as the elements of the
+    btor array.
+
+    Example:
+
+    ```mlir
+    %1 = btor.read %A[%0] : vector<8,i32>, i32
+    ```
+  }];
+
+  let arguments = (ins AnyVector:$base, SignlessIntegerLike:$index);
+  let results = (outs SignlessIntegerLike:$result);
+
+  let extraClassDeclaration = [{
+    VectorType getArrayType() {
+      return base().getType().cast<VectorType>();
+    }
+  }];
+
+  let verifier = [{ return verifyReadOp(*this); }];
+  let parser = [{
+    return parseReadOp(parser, result);
+  }];
+  let printer = [{
+    return printReadOp(p, *this);
+  }];
+}
+
+def WriteOp : Btor_Op<"write"> {
+  let summary = "btor write operation";
+  let description = [{
+    Copy the given array and write the given value to the provided
+    location given by index. The value stored should have the same type 
+    as the elemental type of the array. 
+    Example:
+
+    ```mlir
+    %4 = btor.write %2, %A[%1] : vector<8, i32>
+    ```
+  }];
+
+  let arguments = (ins SignlessIntegerLike:$value, AnyVector:$base,
+                       SignlessIntegerLike:$index);
+
+  let results = (outs AnyVector:$result);
+    let extraClassDeclaration = [{
+    VectorType getArrayType() {
+      return base().getType().cast<VectorType>();
+    }
+  }];
+
+  let verifier = [{ return verifyWriteOp(*this); }];
+  let parser = [{
+    return parseWriteOp(parser, result);
+  }];
+  let printer = [{
+    return printWriteOp(p, *this);
+  }];
 }
 
 #endif // BTOR_OPS

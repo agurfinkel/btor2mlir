@@ -79,6 +79,16 @@ static ParseResult parseSliceOp(OpAsmParser &parser, OperationState &result) {
                                 parser.getNameLoc(), result.operands);
 }
 
+/// A custom slice operation printer
+static void printSliceOp(OpAsmPrinter &p, Operation *op) {
+  assert(op->getNumOperands() == 3 && "slice op should have one operand");
+  assert(op->getNumResults() == 1 && "slice op should have one result");
+
+  p << ' ' << op->getOperand(0) << ", " << op->getOperand(1) << ", " << op->getOperand(2);
+  p.printOptionalAttrDict(op->getAttrs());
+  p << " : " << op->getOperand(0).getType() << ", " << op->getResult(0).getType();
+}
+
 template <typename ValType, typename Op>
 static LogicalResult verifySliceOp(Op op) {
   Type srcType = getElementTypeOrSelf(op.in().getType());
@@ -227,10 +237,6 @@ static LogicalResult verifyConcatOp(Op op) {
 // Input Operation
 //===----------------------------------------------------------------------===//
 
-// //===----------------------------------------------------------------------===//
-// // Input Operation
-// //===----------------------------------------------------------------------===//
-
 static void printInputOp(OpAsmPrinter &p, mlir::btor::InputOp &op) {
   p << " "  << op.value() << " : " << op->getOperand(0).getType();
   p << " ";
@@ -259,6 +265,154 @@ static ParseResult parseInputOp(OpAsmParser &parser,OperationState &result) {
   result.attributes = attrs;
   result.addTypes({type});
   return success();
+}
+
+//===----------------------------------------------------------------------===//
+// Array Operations
+//===----------------------------------------------------------------------===//
+
+template <typename Op>
+static LogicalResult verifyArrayOp(Op op) {
+  if (op.getArrayType().getShape().size() != 1) {
+    return op.emitOpError() << "provide only one shape attribute ";
+  }
+  auto shape = op.getArrayType().getShape()[0];
+  auto indicator = shape & (shape - 1);
+  if (indicator != 0) {
+    return op.emitOpError() << "given shape: " <<  shape 
+                         << " has to be a power of two";
+  }
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
+// Initialzied Array Operations
+//===----------------------------------------------------------------------===//
+
+static void printInitArrayOp(OpAsmPrinter &p, InitArrayOp &op) {
+  p << " " << op.init();
+  p.printOptionalAttrDict(op->getAttrs());
+  p << " : " << op.result().getType();
+}
+
+template <typename Op>
+static LogicalResult verifyInitArrayOp(Op op) {
+  auto type = op.init().getType().getIntOrFloatBitWidth();
+  // The value's type must match the array's element type.
+  auto elementType = op.getArrayType().getElementType();
+  if (elementType.getIntOrFloatBitWidth() != type) {
+    return op.emitOpError() << "element type of the array must match "
+                         << " bitwidth of given value: " << type;
+  }
+  if (op.getArrayType().getShape().size() != 1) {
+    return op.emitOpError() << "provide only one shape attribute ";
+  }
+  auto shape = op.getArrayType().getShape()[0];
+  auto indicator = shape & (shape - 1);
+  if (indicator != 0) {
+    return op.emitOpError() << "given shape: " <<  shape 
+                         << " has to be a power of two";
+  }
+  return success();
+}
+
+static ParseResult parseInitArrayOp(OpAsmParser &parser, OperationState &result) {
+  OpAsmParser::OperandType init;
+  VectorType resultType;
+  if (parser.parseOperand(init) ||
+      parser.parseOptionalAttrDict(result.attributes) || 
+      parser.parseColon() || parser.parseType(resultType))
+    return failure();
+
+  result.addTypes(resultType);
+  return parser.resolveOperands({init}, 
+                                {resultType.getElementType()},
+                                parser.getNameLoc(), result.operands);
+}
+
+//===----------------------------------------------------------------------===//
+// Read Operations
+//===----------------------------------------------------------------------===//
+
+static void printReadOp(OpAsmPrinter &p, ReadOp &op) {
+  p << " " << op.base() << "[" << op.index() << "]";
+  p.printOptionalAttrDict(op->getAttrs());
+  p << " : " << op.result().getType();
+}
+
+template <typename Op>
+static LogicalResult verifyReadOp(Op op) {
+  auto type = op.result().getType().getIntOrFloatBitWidth();
+  // The value's type must match the return type.
+  if (op.getArrayType().getElementType().getIntOrFloatBitWidth() != type) {
+    return op.emitOpError() << "element type of the array must match "
+                         << " bitwidth of return type: " << type;
+  }
+  if (op.getArrayType().getShape().size() != 1) {
+    return op.emitOpError() << "provide only one shape attribute ";
+  }
+  auto shape = op.getArrayType().getShape()[0];
+  auto indicator = shape & (shape - 1);
+  if (indicator != 0) {
+    return op.emitOpError() << "given shape: " <<  shape 
+                         << " has to be a power of two";
+  }
+  return success();
+}
+
+static ParseResult parseReadOp(OpAsmParser &parser, OperationState &result) {
+  OpAsmParser::OperandType base, index;
+  VectorType baseType; IntegerType indexType;
+  Type resultType;
+  if (parser.parseOperand(base) || parser.parseLSquare() || 
+      parser.parseOperand(index) || parser.parseRSquare() ||
+      parser.parseOptionalAttrDict(result.attributes) || 
+      parser.parseColon() || parser.parseType(baseType) ||
+      parser.parseOptionalComma() || parser.parseType(resultType))
+    return failure();
+
+  result.addTypes(resultType);
+  indexType = parser.getBuilder().getIntegerType(log2(baseType.getShape()[0]));
+  return parser.resolveOperands({base, index}, {baseType, indexType},
+                                parser.getNameLoc(), result.operands);
+}
+
+//===----------------------------------------------------------------------===//
+// Write Operations
+//===----------------------------------------------------------------------===//
+
+void printWriteOp(OpAsmPrinter &p, WriteOp &op) {
+  p << " " << op.value() << ", " << op.base() << "[" << op.index() << "]";
+  p.printOptionalAttrDict(op->getAttrs());
+  p << " : " << op.result().getType();
+}
+
+template <typename Op>
+LogicalResult verifyWriteOp(Op op) {
+  auto type = op.value().getType().getIntOrFloatBitWidth();
+  // The value's type must match the array's element type.
+  if (op.getArrayType().getElementType().getIntOrFloatBitWidth() != type) {
+    return op.emitOpError() << "element type of the array must match "
+                         << " bitwidth of given value: " << type;
+  }
+  return success();
+}
+
+static ParseResult parseWriteOp(OpAsmParser &parser, OperationState &result) {
+  OpAsmParser::OperandType value, base, index;
+  VectorType resultType; IntegerType indexType;
+  if (parser.parseOperand(value) || parser.parseComma() ||
+      parser.parseOperand(base) || parser.parseLSquare() || 
+      parser.parseOperand(index) || parser.parseRSquare() ||
+      parser.parseOptionalAttrDict(result.attributes) || 
+      parser.parseColon() || parser.parseType(resultType))
+    return failure();
+
+  result.addTypes(resultType);
+  indexType = parser.getBuilder().getIntegerType(log2(resultType.getShape()[0]));
+  return parser.resolveOperands({value, base, index}, 
+                                {resultType.getElementType(), resultType, indexType},
+                                parser.getNameLoc(), result.operands);
 }
 
 //===----------------------------------------------------------------------===//
