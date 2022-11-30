@@ -1,2 +1,3 @@
 add_subdirectory(BtorToArithmetic)
 add_subdirectory(BtorToLLVM)
+add_subdirectory(BtorToVector)
