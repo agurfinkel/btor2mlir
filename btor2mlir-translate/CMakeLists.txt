@@ -16,8 +16,8 @@ target_link_libraries(btor2mlir-translate
   MLIRIR
   MLIRParser
   MLIRPass
-  MLIRSPIRVDialect
-  MLIRTranslateLib
+  MLIRSPIRV
+  MLIRTranslation
   MLIRSupport
   )
 

@@ -156,21 +156,9 @@ struct NegLowering : public OpRewritePattern<mlir::btor::NegOp> {
                                 PatternRewriter &rewriter) const override;
 };
 
-struct IteLowering : public OpRewritePattern<mlir::btor::IteOp> {
-  using OpRewritePattern<mlir::btor::IteOp>::OpRewritePattern;
-  LogicalResult matchAndRewrite(mlir::btor::IteOp iteOp,
-                                PatternRewriter &rewriter) const override;
-};
-
 struct ConcatLowering : public OpRewritePattern<mlir::btor::ConcatOp> {
   using OpRewritePattern<mlir::btor::ConcatOp>::OpRewritePattern;
   LogicalResult matchAndRewrite(mlir::btor::ConcatOp concatOp,
-                                PatternRewriter &rewriter) const override;
-};
-
-struct SModLowering : public OpRewritePattern<mlir::btor::SModOp> {
-  using OpRewritePattern<mlir::btor::SModOp>::OpRewritePattern;
-  LogicalResult matchAndRewrite(mlir::btor::SModOp smodOp,
                                 PatternRewriter &rewriter) const override;
 };
 
@@ -379,13 +367,6 @@ ShiftRALowering::matchAndRewrite(mlir::btor::ShiftRAOp sraOp,
   return success();
 }
 
-LogicalResult IteLowering::matchAndRewrite(mlir::btor::IteOp iteOp,
-                                           PatternRewriter &rewriter) const {
-  rewriter.replaceOpWithNewOp<arith::SelectOp>(
-      iteOp, iteOp.condition(), iteOp.true_value(), iteOp.false_value());
-  return success();
-}
-
 LogicalResult
 RotateLLowering::matchAndRewrite(mlir::btor::RotateLOp rolOp,
                                  PatternRewriter &rewriter) const {
@@ -468,28 +449,6 @@ LogicalResult ConcatLowering::matchAndRewrite(mlir::btor::ConcatOp concatOp,
   return success();
 }
 
-LogicalResult SModLowering::matchAndRewrite(mlir::btor::SModOp smodOp,
-                                            PatternRewriter &rewriter) const {
-  // since srem(a, b) = sign_of(a) * smod(a, b),
-  // we have smod(a, b) =  sign_of(b) * |srem(a, b)|
-  auto loc = smodOp.getLoc();
-  auto rhs = smodOp.rhs(), lhs = smodOp.lhs();
-  auto opType = rhs.getType();
-
-  Value zeroConst = rewriter.create<arith::ConstantOp>(
-      loc, opType, rewriter.getIntegerAttr(opType, 0));
-  Value srem = rewriter.create<arith::RemSIOp>(loc, lhs, rhs);
-  Value remLessThanZero = rewriter.create<arith::CmpIOp>(
-      loc, arith::CmpIPredicate::sle, srem, zeroConst);
-  Value rhsLessThanZero = rewriter.create<arith::CmpIOp>(
-      loc, arith::CmpIPredicate::sle, rhs, zeroConst);
-  Value xorOp =
-      rewriter.create<arith::XOrIOp>(loc, remLessThanZero, rhsLessThanZero);
-  Value negOp = rewriter.create<btor::NegOp>(loc, srem);
-  rewriter.replaceOpWithNewOp<arith::SelectOp>(smodOp, xorOp, negOp, srem);
-  return success();
-}
-
 LogicalResult UExtLowering::matchAndRewrite(mlir::btor::UExtOp uextOp,
                                             PatternRewriter &rewriter) const {
   rewriter.replaceOpWithNewOp<arith::ExtUIOp>(uextOp, uextOp.getType(),
@@ -556,10 +515,10 @@ void mlir::btor::populateBtorToArithmeticConversionPatterns(
     RewritePatternSet &patterns) {
   patterns.add<ConstantLowering, AddLowering, SubLowering, MulLowering,
                UDivLowering, SDivLowering, URemLowering, SRemLowering,
-               SModLowering, AndLowering, OrLowering, XOrLowering,
+               AndLowering, OrLowering, XOrLowering,
                ShiftLLLowering, ShiftRLLowering, ShiftRALowering,
                RotateLLowering, RotateRLowering, CmpLowering, NotLowering,
-               IteLowering, IffLowering, ImpliesLowering, XnorLowering,
+               IffLowering, ImpliesLowering, XnorLowering,
                NandLowering, NorLowering, IncLowering, DecLowering, NegLowering,
                UExtLowering, SExtLowering, SliceLowering, ConcatLowering>(
       patterns.getContext());
@@ -591,11 +550,7 @@ struct ConvertBtorToArithmeticPass
                         btor::ConcatOp>();
     // arithmetic
     target.addIllegalOp<btor::AddOp, btor::MulOp, btor::SDivOp, btor::UDivOp>();
-    target
-        .addIllegalOp<btor::SModOp, btor::SRemOp, btor::URemOp, btor::SubOp>();
-
-    /// ternary operators
-    target.addIllegalOp<btor::IteOp>();
+    target.addIllegalOp<btor::SRemOp, btor::URemOp, btor::SubOp>();
 
     target.markUnknownOpDynamicallyLegal([](Operation *) { return true; });
     if (failed(applyPartialConversion(getOperation(), target,

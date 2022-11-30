@@ -33,7 +33,7 @@ add_definitions(${LLVM_DEFINITIONS})
 
 add_subdirectory(include)
 add_subdirectory(lib)
-add_subdirectory(test)
+# add_subdirectory(test)
 add_subdirectory(btor2mlir-opt)
 add_subdirectory(btor2mlir-translate)
 add_subdirectory(smt2mlir-opt)

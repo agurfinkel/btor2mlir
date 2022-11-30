@@ -38,7 +38,7 @@ static void printBtorUnaryOp(OpAsmPrinter &p, Operation *op) {
 static ParseResult parseUnaryDifferentResultOp(OpAsmParser &parser,
                                   OperationState &result) {  
   Type operandType;
-  SmallVector<OpAsmParser::UnresolvedOperand, 1> operands;
+  SmallVector<OpAsmParser::OperandType, 1> operands;
   if (parser.parseOperandList(operands, /*requiredOperandCount=*/1) ||
       parser.parseOptionalAttrDict(result.attributes) ||
       parser.parseColonType(operandType))
@@ -48,30 +48,6 @@ static ParseResult parseUnaryDifferentResultOp(OpAsmParser &parser,
   return parser.resolveOperands(operands,
                                 {operandType},
                                 parser.getNameLoc(), result.operands);
-}
-
-ParseResult RedAndOp::parse(OpAsmParser &parser, OperationState &result) {
-    return parseUnaryDifferentResultOp(parser, result);
-}
-
-ParseResult RedOrOp::parse(OpAsmParser &parser, OperationState &result) {
-    return parseUnaryDifferentResultOp(parser, result);
-}
-
-ParseResult RedXorOp::parse(OpAsmParser &parser, OperationState &result) {
-    return parseUnaryDifferentResultOp(parser, result);
-}
-
-void RedAndOp::print(OpAsmPrinter &p) {
-    printBtorUnaryOp(p, *this);
-}
-
-void RedOrOp::print(OpAsmPrinter &p) {
-    printBtorUnaryOp(p, *this);
-}
-
-void RedXorOp::print(OpAsmPrinter &p) {
-    printBtorUnaryOp(p, *this);
 }
 
 //===----------------------------------------------------------------------===//
@@ -88,10 +64,9 @@ static Type getI1SameShape(Type type) {
 // SliceOp
 //===----------------------------------------------------------------------===//
 
-ParseResult SliceOp::parse(OpAsmParser &parser, OperationState &result) {
-  
+static ParseResult parseSliceOp(OpAsmParser &parser, OperationState &result) {
   Type resultType, operandType;
-  SmallVector<OpAsmParser::UnresolvedOperand, 3> operands;
+  SmallVector<OpAsmParser::OperandType, 3> operands;
   if (parser.parseOperandList(operands, /*requiredOperandCount=*/3) ||
       parser.parseOptionalAttrDict(result.attributes) || parser.parseColon() ||
       parser.parseType(operandType) || parser.parseOptionalComma() || 
@@ -104,22 +79,13 @@ ParseResult SliceOp::parse(OpAsmParser &parser, OperationState &result) {
                                 parser.getNameLoc(), result.operands);
 }
 
-/// A custom slice operation printer
-void SliceOp::print(OpAsmPrinter &p) {
-  assert(getNumOperands() == 3 && "slice op should have one operand");
-  assert((*this)->getNumResults() == 1 && "slice op should have one result");
+template <typename ValType, typename Op>
+static LogicalResult verifySliceOp(Op op) {
+  Type srcType = getElementTypeOrSelf(op.in().getType());
+  Type dstType = getElementTypeOrSelf(op.getType());
 
-  p << ' ' << getOperand(0) << ", " << getOperand(1) << ", " << getOperand(2);
-  p.printOptionalAttrDict((*this)->getAttrs());
-  p << " : " << getOperand(0).getType() << ", " << getType();
-}
-
-LogicalResult SliceOp::verify() {
-  Type srcType = getElementTypeOrSelf(in().getType());
-  Type dstType = getElementTypeOrSelf(getType());
-
-  if (srcType.cast<IntegerType>().getWidth() <= dstType.cast<IntegerType>().getWidth())
-    return emitError("result type ")
+  if (srcType.cast<ValType>().getWidth() <= dstType.cast<ValType>().getWidth())
+    return op.emitError("result type ")
            << dstType << " must be less than operand type " << srcType;
 
   return success();
@@ -129,17 +95,17 @@ LogicalResult SliceOp::verify() {
 // IteOp
 //===----------------------------------------------------------------------===//
 
-void IteOp::print(OpAsmPrinter &p) {
-  p << " " << getOperands();
+static void printIteOp(OpAsmPrinter &p, IteOp *op) {
+  p << " " << op->getOperands();
   p << " : ";
-  if (ShapedType condType = getCondition().getType().dyn_cast<ShapedType>())
+  if (ShapedType condType = op->getCondition().getType().dyn_cast<ShapedType>())
     p << condType << ", ";
-  p << getType();
+  p << op->getType();
 }
 
-ParseResult IteOp::parse(OpAsmParser &parser, OperationState &result) {
+static ParseResult parseIteOp(OpAsmParser &parser, OperationState &result) {
   Type conditionType, resultType;
-  SmallVector<OpAsmParser::UnresolvedOperand, 3> operands;
+  SmallVector<OpAsmParser::OperandType, 3> operands;
   if (parser.parseOperandList(operands, /*requiredOperandCount=*/3) ||
       parser.parseOptionalAttrDict(result.attributes) ||
       parser.parseColonType(resultType))
@@ -160,25 +126,6 @@ ParseResult IteOp::parse(OpAsmParser &parser, OperationState &result) {
                                 parser.getNameLoc(), result.operands);
 }
 
-//===----------------------------------------------------------------------===//
-// ConstantOp
-//===----------------------------------------------------------------------===//
-
-LogicalResult ConstantOp::verify() {
-  auto type = getType();
-  // The value's type must match the return type.
-  if (value().getType() != type) {
-    return emitOpError() << "value type " << value().getType()
-                         << " must match return type: " << type;
-  }
-  // Only integer attribute are acceptable.
-  if (!value().isa<IntegerAttr>()) {
-    return emitOpError(
-        "value must be an integer attribute");
-  }
-  return success();
-}
-
 OpFoldResult ConstantOp::fold(ArrayRef<Attribute> operands) {
   assert(operands.empty() && "constant has no operands");
   return value();
@@ -191,7 +138,7 @@ OpFoldResult ConstantOp::fold(ArrayRef<Attribute> operands) {
 static ParseResult parseBinaryOverflowOp(OpAsmParser &parser,
                                   OperationState &result) {  
   Type operandType;
-  SmallVector<OpAsmParser::UnresolvedOperand, 2> operands;
+  SmallVector<OpAsmParser::OperandType, 2> operands;
   if (parser.parseOperandList(operands, /*requiredOperandCount=*/2) ||
       parser.parseOptionalAttrDict(result.attributes) ||
       parser.parseColonType(operandType))
@@ -214,62 +161,6 @@ static void printBinaryOverflowOp(OpAsmPrinter &p, Operation *op) {
   p << " : " << op->getResult(0).getType();
 }
 
-ParseResult SAddOverflowOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result) {
-    return parseBinaryOverflowOp(parser, result);
-}
-
-ParseResult SDivOverflowOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result) {
-    return parseBinaryOverflowOp(parser, result);
-}
-
-ParseResult SMulOverflowOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result) {
-    return parseBinaryOverflowOp(parser, result);
-}
-
-ParseResult SSubOverflowOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result) {
-    return parseBinaryOverflowOp(parser, result);
-}
-
-ParseResult UAddOverflowOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result) {
-    return parseBinaryOverflowOp(parser, result);
-}
-
-ParseResult UMulOverflowOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result) {
-    return parseBinaryOverflowOp(parser, result);
-}
-
-ParseResult USubOverflowOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result) {
-    return parseBinaryOverflowOp(parser, result);
-}
-
-void SAddOverflowOp::print(OpAsmPrinter& printer) {
-    printBinaryOverflowOp(printer, *this);
-}
-
-void SDivOverflowOp::print(OpAsmPrinter& printer) {
-    printBinaryOverflowOp(printer, *this);
-}
-
-void SMulOverflowOp::print(OpAsmPrinter& printer) {
-    printBinaryOverflowOp(printer, *this);
-}
-
-void SSubOverflowOp::print(OpAsmPrinter& printer) {
-    printBinaryOverflowOp(printer, *this);
-}
-
-void UAddOverflowOp::print(OpAsmPrinter& printer) {
-    printBinaryOverflowOp(printer, *this);
-}
-
-void UMulOverflowOp::print(OpAsmPrinter& printer) {
-    printBinaryOverflowOp(printer, *this);
-}
-
-void USubOverflowOp::print(OpAsmPrinter& printer) {
-    printBinaryOverflowOp(printer, *this);
-}   
-
 //===----------------------------------------------------------------------===//
 // Extension Operations
 //===----------------------------------------------------------------------===//
@@ -286,22 +177,13 @@ static LogicalResult verifyExtOp(Op op) {
   return success();
 }
 
-LogicalResult UExtOp::verify() {
-  return verifyExtOp<IntegerType>(*this);
-}
-
-LogicalResult SExtOp::verify() {
-  return verifyExtOp<IntegerType>(*this);
-}
-
 //===----------------------------------------------------------------------===//
 // ConcatOp
 //===----------------------------------------------------------------------===//
 
-ParseResult ConcatOp::parse(OpAsmParser &parser, OperationState &result) {
-  
+static ParseResult parseConcatOp(OpAsmParser &parser, OperationState &result) {
   Type resultType, firstOperandType, secondOperandType;
-  SmallVector<OpAsmParser::UnresolvedOperand, 1> operands;
+  SmallVector<OpAsmParser::OperandType, 1> operands;
   if (parser.parseOperandList(operands, /*requiredOperandCount=*/2) ||
       parser.parseOptionalAttrDict(result.attributes) || parser.parseColon() ||
       parser.parseType(firstOperandType) || parser.parseOptionalComma() || 
@@ -315,27 +197,28 @@ ParseResult ConcatOp::parse(OpAsmParser &parser, OperationState &result) {
                                 parser.getNameLoc(), result.operands);
 }
 
-void ConcatOp::print(OpAsmPrinter &p) {
-  assert(getNumOperands() == 2 && "concat op should have two operands");
+static void printConcatOp(OpAsmPrinter &p, Operation *op) {
+  assert(op->getNumOperands() == 2 && "concat op should have two operands");
 
-  p << ' ' << getOperand(0) << ", " << getOperand(1);
-  p.printOptionalAttrDict((*this)->getAttrs());
+  p << ' ' << op->getOperand(0) << ", " << op->getOperand(1);
+  p.printOptionalAttrDict(op->getAttrs());
 
   // Now we can output the types for all operands and the result.
-  p << " : " << getOperand(0).getType() << ", " 
-    << getOperand(1).getType() << ", " << getResult().getType();
+  p << " : " << op->getOperand(0).getType() << ", " 
+    << op->getOperand(1).getType() << ", " << op->getResult(0).getType();
 }
 
-LogicalResult ConcatOp::verify() {
-  Type firstType = getElementTypeOrSelf(lhs().getType());
-  Type secondType = getElementTypeOrSelf(rhs().getType());
-  Type dstType = getElementTypeOrSelf(getType());
+template <typename ValType, typename Op>
+static LogicalResult verifyConcatOp(Op op) {
+  Type firstType = getElementTypeOrSelf(op.lhs().getType());
+  Type secondType = getElementTypeOrSelf(op.rhs().getType());
+  Type dstType = getElementTypeOrSelf(op.getType());
 
-  auto sumOfTypes = firstType.cast<IntegerType>().getWidth() + 
-              secondType.cast<IntegerType>().getWidth();
-  if ( sumOfTypes != dstType.cast<IntegerType>().getWidth())
-    return emitError("sum of ") << firstType << " and "
-         << secondType << " must be equal to operand type i" << sumOfTypes;
+  auto sumOfTypes = firstType.cast<ValType>().getWidth() + 
+              secondType.cast<ValType>().getWidth();
+  if (sumOfTypes != dstType.cast<ValType>().getWidth())
+    return op.emitError("sum of ") << firstType << " and "
+         << secondType << " must be equal to operand type " << dstType;
 
   return success();
 }
@@ -344,33 +227,37 @@ LogicalResult ConcatOp::verify() {
 // Input Operation
 //===----------------------------------------------------------------------===//
 
-void InputOp::print(OpAsmPrinter &p) {
-    p << " "  << value() << " : " << getOperand().getType();
-    p << " ";
-    p.printOptionalAttrDict((*this)->getAttrs());
+// //===----------------------------------------------------------------------===//
+// // Input Operation
+// //===----------------------------------------------------------------------===//
+
+static void printInputOp(OpAsmPrinter &p, mlir::btor::InputOp &op) {
+  p << " "  << op.value() << " : " << op->getOperand(0).getType();
+  p << " ";
+  p.printOptionalAttrDict(op->getAttrs());
 }
 
-ParseResult InputOp::parse(OpAsmParser &parser,OperationState &result) {  
-    SmallVector<OpAsmParser::UnresolvedOperand> ops;
-    NamedAttrList attrs;
-    Attribute idAttr;
-    Type type;
+static ParseResult parseInputOp(OpAsmParser &parser,OperationState &result) {  
+  SmallVector<OpAsmParser::OperandType> ops;
+  NamedAttrList attrs;
+  Attribute idAttr;
+  Type type;
 
-    if (parser.parseAttribute(idAttr, "id", attrs) ||
-        parser.parseComma() ||
-        parser.parseOperandList(ops, 1) ||
-        parser.parseOptionalAttrDict(attrs) || 
-        parser.parseColonType(type) ||
-        parser.resolveOperands(ops, type, result.operands)
-        )
-        return failure();
+  if (parser.parseAttribute(idAttr, "id", attrs) ||
+      parser.parseComma() ||
+      parser.parseOperandList(ops, 1) ||
+      parser.parseOptionalAttrDict(attrs) || 
+      parser.parseColonType(type) ||
+      parser.resolveOperands(ops, type, result.operands)
+      )
+      return failure();
 
-    if (!idAttr.isa<mlir::IntegerAttr>())
-        return parser.emitError(parser.getNameLoc(),
-                                "expected integer id attribute");
+  if (!idAttr.isa<mlir::IntegerAttr>())
+      return parser.emitError(parser.getNameLoc(),
+                              "expected integer id attribute");
 
-    result.attributes = attrs;
-    result.addTypes({type});
+  result.attributes = attrs;
+  result.addTypes({type});
   return success();
 }
 

@@ -5,7 +5,7 @@
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/Dialect.h"
-#include "mlir/Tools/mlir-translate/Translation.h"
+#include "mlir/Translation.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
@@ -15,8 +15,6 @@
 
 using namespace mlir;
 using namespace mlir::btor;
-using namespace mlir::func;
-using namespace mlir::cf;
 
 void Deserialize::parseModelLine(Btor2Line *l) {
   setLineWithId(l->id, l);
@@ -503,8 +501,7 @@ OwningOpRef<FuncOp> Deserialize::buildMainFunction() {
 static OwningOpRef<ModuleOp> deserializeModule(const llvm::MemoryBuffer *input,
                                          MLIRContext *context) {
   context->loadDialect<btor::BtorDialect>();
-  context->loadDialect<arith::ArithmeticDialect, mlir::func::FuncDialect, 
-                       mlir::cf::ControlFlowDialect>();
+  context->loadDialect<arith::ArithmeticDialect>();
 
   OwningOpRef<ModuleOp> owningModule(ModuleOp::create(FileLineColLoc::get(
       context, input->getBufferIdentifier(), /*line=*/0, /*column=*/0)));

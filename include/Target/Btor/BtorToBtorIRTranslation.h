@@ -12,10 +12,9 @@
 #include "mlir/IR/OwningOpRef.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
-#include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
-#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 
 #include <vector>
 #include <map>
@@ -85,7 +84,7 @@ class Deserialize {
     return m_cache.count(id) != 0;
   }
 
-  OwningOpRef<mlir::func::FuncOp> buildMainFunction();
+  OwningOpRef<mlir::FuncOp> buildMainFunction();
   
  private: 
 ///===----------------------------------------------------------------------===//
@@ -225,7 +224,7 @@ class Deserialize {
   }
 
   void buildReturnOp(const std::vector<Value> &results) {
-    m_builder.create<mlir::func::ReturnOp>(m_unknownLoc, results);
+    m_builder.create<mlir::ReturnOp>(m_unknownLoc, results);
   }
 
    Operation * buildInputOp(const unsigned width) {

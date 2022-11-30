@@ -12,7 +12,6 @@
 include "BtorBase.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
-// include "mlir/Interfaces/InferIntRangeInterface.td"
 include "mlir/IR/OpAsmInterface.td"
 include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/VectorInterfaces.td"
@@ -72,8 +71,7 @@ def UExtOp : BtorCastOp<"uext"> {
       %2 = btor.uext %1 : i3 to i6
     ```
   }];
-
-//   let verifier = 1;
+  let verifier = [{ return verifyExtOp<IntegerType>(*this); }];
 }
 
 def SExtOp : BtorCastOp<"sext"> {
@@ -91,8 +89,7 @@ def SExtOp : BtorCastOp<"sext"> {
       %2 = btor.sext %1 : i3 to i6
     ```
   }];
-
-//   let verifier = 1;
+  let verifier = [{ return verifyExtOp<IntegerType>(*this); }];
 }
 
 //===----------------------------------------------------------------------===//
@@ -126,7 +123,13 @@ def IteOp : Btor_Op<"ite", [NoSideEffect,
     Value getFalseValue() { return false_value(); }
   }];
 
-//   let hasCustomAssemblyFormat = 1;
+  let parser = [{
+    return parseIteOp(parser, result);
+  }];
+
+  let printer = [{
+    return printIteOp(p, this);
+  }];
 }
 
 def SliceOp : Btor_Op<"slice", [NoSideEffect,
@@ -161,8 +164,11 @@ def SliceOp : Btor_Op<"slice", [NoSideEffect,
       }]>
     ];
 
-//   let hasCustomAssemblyFormat = 1;
-//   let verifier = 1;
+  let parser = [{
+    return parseSliceOp(parser, result);
+  }];
+  
+  let verifier = [{ return verifySliceOp<IntegerType>(*this); }];
 }
 
 //===----------------------------------------------------------------------===//
@@ -196,7 +202,14 @@ class BtorBinaryDifferentResultTypeOp<string mnemonic, list<Trait> traits = []> 
     Arguments<(ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs)> {
 
   let results = (outs BoolLike:$result);
-//   let hasCustomAssemblyFormat = 1;
+  
+  let parser = [{
+    return parseBinaryOverflowOp(parser, result);
+  }];
+
+  let printer = [{
+    return printBinaryOverflowOp(p, this->getOperation());
+  }];
 }
 
 def AddOp : BtorBinaryOp<"add", [Commutative]> {
@@ -644,8 +657,13 @@ def ConcatOp : Btor_Op<"concat"> {
                       SignlessIntegerLike:$rhs);
     let results = (outs SignlessIntegerLike:$result);
 
-    // let hasCustomAssemblyFormat = 1;
-    // let verifier = 1;
+    let parser = [{
+      return parseConcatOp(parser, result);
+    }];
+    let printer = [{
+      return printConcatOp(p, *this);
+    }];
+    let verifier = [{ return verifyConcatOp<IntegerType>(*this); }];
 }
 
 //===----------------------------------------------------------------------===//
@@ -672,7 +690,13 @@ class BtorUnaryDifferentResultTypeOp<string mnemonic, list<Trait> traits = []> :
     Arguments<(ins SignlessIntegerLike:$operand)> {
 
   let results = (outs BoolLike:$result);
-//   let hasCustomAssemblyFormat = 1;
+   let parser = [{
+    return parseUnaryDifferentResultOp(parser, result);
+  }];
+
+  let printer = [{
+    return printBtorUnaryOp(p, this->getOperation());
+  }];
 }
 
 def NotOp : BtorUnaryOp<"not"> {
@@ -839,7 +863,7 @@ def ConstantOp : Btor_Op<"constant", [ConstantLike, NoSideEffect,
 
   let assemblyFormat = "attr-dict $value";
   let hasFolder = 1;
-//   let verifier = 1;
+  // let verifier = [{ return verifyConstantOp(*this); }];
 }
 
 def ConstraintOp : Btor_Op<"constraint"> {
@@ -910,7 +934,13 @@ def InputOp : Btor_Op<"input"> {
         }]>
     ];
 
-    // let hasCustomAssemblyFormat = 1;
+    let parser = [{
+      return parseInputOp(parser, result);
+    }];
+
+    let printer = [{
+      return printInputOp(p, *this);
+    }];
 }
 
 #endif // BTOR_OPS

@@ -9,7 +9,7 @@
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/InitAllDialects.h"
-#include "mlir/Parser/Parser.h"
+#include "mlir/Parser.h"
 #include "mlir/Support/FileUtilities.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/InitLLVM.h"
@@ -53,9 +53,7 @@ int main(int argc, char **argv) {
     // Register our used dialects
     mlir::DialectRegistry registry;
     registry.insert<mlir::crab::CrabDialect>();
-    registry.insert<arith::ArithmeticDialect,
-                    func::FuncDialect,
-                    cf::ControlFlowDialect>();
+    registry.insert<arith::ArithmeticDialect>();
 
     // Set up needed tools
     InitLLVM y(argc, argv);
