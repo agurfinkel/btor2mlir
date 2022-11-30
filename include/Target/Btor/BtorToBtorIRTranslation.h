@@ -102,6 +102,7 @@ class Deserialize {
   std::vector<Btor2Line *> m_lines;
 
   std::map<int64_t, Value> m_cache;
+  std::map<int64_t, Btor2Line *> m_sorts;
 
   void parseModelLine(Btor2Line *l);
 
@@ -135,29 +136,69 @@ class Deserialize {
                                     Block *body);
 
   // Builder wrappers
-  Type getIntegerTypeOf(Btor2Line * line) {
+  Type getTypeOf(Btor2Line *line) {
+    if (line->sort.tag == BTOR2_TAG_SORT_array) {
+      unsigned indexWidth = pow(2, m_sorts.at(line->sort.array.index)->sort.bitvec.width);
+      auto elementType = m_builder.getIntegerType(
+          m_sorts.at(line->sort.array.element)->sort.bitvec.width);
+      return VectorType::get(ArrayRef<int64_t>{indexWidth}, elementType);
+      ;
+    }
     return m_builder.getIntegerType(line->sort.bitvec.width);
   }
 
-  std::vector<Value> collectReturnValuesForInit(
-                    const std::vector<Type> &returnTypes) {
+    std::vector<Value>
+  collectReturnValuesForInit(const std::vector<Type> &returnTypes) {
     std::vector<Value> results(m_states.size(), nullptr);
     std::map<unsigned, Value> undefOpsBySort;
+    std::map<std::pair<unsigned, unsigned>, Value> arrayTypes;
     for (unsigned i = 0, sz = m_states.size(); i < sz; ++i) {
+      auto state_i = m_states.at(i);
+      std::pair<unsigned, unsigned> arraySort;
+      if (state_i->sort.tag == BTOR2_TAG_SORT_array) {
+        unsigned index =
+            m_sorts.at(state_i->sort.array.index)->sort.bitvec.width;
+        unsigned element =
+            m_sorts.at(state_i->sort.array.element)->sort.bitvec.width;
+        arraySort = std::make_pair(index, element);
+      }
+
       if (unsigned initLine = m_states.at(i)->init) {
-        results[i] = getFromCacheById(initLine);
+        if (state_i->sort.tag == BTOR2_TAG_SORT_array) {
+          if (arrayTypes.count(arraySort) == 0) {
+            auto res = m_builder.create<btor::InitArrayOp>(
+                m_unknownLoc, getTypeOf(state_i), getFromCacheById(initLine));
+            assert(res);
+            assert(res->getNumResults() == 1);
+            arrayTypes[arraySort] = res->getResult(0);
+          }
+          results[i] = arrayTypes.at(arraySort);
+        } else {
+          results[i] = getFromCacheById(initLine);
+        }
       } else {
-        auto sort = returnTypes.at(i).getIntOrFloatBitWidth();
-        if (undefOpsBySort.count(sort) == 0) {
+        if (state_i->sort.tag == BTOR2_TAG_SORT_array) {
+          if (arrayTypes.count(arraySort) == 0) {
+            auto res = m_builder.create<btor::ArrayOp>(m_unknownLoc,
+                                                       getTypeOf(state_i));
+            assert(res);
+            assert(res->getNumResults() == 1);
+            arrayTypes[arraySort] = res->getResult(0);
+          }
+          results[i] = arrayTypes.at(arraySort);
+        } else {
+          auto sort = returnTypes.at(i).getIntOrFloatBitWidth();
+          if (undefOpsBySort.count(sort) == 0) {
             auto res = m_builder.create<btor::UndefOp>(m_unknownLoc,
-                                        returnTypes.at(i));
-            assert(res); 
+                                                       returnTypes.at(i));
+            assert(res);
             assert(res->getNumResults() == 1);
             undefOpsBySort[sort] = res->getResult(0);
+          }
+          results[i] = undefOpsBySort.at(sort);
         }
-        results[i] = undefOpsBySort.at(sort);
-        }
-        assert(results[i]);
+      }
+      assert(results[i]);
     }
     return results;
   }
@@ -277,6 +318,21 @@ class Deserialize {
                         const Value &rhs) {
     auto res = m_builder.create<btor::IteOp>(m_unknownLoc, 
                                         condition, lhs, rhs);
+    return res;
+  }
+
+  // Array Operations
+  Operation *buildReadOp(const Value &array, const Value &index) {
+    auto elementType = array.getType().cast<VectorType>().getElementType();
+    auto res =
+        m_builder.create<btor::ReadOp>(m_unknownLoc, elementType, array, index);
+    return res;
+  }
+
+  Operation *buildWriteOp(const Value &array, const Value &index,
+                          const Value &value) {
+    auto res = m_builder.create<btor::WriteOp>(m_unknownLoc, array.getType(),
+                                               value, array, index);
     return res;
   }
 };

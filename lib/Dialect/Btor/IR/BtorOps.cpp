@@ -94,9 +94,9 @@ static LogicalResult verifySliceOp(Op op) {
   Type srcType = getElementTypeOrSelf(op.in().getType());
   Type dstType = getElementTypeOrSelf(op.getType());
 
-  if (srcType.cast<ValType>().getWidth() <= dstType.cast<ValType>().getWidth())
+  if (srcType.cast<ValType>().getWidth() > dstType.cast<ValType>().getWidth())
     return op.emitError("result type ")
-           << dstType << " must be less than operand type " << srcType;
+           << dstType << " must be wider than operand type " << srcType;
 
   return success();
 }
@@ -238,9 +238,8 @@ static LogicalResult verifyConcatOp(Op op) {
 //===----------------------------------------------------------------------===//
 
 static void printInputOp(OpAsmPrinter &p, mlir::btor::InputOp &op) {
-  p << " "  << op.value() << " : " << op->getOperand(0).getType();
-  p << " ";
-  p.printOptionalAttrDict(op->getAttrs());
+  p << " " << op.id() << ", " << op.value() << " ";
+  p << " : " << op.getOperand().getType();
 }
 
 static ParseResult parseInputOp(OpAsmParser &parser,OperationState &result) {  
@@ -337,7 +336,7 @@ static ParseResult parseInitArrayOp(OpAsmParser &parser, OperationState &result)
 static void printReadOp(OpAsmPrinter &p, ReadOp &op) {
   p << " " << op.base() << "[" << op.index() << "]";
   p.printOptionalAttrDict(op->getAttrs());
-  p << " : " << op.result().getType();
+  p << " : " << op.base().getType() << ", " << op.result().getType();
 }
 
 template <typename Op>
