@@ -19,6 +19,13 @@ struct ArrayOpLowering : public OpConversionPattern<mlir::btor::ArrayOp> {
                   ConversionPatternRewriter &rewriter) const override;
 };
 
+struct InitArrayLowering : public OpConversionPattern<mlir::btor::InitArrayOp> {
+  using OpConversionPattern<mlir::btor::InitArrayOp>::OpConversionPattern;
+  LogicalResult
+  matchAndRewrite(mlir::btor::InitArrayOp initArrayOp, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override;
+};
+
 struct ReadOpLowering : public OpConversionPattern<mlir::btor::ReadOp> {
   using OpConversionPattern<mlir::btor::ReadOp>::OpConversionPattern;
   LogicalResult
@@ -48,6 +55,14 @@ ArrayOpLowering::matchAndRewrite(mlir::btor::ArrayOp arrayOp, OpAdaptor adaptor,
 }
 
 LogicalResult
+InitArrayLowering::matchAndRewrite(mlir::btor::InitArrayOp initArrayOp, OpAdaptor adaptor,
+                                 ConversionPatternRewriter &rewriter) const {
+  rewriter.replaceOpWithNewOp<vector::BroadcastOp>(
+        initArrayOp, initArrayOp.getType(), initArrayOp.init());
+  return success();
+}
+
+LogicalResult
 ReadOpLowering::matchAndRewrite(mlir::btor::ReadOp readOp, OpAdaptor adaptor,
                                 ConversionPatternRewriter &rewriter) const {
   auto resType = readOp.result().getType();
@@ -71,7 +86,7 @@ WriteOpLowering::matchAndRewrite(mlir::btor::WriteOp writeOp, OpAdaptor adaptor,
 
 void mlir::btor::populateBtorToVectorConversionPatterns(
     RewritePatternSet &patterns) {
-  patterns.add<ArrayOpLowering, ReadOpLowering, WriteOpLowering>(patterns.getContext());
+  patterns.add<ArrayOpLowering, ReadOpLowering, WriteOpLowering, InitArrayLowering>(patterns.getContext());
 }
 
 namespace {
