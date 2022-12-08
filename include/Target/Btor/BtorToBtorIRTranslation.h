@@ -189,7 +189,7 @@ class Deserialize {
         } else {
           auto sort = returnTypes.at(i).getIntOrFloatBitWidth();
           if (undefOpsBySort.count(sort) == 0) {
-            auto res = m_builder.create<btor::UndefOp>(m_unknownLoc,
+            auto res = m_builder.create<btor::NdBitvectorOp>(m_unknownLoc,
                                                        returnTypes.at(i));
             assert(res);
             assert(res->getNumResults() == 1);

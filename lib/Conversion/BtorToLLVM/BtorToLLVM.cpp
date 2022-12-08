@@ -215,10 +215,10 @@ struct SModOpLowering : public ConvertOpToLLVMPattern<btor::SModOp> {
                   ConversionPatternRewriter &rewriter) const override;
 };
 
-struct UndefOpLowering : public ConvertOpToLLVMPattern<btor::UndefOp> {
-  using ConvertOpToLLVMPattern<btor::UndefOp>::ConvertOpToLLVMPattern;
+struct NdBitvectorOpLowering : public ConvertOpToLLVMPattern<btor::NdBitvectorOp> {
+  using ConvertOpToLLVMPattern<btor::NdBitvectorOp>::ConvertOpToLLVMPattern;
   LogicalResult
-  matchAndRewrite(btor::UndefOp op, OpAdaptor adaptor,
+  matchAndRewrite(btor::NdBitvectorOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override;
 };
 
@@ -570,10 +570,10 @@ SModOpLowering::matchAndRewrite(mlir::btor::SModOp smodOp, OpAdaptor adaptor,
 }
 
 //===----------------------------------------------------------------------===//
-// UndefOpLowering
+// NdBitvectorOpLowering
 //===----------------------------------------------------------------------===//
 LogicalResult
-UndefOpLowering::matchAndRewrite(btor::UndefOp op, OpAdaptor adaptor,
+NdBitvectorOpLowering::matchAndRewrite(btor::NdBitvectorOp op, OpAdaptor adaptor,
                                  ConversionPatternRewriter &rewriter) const {
 
   rewriter.replaceOpWithNewOp<LLVM::UndefOp>(op, op.result().getType());
@@ -623,7 +623,7 @@ void BtorToLLVMLoweringPass::runOnOperation() {
   /// unary operators
   target.addIllegalOp<btor::NotOp, btor::IncOp, btor::DecOp, btor::NegOp>();
   target.addIllegalOp<btor::RedAndOp, btor::RedXorOp, btor::RedOrOp>();
-  target.addIllegalOp<btor::AssertNotOp, btor::ConstantOp, btor::UndefOp>();
+  target.addIllegalOp<btor::AssertNotOp, btor::ConstantOp, btor::NdBitvectorOp>();
 
   /// binary operators
   // logical
@@ -669,7 +669,7 @@ void mlir::btor::populateBtorToLLVMConversionPatterns(
       IffOpLowering, ImpliesOpLowering, XnorOpLowering, NandOpLowering,
       NorOpLowering, IncOpLowering, DecOpLowering, NegOpLowering,
       RedOrOpLowering, RedAndOpLowering, RedXorOpLowering, UExtOpLowering,
-      SExtOpLowering, SliceOpLowering, ConcatOpLowering, UndefOpLowering,
+      SExtOpLowering, SliceOpLowering, ConcatOpLowering, NdBitvectorOpLowering,
       ConstraintOpLowering>(converter);
 }
 

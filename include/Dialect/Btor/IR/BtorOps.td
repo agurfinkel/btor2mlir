@@ -890,7 +890,7 @@ def ConstraintOp : Btor_Op<"constraint"> {
     let assemblyFormat = "`(` $constraint `)` attr-dict";
 }
 
-def UndefOp : Btor_Op<"undef"> {
+def NdBitvectorOp : Btor_Op<"nd_bv"> {
     let summary = "btor undefined operation";
     let description = [{
         This operation takes no input and returns
@@ -899,8 +899,8 @@ def UndefOp : Btor_Op<"undef"> {
         Example:
 
         ```mlir
-        // invoke the undef operation 
-        %0 = btor.undef : i3
+        // invoke the nd_bv operation 
+        %0 = btor.nd_bv : i3
         ```
     }];
 
