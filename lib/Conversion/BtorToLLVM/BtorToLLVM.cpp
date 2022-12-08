@@ -8,6 +8,8 @@
 #include "mlir/IR/TypeRange.h"
 #include "mlir/IR/TypeUtilities.h"
 
+#include <string>
+
 using namespace mlir;
 
 #define PASS_NAME "convert-btor-to-llvm"
@@ -226,6 +228,13 @@ struct ConstraintOpLowering : public ConvertOpToLLVMPattern<btor::ConstraintOp> 
   using ConvertOpToLLVMPattern<btor::ConstraintOp>::ConvertOpToLLVMPattern;
   LogicalResult
   matchAndRewrite(btor::ConstraintOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override;
+};
+
+struct InputOpLowering : public ConvertOpToLLVMPattern<btor::InputOp> {
+  using ConvertOpToLLVMPattern<btor::InputOp>::ConvertOpToLLVMPattern;
+  LogicalResult
+  matchAndRewrite(btor::InputOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override;
 };
 
@@ -575,8 +584,22 @@ SModOpLowering::matchAndRewrite(mlir::btor::SModOp smodOp, OpAdaptor adaptor,
 LogicalResult
 NdBitvectorOpLowering::matchAndRewrite(btor::NdBitvectorOp op, OpAdaptor adaptor,
                                  ConversionPatternRewriter &rewriter) const {
-
-  rewriter.replaceOpWithNewOp<LLVM::UndefOp>(op, op.result().getType());
+  auto opType = op.result().getType();
+  // Insert the `havoc` declaration if necessary.
+  auto module = op->getParentOfType<ModuleOp>();
+  std::string havoc;
+  havoc.append("havoc.bv");
+  havoc.append(std::to_string(opType.getIntOrFloatBitWidth()));
+  auto havocFunc = module.lookupSymbol<LLVM::LLVMFuncOp>(havoc);
+  if (!havocFunc) {
+    OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointToStart(module.getBody());
+    auto havocFuncTy =
+        LLVM::LLVMFunctionType::get(opType, {});
+    havocFunc = rewriter.create<LLVM::LLVMFuncOp>(
+        rewriter.getUnknownLoc(), havoc, havocFuncTy);
+  }
+  rewriter.replaceOpWithNewOp<LLVM::CallOp>(op, havocFunc, llvm::None);
   return success();
 }
 
@@ -590,6 +613,15 @@ ConstraintOpLowering::matchAndRewrite(btor::ConstraintOp op, OpAdaptor adaptor,
   return success();
 }
 
+//===----------------------------------------------------------------------===//
+// InputOpLowering
+//===----------------------------------------------------------------------===//
+LogicalResult
+InputOpLowering::matchAndRewrite(btor::InputOp op, OpAdaptor adaptor,
+                ConversionPatternRewriter &rewriter) const {
+  rewriter.replaceOpWithNewOp<btor::NdBitvectorOp>(op, op.result().getType());
+  return success();            
+}
 //===----------------------------------------------------------------------===//
 // Pass Definition
 //===----------------------------------------------------------------------===//
@@ -622,7 +654,7 @@ void BtorToLLVMLoweringPass::runOnOperation() {
 
   /// unary operators
   target.addIllegalOp<btor::NotOp, btor::IncOp, btor::DecOp, btor::NegOp>();
-  target.addIllegalOp<btor::RedAndOp, btor::RedXorOp, btor::RedOrOp>();
+  target.addIllegalOp<btor::RedAndOp, btor::RedXorOp, btor::RedOrOp, btor::InputOp>();
   target.addIllegalOp<btor::AssertNotOp, btor::ConstantOp, btor::NdBitvectorOp>();
 
   /// binary operators
@@ -670,7 +702,7 @@ void mlir::btor::populateBtorToLLVMConversionPatterns(
       NorOpLowering, IncOpLowering, DecOpLowering, NegOpLowering,
       RedOrOpLowering, RedAndOpLowering, RedXorOpLowering, UExtOpLowering,
       SExtOpLowering, SliceOpLowering, ConcatOpLowering, NdBitvectorOpLowering,
-      ConstraintOpLowering>(converter);
+      ConstraintOpLowering, InputOpLowering>(converter);
 }
 
 /// Create a pass for lowering operations the remaining `Btor` operations
