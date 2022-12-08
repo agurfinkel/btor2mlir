@@ -891,7 +891,7 @@ def ConstraintOp : Btor_Op<"constraint"> {
 }
 
 def NdBitvectorOp : Btor_Op<"nd_bv"> {
-    let summary = "btor undefined operation";
+    let summary = "btor nondet bv operation";
     let description = [{
         This operation takes no input and returns
         a SignlessIntegerLike
