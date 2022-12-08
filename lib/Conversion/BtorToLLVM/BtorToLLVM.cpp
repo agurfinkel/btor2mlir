@@ -310,8 +310,6 @@ LogicalResult AssertNotOpLowering::matchAndRewrite(
 
   auto loc = assertOp.getLoc();
 
-  Value notBad = rewriter.create<btor::NotOp>(loc, adaptor.arg());
-
   // Insert the `verifier.error` declaration if necessary.
   auto module = assertOp->getParentOfType<ModuleOp>();
   auto verifierError = "verifier.error";
@@ -338,7 +336,7 @@ LogicalResult AssertNotOpLowering::matchAndRewrite(
 
   // Generate assertion test.
   rewriter.setInsertionPointToEnd(opBlock);
-  rewriter.replaceOpWithNewOp<LLVM::CondBrOp>(assertOp, notBad,
+  rewriter.replaceOpWithNewOp<LLVM::CondBrOp>(assertOp, assertOp.arg(),
                                               continuationBlock, failureBlock);
 
   return success();
