@@ -180,7 +180,7 @@ static LogicalResult verifyExtOp(Op op) {
   Type srcType = getElementTypeOrSelf(op.in().getType());
   Type dstType = getElementTypeOrSelf(op.getType());
 
-  if (srcType.cast<ValType>().getWidth() >= dstType.cast<ValType>().getWidth())
+  if (srcType.cast<ValType>().getWidth() > dstType.cast<ValType>().getWidth())
     return op.emitError("result type ")
            << dstType << " must be wider than operand type " << srcType;
 
