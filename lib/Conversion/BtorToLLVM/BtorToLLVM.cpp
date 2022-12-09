@@ -487,20 +487,11 @@ NegOpLowering::matchAndRewrite(mlir::btor::NegOp negOp, OpAdaptor adaptor,
 LogicalResult
 SliceOpLowering::matchAndRewrite(mlir::btor::SliceOp sliceOp, OpAdaptor adaptor,
                                  ConversionPatternRewriter &rewriter) const {
-  // The idea here is to shift right until the bit indexed by the upperbound is
-  // the last bit on the right. Then we truncate to the type needed
-  auto loc = sliceOp.getLoc();
+  // The idea here is to shift right until the bit indexed by the lowerbound is
+  // the last bit on the right. Then we truncate to the size needed
   Value input = adaptor.in();
-  Type opType = input.getType();
-
-  int inputWidth = opType.getIntOrFloatBitWidth();
-  Value widthVal = rewriter.create<LLVM::ConstantOp>(
-      loc, opType, rewriter.getIntegerAttr(opType, inputWidth));
-  Value shiftRightBy =
-      rewriter.create<LLVM::SubOp>(loc, widthVal, adaptor.upper_bound());
-
   Value valToTruncate =
-      rewriter.create<LLVM::LShrOp>(sliceOp.getLoc(), input, shiftRightBy);
+      rewriter.create<LLVM::LShrOp>(sliceOp.getLoc(), input, adaptor.lower_bound());
   rewriter.replaceOpWithNewOp<LLVM::TruncOp>(
       sliceOp, TypeRange({sliceOp.result().getType()}), valToTruncate);
   return success();
