@@ -270,16 +270,7 @@ class Deserialize {
 
    Operation * buildInputOp(const unsigned width) {
     Type type = m_builder.getIntegerType(width);
-    mlir::APInt value(width, 0, 10);
-    auto op = m_builder.create<btor::ConstantOp>(m_unknownLoc, type,
-                        m_builder.getIntegerAttr(type, value));
-    assert(op);
-    assert(op->getNumResults() == 1);
-    assert(op->getResult(0));
-    Value constValue = op->getResult(0);
-    auto res = m_builder.create<btor::InputOp>(m_unknownLoc, type,
-                                m_builder.getI64IntegerAttr(0), 
-                                constValue);
+    auto res = m_builder.create<btor::NdBitvectorOp>(m_unknownLoc, type);
     return res;
   }
 

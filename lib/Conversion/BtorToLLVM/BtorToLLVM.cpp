@@ -310,6 +310,8 @@ LogicalResult AssertNotOpLowering::matchAndRewrite(
 
   auto loc = assertOp.getLoc();
 
+  Value notBad = rewriter.create<btor::NotOp>(loc, adaptor.arg());
+
   // Insert the `verifier.error` declaration if necessary.
   auto module = assertOp->getParentOfType<ModuleOp>();
   auto verifierError = "verifier.error";
@@ -336,7 +338,7 @@ LogicalResult AssertNotOpLowering::matchAndRewrite(
 
   // Generate assertion test.
   rewriter.setInsertionPointToEnd(opBlock);
-  rewriter.replaceOpWithNewOp<LLVM::CondBrOp>(assertOp, assertOp.arg(),
+  rewriter.replaceOpWithNewOp<LLVM::CondBrOp>(assertOp, notBad,
                                               continuationBlock, failureBlock);
 
   return success();
@@ -592,7 +594,7 @@ NdBitvectorOpLowering::matchAndRewrite(btor::NdBitvectorOp op, OpAdaptor adaptor
   // Insert the `havoc` declaration if necessary.
   auto module = op->getParentOfType<ModuleOp>();
   std::string havoc;
-  havoc.append("havoc.bv");
+  havoc.append("nd_bv");
   havoc.append(std::to_string(opType.getIntOrFloatBitWidth()));
   auto havocFunc = module.lookupSymbol<LLVM::LLVMFuncOp>(havoc);
   if (!havocFunc) {
@@ -638,7 +640,7 @@ ArrayOpLowering::matchAndRewrite(mlir::btor::ArrayOp arrayOp, OpAdaptor adaptor,
   // Insert the `havoc` declaration if necessary.
   auto module = arrayOp->getParentOfType<ModuleOp>();
   std::string havoc;
-  havoc.append("havoc.array");
+  havoc.append("nd_array");
   havoc.append(std::to_string(opType.getShape().front()));
   havoc.append("xbv");
   havoc.append(std::to_string(opType.getElementType().getIntOrFloatBitWidth()));
