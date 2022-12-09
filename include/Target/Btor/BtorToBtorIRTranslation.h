@@ -150,7 +150,6 @@ class Deserialize {
     std::vector<Value>
   collectReturnValuesForInit(const std::vector<Type> &returnTypes) {
     std::vector<Value> results(m_states.size(), nullptr);
-    std::map<unsigned, Value> nondetOpsBySort;
     std::map<std::pair<unsigned, unsigned>, Value> arrayTypes;
     for (unsigned i = 0, sz = m_states.size(); i < sz; ++i) {
       auto state_i = m_states.at(i);
@@ -187,15 +186,11 @@ class Deserialize {
           }
           results[i] = arrayTypes.at(arraySort);
         } else {
-          auto sort = returnTypes.at(i).getIntOrFloatBitWidth();
-          if (nondetOpsBySort.count(sort) == 0) {
-            auto res = m_builder.create<btor::NdBitvectorOp>(m_unknownLoc,
-                                                       returnTypes.at(i));
-            assert(res);
-            assert(res->getNumResults() == 1);
-            nondetOpsBySort[sort] = res->getResult(0);
-          }
-          results[i] = nondetOpsBySort.at(sort);
+          auto res = m_builder.create<btor::NdBitvectorOp>(m_unknownLoc,
+                                                      returnTypes.at(i));
+          assert(res);
+          assert(res->getNumResults() == 1);
+          results[i] = res->getResult(0);
         }
       }
       assert(results[i]);
