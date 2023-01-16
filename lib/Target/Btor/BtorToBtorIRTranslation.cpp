@@ -465,7 +465,12 @@ std::vector<Value> Deserialize::buildNextFunction(
   std::vector<Value> results(m_states.size(), nullptr);
   for (unsigned i = 0; i < m_states.size(); ++i) {
     if (!getLineById(m_states.at(i)->next)) { 
-      results[i] = getFromCacheById(m_states.at(i)->id);
+      auto stateType = getFromCacheById(m_states.at(i)->id).getType();
+      auto res = m_builder.create<btor::NdBitvectorOp>(m_unknownLoc,
+                                                  stateType);
+      assert(res);
+      assert(res->getNumResults() == 1);
+      results[i] = res->getResult(0);
       continue;
     }
     results[i] = getFromCacheById(m_states.at(i)->next);
