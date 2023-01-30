@@ -161,8 +161,7 @@ class Deserialize {
             m_sorts.at(state_i->sort.array.element)->sort.bitvec.width;
         arraySort = std::make_pair(index, element);
       }
-
-      if (unsigned initLine = m_states.at(i)->init) {
+      if (int64_t initLine = m_states.at(i)->init) {
         if (state_i->sort.tag == BTOR2_TAG_SORT_array) {
           if (arrayTypes.count(arraySort) == 0) {
             auto res = m_builder.create<btor::InitArrayOp>(
@@ -274,8 +273,7 @@ class Deserialize {
                         const int64_t upper, 
                         const int64_t lower) {
     auto opType = val.getType();
-    auto operandWidth = opType.getIntOrFloatBitWidth();
-    assert(operandWidth > upper && upper >= lower);
+    assert(opType.getIntOrFloatBitWidth() > upper && upper >= lower);
 
     auto resType = m_builder.getIntegerType(upper - lower + 1);
     auto u = m_builder.create<btor::ConstantOp>(

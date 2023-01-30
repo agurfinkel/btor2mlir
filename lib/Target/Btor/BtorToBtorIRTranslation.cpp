@@ -386,7 +386,6 @@ void Deserialize::toOp(Btor2Line *line) {
   while (!todo.empty()) {
     auto cur = todo.back();
     unsigned oldsize = todo.size();
-
     for (unsigned i = 0; i < cur->nargs; ++i) {
       auto arg_i = cur->args[i];
       // exit early if we do not need to compute this line
@@ -464,7 +463,13 @@ std::vector<Value> Deserialize::buildNextFunction(
   // close with a fitting returnOp
   std::vector<Value> results(m_states.size(), nullptr);
   for (unsigned i = 0; i < m_states.size(); ++i) {
-    if (!getLineById(m_states.at(i)->next)) { 
+    auto nextState = m_states.at(i)->next;
+    if (nextState < 1) {
+      createNegateLine(nextState, getFromCacheById(std::abs(nextState))); 
+      results[i] = getFromCacheById(nextState);
+      continue;
+    }
+    if (!getLineById(nextState)) { 
       auto stateType = getFromCacheById(m_states.at(i)->id).getType();
       auto res = m_builder.create<btor::NdBitvectorOp>(m_unknownLoc,
                                                   stateType);
@@ -473,7 +478,7 @@ std::vector<Value> Deserialize::buildNextFunction(
       results[i] = res->getResult(0);
       continue;
     }
-    results[i] = getFromCacheById(m_states.at(i)->next);
+    results[i] = getFromCacheById(nextState);
   }
 
   return results;
