@@ -463,13 +463,8 @@ std::vector<Value> Deserialize::buildNextFunction(
   // close with a fitting returnOp
   std::vector<Value> results(m_states.size(), nullptr);
   for (unsigned i = 0; i < m_states.size(); ++i) {
-    auto nextState = m_states.at(i)->next;
-    if (nextState < 1) {
-      createNegateLine(nextState, getFromCacheById(std::abs(nextState))); 
-      results[i] = getFromCacheById(nextState);
-      continue;
-    }
-    if (!getLineById(nextState)) { 
+    int64_t nextState = m_states.at(i)->next;
+    if (nextState == 0) { 
       auto stateType = getFromCacheById(m_states.at(i)->id).getType();
       auto res = m_builder.create<btor::NdBitvectorOp>(m_unknownLoc,
                                                   stateType);
