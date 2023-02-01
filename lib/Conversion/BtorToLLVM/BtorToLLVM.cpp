@@ -606,7 +606,23 @@ NdBitvectorOpLowering::matchAndRewrite(btor::NdBitvectorOp op, OpAdaptor adaptor
 LogicalResult
 ConstraintOpLowering::matchAndRewrite(btor::ConstraintOp op, OpAdaptor adaptor,
                                   ConversionPatternRewriter &rewriter) const {
-  rewriter.replaceOpWithNewOp<LLVM::AssumeOp>(op, op.constraint());
+  auto opType = op.constraint().getType();
+
+  // Insert the `verifier.assume` declaration if necessary.
+  auto module = op->getParentOfType<ModuleOp>();
+  auto verifierAssume = "verifier.assume";
+  auto verfifierAssumeFunc =
+      module.lookupSymbol<LLVM::LLVMFuncOp>(verifierAssume);
+  if (!verfifierAssumeFunc) {
+    OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointToStart(module.getBody());
+    auto verfifierAssumeFuncTy =
+        LLVM::LLVMFunctionType::get(LLVM::LLVMVoidType::get(getContext()), opType);
+    verfifierAssumeFunc = rewriter.create<LLVM::LLVMFuncOp>(
+        rewriter.getUnknownLoc(), verifierAssume, verfifierAssumeFuncTy);
+  }
+
+  rewriter.replaceOpWithNewOp<LLVM::CallOp>(op, verfifierAssumeFunc, op.constraint());
   return success();
 }
 
