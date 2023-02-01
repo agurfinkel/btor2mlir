@@ -1,0 +1,11 @@
+; expect sat in 2
+1 sort bitvec 8
+2 input 1
+3 sort bitvec 1
+4 zero 3
+5 state 3
+6 init 3 5 4
+7 redor 3 2
+8 next 3 5 7
+9 bad 5
+

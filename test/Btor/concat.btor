@@ -1,0 +1,14 @@
+; sat in second step
+1 sort bitvec 8
+2 sort bitvec 7
+3 sort bitvec 1
+4 zero 3
+5 ones 2
+6 zero 1
+7 const 1 11111110
+8 concat 1 5 4
+9 state 1
+10 init 1 9 6
+11 next 1 9 8
+12 eq 3 9 7
+13 bad 12
