@@ -314,7 +314,7 @@ LogicalResult AssertNotOpLowering::matchAndRewrite(
 
   // Insert the `verifier_error` declaration if necessary.
   auto module = assertOp->getParentOfType<ModuleOp>();
-  auto verifierError = "verifier_error";
+  auto verifierError = "verifier.error";
   auto verfifierErrorFunc =
       module.lookupSymbol<LLVM::LLVMFuncOp>(verifierError);
   if (!verfifierErrorFunc) {
