@@ -253,7 +253,7 @@ class Deserialize {
 
   template <typename btorOp>
   Operation * buildReductionOp(const Value &val) {
-    auto res = m_builder.create<btor::RedAndOp>(m_unknownLoc, 
+    auto res = m_builder.create<btorOp>(m_unknownLoc, 
                                 m_builder.getIntegerType(1), val);
     return res;
   }

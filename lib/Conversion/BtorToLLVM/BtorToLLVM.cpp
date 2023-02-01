@@ -312,9 +312,9 @@ LogicalResult AssertNotOpLowering::matchAndRewrite(
 
   Value notBad = rewriter.create<btor::NotOp>(loc, adaptor.arg());
 
-  // Insert the `verifier.error` declaration if necessary.
+  // Insert the `verifier_error` declaration if necessary.
   auto module = assertOp->getParentOfType<ModuleOp>();
-  auto verifierError = "verifier.error";
+  auto verifierError = "verifier_error";
   auto verfifierErrorFunc =
       module.lookupSymbol<LLVM::LLVMFuncOp>(verifierError);
   if (!verfifierErrorFunc) {
