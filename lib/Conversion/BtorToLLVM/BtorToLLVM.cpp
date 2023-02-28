@@ -312,18 +312,18 @@ LogicalResult AssertNotOpLowering::matchAndRewrite(
 
   Value notBad = rewriter.create<btor::NotOp>(loc, adaptor.arg());
 
-  // Insert the `verifier_error` declaration if necessary.
+  // Insert the `__VERIFIER_error` declaration if necessary.
   auto module = assertOp->getParentOfType<ModuleOp>();
-  auto verifierError = "verifier.error";
-  auto verfifierErrorFunc =
+  auto verifierError = "__VERIFIER_error";
+  auto verifierErrorFunc =
       module.lookupSymbol<LLVM::LLVMFuncOp>(verifierError);
-  if (!verfifierErrorFunc) {
+  if (!verifierErrorFunc) {
     OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointToStart(module.getBody());
-    auto verfifierErrorFuncTy =
+    auto verifierErrorFuncTy =
         LLVM::LLVMFunctionType::get(LLVM::LLVMVoidType::get(getContext()), {});
-    verfifierErrorFunc = rewriter.create<LLVM::LLVMFuncOp>(
-        rewriter.getUnknownLoc(), verifierError, verfifierErrorFuncTy);
+    verifierErrorFunc = rewriter.create<LLVM::LLVMFuncOp>(
+        rewriter.getUnknownLoc(), verifierError, verifierErrorFuncTy);
   }
 
   // Split block at `assert` operation.
@@ -333,7 +333,7 @@ LogicalResult AssertNotOpLowering::matchAndRewrite(
 
   // Generate IR to call `abort`.
   Block *failureBlock = rewriter.createBlock(opBlock->getParent());
-  rewriter.create<LLVM::CallOp>(loc, verfifierErrorFunc, llvm::None);
+  rewriter.create<LLVM::CallOp>(loc, verifierErrorFunc, llvm::None);
   rewriter.create<LLVM::UnreachableOp>(loc);
 
   // Generate assertion test.
@@ -608,21 +608,21 @@ ConstraintOpLowering::matchAndRewrite(btor::ConstraintOp op, OpAdaptor adaptor,
                                   ConversionPatternRewriter &rewriter) const {
   auto opType = op.constraint().getType();
 
-  // Insert the `verifier.assume` declaration if necessary.
+  // Insert the `__SEA_assume` declaration if necessary.
   auto module = op->getParentOfType<ModuleOp>();
-  auto verifierAssume = "verifier.assume";
-  auto verfifierAssumeFunc =
-      module.lookupSymbol<LLVM::LLVMFuncOp>(verifierAssume);
-  if (!verfifierAssumeFunc) {
+  auto seaAssume = "__SEA_assume";
+  auto seaAssumeFunc =
+      module.lookupSymbol<LLVM::LLVMFuncOp>(seaAssume);
+  if (!seaAssumeFunc) {
     OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointToStart(module.getBody());
-    auto verfifierAssumeFuncTy =
+    auto seaAssumeFuncTy =
         LLVM::LLVMFunctionType::get(LLVM::LLVMVoidType::get(getContext()), opType);
-    verfifierAssumeFunc = rewriter.create<LLVM::LLVMFuncOp>(
-        rewriter.getUnknownLoc(), verifierAssume, verfifierAssumeFuncTy);
+    seaAssumeFunc = rewriter.create<LLVM::LLVMFuncOp>(
+        rewriter.getUnknownLoc(), seaAssume, seaAssumeFuncTy);
   }
 
-  rewriter.replaceOpWithNewOp<LLVM::CallOp>(op, verfifierAssumeFunc, op.constraint());
+  rewriter.replaceOpWithNewOp<LLVM::CallOp>(op, seaAssumeFunc, op.constraint());
   return success();
 }
 
