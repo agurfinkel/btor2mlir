@@ -40,6 +40,7 @@ class Deserialize {
   Deserialize(MLIRContext *context, const std::string &s) : m_context(context), 
     m_builder(OpBuilder(m_context)), m_unknownLoc(UnknownLoc::get(m_context)) {
         m_modelFile = fopen(s.c_str(), "r");
+        m_sourceFile = m_builder.getStringAttr(s);
     }
 
   ~Deserialize() {
@@ -93,6 +94,7 @@ class Deserialize {
   
   Btor2Parser *m_model = nullptr;
   FILE *m_modelFile = nullptr;
+  StringAttr m_sourceFile = nullptr;
 
   std::vector<Btor2Line *> m_states;
   std::vector<Btor2Line *> m_bads;
@@ -127,7 +129,7 @@ class Deserialize {
   void toOp(Btor2Line *line);
   bool needsMLIROp(Btor2Line * line);
   bool hasReturnValue(Btor2Line * line);
-  void createNegateLine(int64_t curAt, const Value &child);
+  void createNegateLine(int64_t curAt, const unsigned lineId, const Value &child);
   Operation * createMLIR(const Btor2Line *line, 
                         const SmallVector<Value> &kids,
                         const SmallVector<unsigned> &arguments);
@@ -185,8 +187,9 @@ class Deserialize {
           }
           results[i] = arrayTypes.at(arraySort);
         } else {
-          auto res = m_builder.create<btor::NdBitvectorOp>(m_unknownLoc,
-                                                      returnTypes.at(i));
+          auto res = m_builder.create<btor::NDStateOp>(m_unknownLoc,
+                        returnTypes.at(i),
+                        m_builder.getIntegerAttr(m_builder.getIntegerType(64), i+1));
           assert(res);
           assert(res->getNumResults() == 1);
           results[i] = res->getResult(0);
@@ -199,38 +202,44 @@ class Deserialize {
 
   // Binary Operations
   template <typename btorOp>
-  Operation * buildBinaryOp(const Value &lhs, const Value &rhs) {
-    auto res = m_builder.create<btorOp>(m_unknownLoc, lhs, rhs);
+  Operation * buildBinaryOp(const Value &lhs, const Value &rhs, const unsigned  lineId) {
+    auto res = m_builder.create<btorOp>(FileLineColLoc::get(m_sourceFile, lineId, 0),
+                                      lhs, rhs);
     return res;
   }
 
   template <typename btorOp>
   Operation * buildComparisonOp(const btor::BtorPredicate pred,
-                                const Value &lhs, const Value &rhs) {
-    auto res = m_builder.create<btorOp>(m_unknownLoc, pred, lhs, rhs);
+                                const Value &lhs,
+                                const Value &rhs,
+                                const unsigned  lineId) {
+    auto res = m_builder.create<btorOp>(FileLineColLoc::get(m_sourceFile, lineId, 0), 
+                                       pred, lhs, rhs);
     return res;
   }
 
   template <typename btorOp>
-  Operation * buildOverflowOp(const Value &lhs, const Value &rhs) {
-    auto res = m_builder.create<btorOp>(m_unknownLoc, 
+  Operation * buildOverflowOp(const Value &lhs, const Value &rhs, const unsigned  lineId) {
+    auto res = m_builder.create<btorOp>(FileLineColLoc::get(m_sourceFile, lineId, 0), 
                                     m_builder.getIntegerType(1), 
                                     lhs, rhs);
     return res;
   }
 
-  Operation * buildConcatOp(const Value &lhs, const Value &rhs) {
+  Operation * buildConcatOp(const Value &lhs, const Value &rhs, const unsigned  lineId) {
     auto newWidth = lhs.getType().getIntOrFloatBitWidth() +
                rhs.getType().getIntOrFloatBitWidth();
     Type resType = m_builder.getIntegerType(newWidth);
-    auto res = m_builder.create<btor::ConcatOp>(m_unknownLoc, resType, lhs, rhs);
+    auto res = m_builder.create<btor::ConcatOp>(FileLineColLoc::get(m_sourceFile, lineId, 0),
+                                                resType, lhs, rhs);
     return res;
   }
 
   // Unary Operations
   Operation * buildConstantOp(const unsigned width, 
                             const std::string &str,
-                            const unsigned radix) {
+                            const unsigned radix,
+                            const unsigned  lineId) {
     Type type = m_builder.getIntegerType(width);
     mlir::APInt value(width, 0, radix);
     if (str.compare("ones") == 0) {
@@ -240,20 +249,24 @@ class Deserialize {
     } else if (str.compare("zero") != 0) {
       value = mlir::APInt(width, str, radix);
     }
-    auto res = m_builder.create<btor::ConstantOp>(m_unknownLoc, type,
-                        m_builder.getIntegerAttr(type, value));
+    auto res = m_builder.create<btor::ConstantOp>(
+                        FileLineColLoc::get(m_sourceFile, lineId, 0),
+                        type, m_builder.getIntegerAttr(type, value));
     return res;
   }
 
   template <typename btorOp>
-  Operation * buildUnaryOp(const Value &val) {
-    auto res = m_builder.create<btorOp>(m_unknownLoc, val);
+  Operation * buildUnaryOp(const Value &val, const unsigned  lineId) {
+    auto res = m_builder.create<btorOp>(
+                    FileLineColLoc::get(m_sourceFile, lineId, 0),
+                    val);
     return res;
   }
 
   template <typename btorOp>
-  Operation * buildReductionOp(const Value &val) {
-    auto res = m_builder.create<btorOp>(m_unknownLoc, 
+  Operation * buildReductionOp(const Value &val, const unsigned  lineId) {
+    auto res = m_builder.create<btorOp>(
+                                FileLineColLoc::get(m_sourceFile, lineId, 0), 
                                 m_builder.getIntegerType(1), val);
     return res;
   }
@@ -262,61 +275,79 @@ class Deserialize {
     m_builder.create<mlir::ReturnOp>(m_unknownLoc, results);
   }
 
-   Operation * buildInputOp(const unsigned width) {
+   Operation * buildInputOp(const unsigned width, const unsigned lineId) {
     Type type = m_builder.getIntegerType(width);
-    auto res = m_builder.create<btor::NdBitvectorOp>(m_unknownLoc, type);
+    auto res = m_builder.create<btor::InputOp>(
+        FileLineColLoc::get(m_sourceFile, lineId, 0),
+        type, 
+        m_builder.getIntegerAttr(m_builder.getIntegerType(64), lineId));
     return res;
   }
 
   // Indexed Operations
   Operation * buildSliceOp(const Value &val, 
                         const int64_t upper, 
-                        const int64_t lower) {
+                        const int64_t lower,
+                        const unsigned  lineId) {
     auto opType = val.getType();
     assert(opType.getIntOrFloatBitWidth() > upper && upper >= lower);
+    auto loc = FileLineColLoc::get(m_sourceFile, lineId, 0);
 
     auto resType = m_builder.getIntegerType(upper - lower + 1);
     auto u = m_builder.create<btor::ConstantOp>(
-        m_unknownLoc, opType, m_builder.getIntegerAttr(opType, upper));
+        loc, opType, m_builder.getIntegerAttr(opType, upper));
     assert(u && u->getNumResults() == 1);
     auto l = m_builder.create<btor::ConstantOp>(
-        m_unknownLoc, opType, m_builder.getIntegerAttr(opType, lower));
+        loc, opType, m_builder.getIntegerAttr(opType, lower));
     assert(l && l->getNumResults() == 1);
 
-    auto res = m_builder.create<btor::SliceOp>(m_unknownLoc, resType, val,
-                                        u->getResult(0), l->getResult(0));
+    auto res = m_builder.create<btor::SliceOp>(
+                            loc, resType, val,
+                            u->getResult(0), l->getResult(0));
     return res;
   }
 
   template <typename btorOp>
   Operation * buildExtOp(const Value &val,
-                        const unsigned width) {
-    auto res = m_builder.create<btorOp>(m_unknownLoc, val,
-                            m_builder.getIntegerType(width));
+                        const unsigned width,
+                        const unsigned  lineId) {
+    auto res = m_builder.create<btorOp>(
+                            FileLineColLoc::get(m_sourceFile, lineId, 0), 
+                            val, m_builder.getIntegerType(width));
     return res;
   }
 
   // Ternary Operations
   Operation * buildIteOp(const Value &condition, 
                         const Value &lhs, 
-                        const Value &rhs) {
-    auto res = m_builder.create<btor::IteOp>(m_unknownLoc, 
-                                        condition, lhs, rhs);
+                        const Value &rhs,
+                        const unsigned  lineId) {
+    auto res = m_builder.create<btor::IteOp>(
+                          FileLineColLoc::get(m_sourceFile, lineId, 0),
+                          condition, lhs, rhs);
     return res;
   }
 
   // Array Operations
-  Operation *buildReadOp(const Value &array, const Value &index) {
+  Operation *buildReadOp(const Value &array,
+                        const Value &index,
+                        const unsigned  lineId) {
     auto elementType = array.getType().cast<VectorType>().getElementType();
     auto res =
-        m_builder.create<btor::ReadOp>(m_unknownLoc, elementType, array, index);
+        m_builder.create<btor::ReadOp>(
+                        FileLineColLoc::get(m_sourceFile, lineId, 0),
+                        elementType, array, index);
     return res;
   }
 
-  Operation *buildWriteOp(const Value &array, const Value &index,
-                          const Value &value) {
-    auto res = m_builder.create<btor::WriteOp>(m_unknownLoc, array.getType(),
-                                               value, array, index);
+  Operation *buildWriteOp(const Value &array,
+                          const Value &index,
+                          const Value &value,
+                          const unsigned  lineId) {
+    auto res = m_builder.create<btor::WriteOp>(
+                            FileLineColLoc::get(m_sourceFile, lineId, 0),
+                            array.getType(),
+                            value, array, index);
     return res;
   }
 };

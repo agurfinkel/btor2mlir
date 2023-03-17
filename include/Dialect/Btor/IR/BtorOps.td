@@ -890,8 +890,8 @@ def ConstraintOp : Btor_Op<"constraint"> {
     let assemblyFormat = "`(` $constraint `)` attr-dict";
 }
 
-def NdBitvectorOp : Btor_Op<"nd_bv"> {
-    let summary = "btor nondet bv operation";
+def NDStateOp : Btor_Op<"nd_state"> {
+    let summary = "btor nondet bv state";
     let description = [{
         This operation takes no input and returns
         a SignlessIntegerLike
@@ -900,12 +900,21 @@ def NdBitvectorOp : Btor_Op<"nd_bv"> {
 
         ```mlir
         // invoke the nd_bv operation 
-        %0 = btor.nd_bv : i3
+        %0 = btor.nd_state 15 : i3
         ```
+        In the example above, 15 gets interpreted as an
+        i64 integer to represent the 15th input of a circuit
     }];
 
+    let arguments = (ins AnyI64Attr:$id);
     let results = (outs SignlessIntegerLike:$result);
-    let assemblyFormat = "attr-dict `:` type($result)";
+    let parser = [{
+      return parseNDStateOpOp(parser, result);
+    }];
+
+    let printer = [{
+      return printNDStateOpOp(p, *this);
+    }];    
 }
 
 def InputOp : Btor_Op<"input"> {
@@ -919,24 +928,15 @@ def InputOp : Btor_Op<"input"> {
 
         ```mlir
         // invoke the input operation to %0
-        %0 = btor.input 15, %some_i3_value : i3
+        %0 = btor.input 15 : i3
         ```
 
         In the example above, 15 gets interpreted as an
-        i64 integer, while %some_i3_value is expected 
-        to be of type i3. 
+        i64 integer to represent the line number of the input
     }];
 
-    let arguments = (ins AnyI64Attr:$id, SignlessIntegerLike:$value);
+    let arguments = (ins AnyI64Attr:$id);
     let results = (outs SignlessIntegerLike:$result);
-
-    let builders = [
-        OpBuilder<(ins "Value":$value),
-        [{
-            $_state.addOperands({value});
-            $_state.addTypes(value.getType());
-        }]>
-    ];
 
     let parser = [{
       return parseInputOp(parser, result);

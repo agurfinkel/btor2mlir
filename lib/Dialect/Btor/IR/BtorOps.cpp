@@ -238,23 +238,52 @@ static LogicalResult verifyConcatOp(Op op) {
 //===----------------------------------------------------------------------===//
 
 static void printInputOp(OpAsmPrinter &p, mlir::btor::InputOp &op) {
-  p << " " << op.id() << ", " << op.value() << " ";
-  p << " : " << op.getOperand().getType();
+  p << " " << op.id();
+  p << " : " << op.result().getType();
 }
 
-static ParseResult parseInputOp(OpAsmParser &parser,OperationState &result) {  
+static ParseResult parseInputOp(OpAsmParser &parser, OperationState &result) {  
   SmallVector<OpAsmParser::OperandType> ops;
   NamedAttrList attrs;
   Attribute idAttr;
   Type type;
 
-  if (parser.parseAttribute(idAttr, "id", attrs) ||
-      parser.parseComma() ||
-      parser.parseOperandList(ops, 1) ||
+  Type i64Type = parser.getBuilder().getIntegerType(64);
+
+  if (parser.parseAttribute(idAttr, i64Type, "id", attrs) ||
       parser.parseOptionalAttrDict(attrs) || 
-      parser.parseColonType(type) ||
-      parser.resolveOperands(ops, type, result.operands)
-      )
+      parser.parseColonType(type))
+      return failure();
+
+  if (!idAttr.isa<mlir::IntegerAttr>())
+      return parser.emitError(parser.getNameLoc(),
+                              "expected integer id attribute");
+
+  result.attributes = attrs;
+  result.addTypes({type});
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
+// NDStateOp Operation
+//===----------------------------------------------------------------------===//
+
+static void printNDStateOpOp(OpAsmPrinter &p, mlir::btor::NDStateOp &op) {
+  p << " " << op.id();
+  p << " : " << op.result().getType();
+}
+
+static ParseResult parseNDStateOpOp(OpAsmParser &parser, OperationState &result) {  
+  SmallVector<OpAsmParser::OperandType> ops;
+  NamedAttrList attrs;
+  Attribute idAttr;
+  Type type;
+
+  Type i64Type = parser.getBuilder().getIntegerType(64);
+
+  if (parser.parseAttribute(idAttr, i64Type, "id", attrs) ||
+      parser.parseOptionalAttrDict(attrs) || 
+      parser.parseColonType(type))
       return failure();
 
   if (!idAttr.isa<mlir::IntegerAttr>())
