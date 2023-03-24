@@ -17,7 +17,7 @@
 using namespace mlir;
 using namespace mlir::btor;
 
-void Deserialize::parseModelLine(Btor2Line *l) {
+unsigned Deserialize::parseModelLine(Btor2Line *l, unsigned inputNo) {
   setLineWithId(l->id, l);
   switch (l->tag) {
   case BTOR2_TAG_bad:
@@ -44,9 +44,15 @@ void Deserialize::parseModelLine(Btor2Line *l) {
     m_sorts[l->id] = l;
     break;
   
+  case BTOR2_TAG_input:
+    m_inputs[l->lineno] = inputNo;
+    inputNo = inputNo + 1;
+    break;
+  
   default:
     break;
   }
+  return inputNo;
 }
 
 bool Deserialize::parseModelIsSuccessful() {
@@ -62,8 +68,9 @@ bool Deserialize::parseModelIsSuccessful() {
   m_lines.resize(numLines + 1, nullptr);
   Btor2LineIterator it = btor2parser_iter_init(m_model);
   Btor2Line *line;
+  unsigned inputNo = 0;
   while ((line = btor2parser_iter_next(&it))) {
-    parseModelLine(line);
+    inputNo = parseModelLine(line, inputNo);
   }
 
   return true;
@@ -477,7 +484,7 @@ std::vector<Value> Deserialize::buildNextFunction(
       auto res = m_builder.create<btor::NDStateOp>(
         FileLineColLoc::get(m_sourceFile, m_states.at(i)->lineno, 0), 
         stateType,
-        m_builder.getIntegerAttr(m_builder.getIntegerType(64), i+1));
+        m_builder.getIntegerAttr(m_builder.getIntegerType(64), i));
       assert(res);
       assert(res->getNumResults() == 1);
       results[i] = res->getResult(0);

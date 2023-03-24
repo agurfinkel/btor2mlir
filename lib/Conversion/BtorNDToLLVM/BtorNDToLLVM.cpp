@@ -88,23 +88,48 @@ IntegerType createFunctionTypeHelper(Op op, mlir::ConversionPatternRewriter &rew
 
 template <typename Op>
 void createPrintFunctionHelper(
-          Op op, std::string printHelper,
+          Op op, const Value ndValue,
+          const std::string printHelper,
           mlir::ConversionPatternRewriter &rewriter,
           ModuleOp module) {
   auto printFunc = module.lookupSymbol<LLVM::LLVMFuncOp>(printHelper);
-  assert(!printFunc);
+  auto i64Type = rewriter.getI64Type();
+  auto resultType = op.result().getType();
   if (!printFunc) {
     OpBuilder::InsertionGuard printerGuard(rewriter);
     rewriter.setInsertionPointToStart(module.getBody());
     assert(insert == rewriter.getInsertionPoint());
     auto printFuncTy = LLVM::LLVMFunctionType::get(
-          LLVM::LLVMVoidType::get(rewriter.getContext()), rewriter.getI64Type());
+          LLVM::LLVMVoidType::get(rewriter.getContext()), 
+          {i64Type, i64Type, i64Type});
     printFunc = rewriter.create<LLVM::LLVMFuncOp>(
         rewriter.getUnknownLoc(), printHelper, printFuncTy);
   }
-  Value inputId = rewriter.create<LLVM::ConstantOp>(
-      op.getLoc(), rewriter.getI64Type(), op.idAttr());
-  rewriter.create<LLVM::CallOp>(rewriter.getUnknownLoc(), printFunc, inputId);
+  Value ndValueWidth = rewriter.create<LLVM::ConstantOp>(
+      op.getLoc(), resultType,
+      rewriter.getIntegerAttr(resultType, resultType.getIntOrFloatBitWidth()));
+  Value zextNDWidth = rewriter.create<LLVM::ZExtOp>(op.getLoc(), i64Type, ndValueWidth);
+  Value ndValueId = rewriter.create<LLVM::ConstantOp>(
+    op.getLoc(), rewriter.getI64Type(), op.idAttr());
+  // TODO: We need to handle values with bitwidth > 64
+  auto needsExt = ndValue.getType().getIntOrFloatBitWidth() <= 64;
+  if (needsExt) {
+    Value zextNDValue = rewriter.create<LLVM::ZExtOp>(op.getLoc(), i64Type, ndValue);
+    rewriter.create<LLVM::CallOp>(
+          op.getLoc(), 
+          TypeRange({}),
+          printHelper,
+          ValueRange({ndValueId, zextNDValue, zextNDWidth}));
+    return;
+  }
+  // Value truncNDValue = rewriter.create<LLVM::TruncOp>(op.getLoc(), 
+  //   TypeRange({i64Type}), ndValue);
+  // rewriter.create<LLVM::CallOp>(
+  //       op.getLoc(), 
+  //       TypeRange({}),
+  //       printHelper,
+  //       ValueRange({ndValueId, truncNDValue, zextNDWidth}));
+  // return;
 }
 } // end anonymous namespace
 
@@ -116,8 +141,8 @@ NDStateOpLowering::matchAndRewrite(btor::NDStateOp op, OpAdaptor adaptor,
                                  ConversionPatternRewriter &rewriter) const {
   auto opType = op.result().getType();
   auto module = op->getParentOfType<ModuleOp>();
-  auto bvWidth = opType.getIntOrFloatBitWidth();
-
+  // op.result().getType().getIntOrFloatBitWidth
+  // create the nd function of name: nd_bvX_stateY
   std::string havoc = createNDFunctionHelper(op, std::string("_st"), rewriter);
   auto havocFunc = module.lookupSymbol<LLVM::LLVMFuncOp>(havoc);
   if (!havocFunc) {
@@ -128,17 +153,10 @@ NDStateOpLowering::matchAndRewrite(btor::NDStateOp op, OpAdaptor adaptor,
     havocFunc = rewriter.create<LLVM::LLVMFuncOp>(
         rewriter.getUnknownLoc(), havoc, havocFuncTy);
   }
+  Value callND = rewriter.create<LLVM::CallOp>(op.getLoc(), havocFunc, llvm::None).getResult(0);
   // add helper function for printing
   std::string printHelper = "btor2mlir_print_state_num";
-  createPrintFunctionHelper(op, printHelper, rewriter, module);
-  // don't do the truncation if we have a perfect fit
-  if (bvWidth == 8 || bvWidth == 16 || bvWidth == 32 || 
-      bvWidth == 64 || bvWidth == 128) {
-    rewriter.replaceOpWithNewOp<LLVM::CallOp>(op, havocFunc, llvm::None);
-    return success();
-  }
-
-  auto callND = rewriter.create<LLVM::CallOp>(op.getLoc(), havocFunc, llvm::None).getResult(0);
+  createPrintFunctionHelper(op, callND, printHelper, rewriter, module);
   rewriter.replaceOpWithNewOp<LLVM::TruncOp>(op, TypeRange({opType}), callND);
   return success();
 }
@@ -151,7 +169,6 @@ InputOpLowering::matchAndRewrite(btor::InputOp op, OpAdaptor adaptor,
                 ConversionPatternRewriter &rewriter) const {
   auto opType = op.result().getType();
   auto module = op->getParentOfType<ModuleOp>();
-  auto bvWidth = opType.getIntOrFloatBitWidth();
   // create the nd function of name: nd_bvX_inputY
   std::string havoc = createNDFunctionHelper(op, std::string("_in"), rewriter);
   auto havocFunc = module.lookupSymbol<LLVM::LLVMFuncOp>(havoc);
@@ -164,17 +181,10 @@ InputOpLowering::matchAndRewrite(btor::InputOp op, OpAdaptor adaptor,
     havocFunc = rewriter.create<LLVM::LLVMFuncOp>(
         rewriter.getUnknownLoc(), havoc, havocFuncTy);
   }
+  Value callND = rewriter.create<LLVM::CallOp>(op.getLoc(), havocFunc, llvm::None).getResult(0);
   // add helper function for printing
   std::string printHelper = "btor2mlir_print_input_num";
-  createPrintFunctionHelper(op, printHelper, rewriter, module);
-  // don't do the truncation if we have a perfect fit
-  if (bvWidth == 8 || bvWidth == 16 || bvWidth == 32 || 
-      bvWidth == 64 || bvWidth == 128) {
-    rewriter.replaceOpWithNewOp<LLVM::CallOp>(op, havocFunc, llvm::None);
-    return success();
-  }
-
-  auto callND = rewriter.create<LLVM::CallOp>(op.getLoc(), havocFunc, llvm::None).getResult(0);
+  createPrintFunctionHelper(op, callND, printHelper, rewriter, module);
   rewriter.replaceOpWithNewOp<LLVM::TruncOp>(op, TypeRange({opType}), callND);
   return success();            
 }

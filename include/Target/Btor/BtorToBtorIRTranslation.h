@@ -105,8 +105,9 @@ class Deserialize {
 
   std::map<int64_t, Value> m_cache;
   std::map<int64_t, Btor2Line *> m_sorts;
+  std::map<unsigned, unsigned> m_inputs; // lineId -> input #
 
-  void parseModelLine(Btor2Line *l);
+  unsigned parseModelLine(Btor2Line *l, unsigned inputNo);
 
   Btor2Line * getLineById(unsigned id) {
       assert(id < m_lines.size());
@@ -189,7 +190,7 @@ class Deserialize {
         } else {
           auto res = m_builder.create<btor::NDStateOp>(m_unknownLoc,
                         returnTypes.at(i),
-                        m_builder.getIntegerAttr(m_builder.getIntegerType(64), i+1));
+                        m_builder.getIntegerAttr(m_builder.getIntegerType(64), i));
           assert(res);
           assert(res->getNumResults() == 1);
           results[i] = res->getResult(0);
@@ -280,7 +281,7 @@ class Deserialize {
     auto res = m_builder.create<btor::InputOp>(
         FileLineColLoc::get(m_sourceFile, lineId, 0),
         type, 
-        m_builder.getIntegerAttr(m_builder.getIntegerType(64), lineId));
+        m_builder.getIntegerAttr(m_builder.getIntegerType(64), m_inputs.at(lineId)));
     return res;
   }
 
