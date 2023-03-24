@@ -291,11 +291,8 @@ NotOpLowering::matchAndRewrite(btor::NotOp notOp, OpAdaptor adaptor,
                                ConversionPatternRewriter &rewriter) const {
   Value operand = adaptor.operand();
   Type opType = operand.getType();
-
-  int width = opType.getIntOrFloatBitWidth();
-  int trueVal = pow(2, width) - 1;
   Value trueConst = rewriter.create<LLVM::ConstantOp>(
-      notOp.getLoc(), opType, rewriter.getIntegerAttr(opType, trueVal));
+      notOp.getLoc(), opType, rewriter.getIntegerAttr(opType, -1));
   rewriter.replaceOpWithNewOp<LLVM::XOrOp>(notOp, operand, trueConst);
   return success();
 }
