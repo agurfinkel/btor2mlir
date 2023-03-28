@@ -1,0 +1,4 @@
+base,Cpu,Mem,BMC,seahorn_total,Result
+marlann_compute_cp_pass-p2.btor,6.63,425,0.15,0.42,TRUE
+marlann_compute_cp_fail1-p2.btor,6.78,425,0.14,0.42,TRUE
+marlann_compute_cp_fail2-p0.btor,7.64,691,0.93,1.21,TRUE

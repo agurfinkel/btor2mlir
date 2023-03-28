@@ -1,0 +1,16 @@
+base,Cpu,Mem,BMC,seahorn_total,Result
+krebs.3.prop1-func-interl.btor2,3.24,354,0.01,0.05,TRUE
+anderson.3.prop1-back-serstep.btor2,30.93,2141,8.74,9.20,FALSE
+brp2.6.prop3-back-serstep.btor2,76.25,1190,5.17,6.05,TRUE
+brp2.3.prop1-back-serstep.btor2,80.44,1198,9.34,10.19,TRUE
+frogs.5.prop1-func-interl.btor2,80.66,1486,45.46,46.98,TRUE
+brp2.2.prop1-func-interl.btor2,104.57,527,0.32,0.86,TRUE
+elevator.4.prop1-func-interl.btor2,133.98,703,0.93,1.64,TRUE
+at.6.prop1-back-serstep.btor2,157.24,1208,72.05,73.51,FALSE
+rushhour.4.prop1-func-interl.btor2,248.40,1934,137.83,142.89,TRUE
+blocks.4.prop1-back-serstep.btor2,70.18,417,,,
+mcs.3.prop1-back-serstep.btor2,68.30,379,,,
+msmie.3.prop1-func-interl.btor2,21.65,358,,,
+pgm_protocol.3.prop5-func-interl.btor2,19.11,361,,,
+pgm_protocol.7.prop1-back-serstep.btor2,22.31,371,,,
+peg_solitaire.3.prop1-back-serstep.btor2,18.94,369,,,

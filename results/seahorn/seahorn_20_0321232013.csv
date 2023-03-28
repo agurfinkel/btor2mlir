@@ -1,0 +1,16 @@
+base,Cpu,Mem,BMC,seahorn_total,Result
+simple_alu.btor,0.43,314,,0.00,
+stack-p2.btor,1.14,354,0.01,0.06,TRUE
+rast-p18.btor,2.39,415,0.09,0.33,FALSE
+rast-p06.btor,2.49,415,0.10,0.33,FALSE
+rast-p19.btor,2.56,415,0.09,0.33,FALSE
+rast-p03.btor,6.85,453,0.28,0.80,FALSE
+rast-p21.btor,8.10,492,0.48,1.10,TRUE
+rast-p01.btor,15.42,650,0.42,1.56,TRUE
+rast-p04.btor,15.47,652,0.40,1.52,TRUE
+rast-p11.btor,35.70,885,1.82,3.69,TRUE
+rast-p17.btor,41.46,1051,4.47,6.59,TRUE
+rast-p16.btor,44.27,1054,7.32,9.41,TRUE
+stack-p1.btor,48.26,1251,39.80,40.20,FALSE
+rast-p00.btor,149.75,1037,115.35,117.32,TRUE
+rast-p14.btor,34.00,448,,,
