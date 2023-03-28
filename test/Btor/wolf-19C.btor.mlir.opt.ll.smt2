@@ -1,0 +1,10 @@
+(declare-fun main@entry_0 () Bool)
+(declare-fun main@entry.split_0 () Bool)
+(declare-fun sea.sp0_0 () (_ BitVec 64))
+
+(assert (and (= #b000 ((_ extract 2 0) sea.sp0_0))
+     (bvule sea.sp0_0 #x00000000c0000000)
+     (bvuge sea.sp0_0 #x00000000bf700000)
+     (=> main@entry.split_0 (and main@entry.split_0 main@entry_0))
+     main@entry.split_0))
+(check-sat)

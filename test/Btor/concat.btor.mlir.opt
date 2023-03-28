@@ -1,0 +1,26 @@
+module attributes {llvm.data_layout = ""} {
+  llvm.func @verifier.error()
+  llvm.func @main() {
+    %0 = llvm.mlir.constant(0 : i8) : i8
+    llvm.br ^bb1(%0 : i8)
+  ^bb1(%1: i8):  // 2 preds: ^bb0, ^bb2
+    %2 = llvm.mlir.constant(false) : i1
+    %3 = llvm.mlir.constant(-1 : i7) : i7
+    %4 = llvm.mlir.constant(1 : i8) : i8
+    %5 = llvm.zext %3 : i7 to i8
+    %6 = llvm.shl %5, %4  : i8
+    %7 = llvm.zext %2 : i1 to i8
+    %8 = llvm.or %6, %7  : i8
+    %9 = llvm.mlir.constant(-2 : i8) : i8
+    %10 = llvm.icmp "eq" %1, %9 : i8
+    %11 = llvm.mlir.constant(true) : i1
+    %12 = llvm.xor %10, %11  : i1
+    llvm.cond_br %12, ^bb2, ^bb3
+  ^bb2:  // pred: ^bb1
+    llvm.br ^bb1(%8 : i8)
+  ^bb3:  // pred: ^bb1
+    llvm.call @verifier.error() : () -> ()
+    llvm.unreachable
+  }
+}
+

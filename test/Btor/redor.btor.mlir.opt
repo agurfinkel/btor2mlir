@@ -1,0 +1,25 @@
+module attributes {llvm.data_layout = ""} {
+  llvm.func @__VERIFIER_error()
+  llvm.func @btor2mlir_print_input_num(i64, i8)
+  llvm.func @nd_bv8_in3() -> i8
+  llvm.func @main() {
+    %0 = llvm.mlir.constant(false) : i1
+    llvm.br ^bb1(%0 : i1)
+  ^bb1(%1: i1):  // 2 preds: ^bb0, ^bb2
+    %2 = llvm.call @nd_bv8_in3() : () -> i8
+    %3 = llvm.mlir.constant(3 : i64) : i64
+    llvm.call @btor2mlir_print_input_num(%3, %2) : (i64, i8) -> ()
+    %4 = llvm.trunc %2 : i8 to i8
+    %5 = llvm.bitcast %4 : i8 to vector<8xi1>
+    %6 = "llvm.intr.vector.reduce.or"(%5) : (vector<8xi1>) -> i1
+    %7 = llvm.mlir.constant(true) : i1
+    %8 = llvm.xor %1, %7  : i1
+    llvm.cond_br %8, ^bb2, ^bb3
+  ^bb2:  // pred: ^bb1
+    llvm.br ^bb1(%6 : i1)
+  ^bb3:  // pred: ^bb1
+    llvm.call @__VERIFIER_error() : () -> ()
+    llvm.unreachable
+  }
+}
+

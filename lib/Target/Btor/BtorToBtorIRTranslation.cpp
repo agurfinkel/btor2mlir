@@ -17,7 +17,7 @@
 using namespace mlir;
 using namespace mlir::btor;
 
-void Deserialize::parseModelLine(Btor2Line *l) {
+unsigned Deserialize::parseModelLine(Btor2Line *l, unsigned inputNo) {
   setLineWithId(l->id, l);
   switch (l->tag) {
   case BTOR2_TAG_bad:
@@ -44,9 +44,15 @@ void Deserialize::parseModelLine(Btor2Line *l) {
     m_sorts[l->id] = l;
     break;
   
+  case BTOR2_TAG_input:
+    m_inputs[l->lineno] = inputNo;
+    inputNo = inputNo + 1;
+    break;
+  
   default:
     break;
   }
+  return inputNo;
 }
 
 bool Deserialize::parseModelIsSuccessful() {
@@ -62,8 +68,9 @@ bool Deserialize::parseModelIsSuccessful() {
   m_lines.resize(numLines + 1, nullptr);
   Btor2LineIterator it = btor2parser_iter_init(m_model);
   Btor2Line *line;
+  unsigned inputNo = 0;
   while ((line = btor2parser_iter_next(&it))) {
-    parseModelLine(line);
+    inputNo = parseModelLine(line, inputNo);
   }
 
   return true;
@@ -83,218 +90,219 @@ Operation * Deserialize::createMLIR(const Btor2Line *line,
                                 const SmallVector<Value> &kids,
                                 const SmallVector<unsigned> &arguments) {
   Operation *res = nullptr;
+  auto lineId = line->lineno;
 
   switch (line->tag) {
   // binary ops
   case BTOR2_TAG_slt:
     res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::slt, 
-                                        kids[0], kids[1]);
+                                        kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_slte:
     res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::sle, 
-                                        kids[0], kids[1]);
+                                        kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_sgt:
     res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::sgt, 
-                                        kids[0], kids[1]);
+                                        kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_sgte:
     res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::sge, 
-                                        kids[0], kids[1]);
+                                        kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_neq:
     res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::ne, 
-                                        kids[0], kids[1]);
+                                        kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_eq:
     res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::eq, 
-                                        kids[0], kids[1]);
+                                        kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_ugt:
     res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::ugt, 
-                                        kids[0], kids[1]);
+                                        kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_ugte:
     res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::uge, 
-                                        kids[0], kids[1]);
+                                        kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_ult:
     res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::ult, 
-                                        kids[0], kids[1]);
+                                        kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_ulte:
     res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::ule, 
-                                        kids[0], kids[1]);
+                                        kids[0], kids[1], lineId);
     break;
   
   case BTOR2_TAG_concat:
-    res = buildConcatOp(kids[0], kids[1]);
+    res = buildConcatOp(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_add:
-    res = buildBinaryOp<btor::AddOp>(kids[0], kids[1]);
+    res = buildBinaryOp<btor::AddOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_and:
-    res = buildBinaryOp<btor::AndOp>(kids[0], kids[1]);
+    res = buildBinaryOp<btor::AndOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_implies:
-    res = buildBinaryOp<btor::ImpliesOp>(kids[0], kids[1]);
+    res = buildBinaryOp<btor::ImpliesOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_iff:
-    res = buildBinaryOp<btor::IffOp>(kids[0], kids[1]);
+    res = buildBinaryOp<btor::IffOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_nand:
-    res = buildBinaryOp<btor::NandOp>(kids[0], kids[1]);
+    res = buildBinaryOp<btor::NandOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_nor:
-    res = buildBinaryOp<btor::NorOp>(kids[0], kids[1]);
+    res = buildBinaryOp<btor::NorOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_or:
-    res = buildBinaryOp<btor::OrOp>(kids[0], kids[1]);
+    res = buildBinaryOp<btor::OrOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_sdiv:
-    res = buildBinaryOp<btor::SDivOp>(kids[0], kids[1]);
+    res = buildBinaryOp<btor::SDivOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_srem:
-    res = buildBinaryOp<btor::SRemOp>(kids[0], kids[1]);
+    res = buildBinaryOp<btor::SRemOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_sub:
-    res = buildBinaryOp<btor::SubOp>(kids[0], kids[1]);
+    res = buildBinaryOp<btor::SubOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_udiv:
-    res = buildBinaryOp<btor::UDivOp>(kids[0], kids[1]);
+    res = buildBinaryOp<btor::UDivOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_urem:
-    res = buildBinaryOp<btor::URemOp>(kids[0], kids[1]);
+    res = buildBinaryOp<btor::URemOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_mul:
-    res = buildBinaryOp<btor::MulOp>(kids[0], kids[1]);
+    res = buildBinaryOp<btor::MulOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_smod:
-    res = buildBinaryOp<btor::SModOp>(kids[0], kids[1]);
+    res = buildBinaryOp<btor::SModOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_xnor:
-    res = buildBinaryOp<btor::XnorOp>(kids[0], kids[1]);
+    res = buildBinaryOp<btor::XnorOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_xor:
-    res = buildBinaryOp<btor::XOrOp>(kids[0], kids[1]);
+    res = buildBinaryOp<btor::XOrOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_sll:
-    res = buildBinaryOp<btor::ShiftLLOp>(kids[0], kids[1]);
+    res = buildBinaryOp<btor::ShiftLLOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_sra:
-    res = buildBinaryOp<btor::ShiftRAOp>(kids[0], kids[1]);
+    res = buildBinaryOp<btor::ShiftRAOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_srl:
-    res = buildBinaryOp<btor::ShiftRLOp>(kids[0], kids[1]);
+    res = buildBinaryOp<btor::ShiftRLOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_rol:
-    res = buildBinaryOp<btor::RotateLOp>(kids[0], kids[1]);
+    res = buildBinaryOp<btor::RotateLOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_ror:
-    res = buildBinaryOp<btor::RotateROp>(kids[0], kids[1]);
+    res = buildBinaryOp<btor::RotateROp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_saddo:
-    res = buildOverflowOp<btor::SAddOverflowOp>(kids[0], kids[1]);
+    res = buildOverflowOp<btor::SAddOverflowOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_sdivo:
-    res = buildOverflowOp<btor::SDivOverflowOp>(kids[0], kids[1]);
+    res = buildOverflowOp<btor::SDivOverflowOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_smulo:
-    res = buildOverflowOp<btor::SMulOverflowOp>(kids[0], kids[1]);
+    res = buildOverflowOp<btor::SMulOverflowOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_ssubo:
-    res = buildOverflowOp<btor::SSubOverflowOp>(kids[0], kids[1]);
+    res = buildOverflowOp<btor::SSubOverflowOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_uaddo:
-    res = buildOverflowOp<btor::UAddOverflowOp>(kids[0], kids[1]);
+    res = buildOverflowOp<btor::UAddOverflowOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_umulo:
-    res = buildOverflowOp<btor::UMulOverflowOp>(kids[0], kids[1]);
+    res = buildOverflowOp<btor::UMulOverflowOp>(kids[0], kids[1], lineId);
     break;
   case BTOR2_TAG_usubo:
-    res = buildOverflowOp<btor::USubOverflowOp>(kids[0], kids[1]);
+    res = buildOverflowOp<btor::USubOverflowOp>(kids[0], kids[1], lineId);
     break;
 
   // unary ops
   case BTOR2_TAG_dec:
-    res = buildUnaryOp<btor::DecOp>(kids[0]);
+    res = buildUnaryOp<btor::DecOp>(kids[0], lineId);
     break;
   case BTOR2_TAG_inc:
-    res = buildUnaryOp<btor::IncOp>(kids[0]);
+    res = buildUnaryOp<btor::IncOp>(kids[0], lineId);
     break;
   case BTOR2_TAG_neg:
-    res = buildUnaryOp<btor::NegOp>(kids[0]);
+    res = buildUnaryOp<btor::NegOp>(kids[0], lineId);
     break;
   case BTOR2_TAG_not:
-    res = buildUnaryOp<btor::NotOp>(kids[0]);
+    res = buildUnaryOp<btor::NotOp>(kids[0], lineId);
     break;
   case BTOR2_TAG_bad:
-    res = buildUnaryOp<btor::AssertNotOp>(kids[0]);
+    res = buildUnaryOp<btor::AssertNotOp>(kids[0], lineId);
     break;
   case BTOR2_TAG_redand:
-    res = buildReductionOp<btor::RedAndOp>(kids[0]);
+    res = buildReductionOp<btor::RedAndOp>(kids[0], lineId);
     break;
   case BTOR2_TAG_redor:
-    res = buildReductionOp<btor::RedOrOp>(kids[0]);
+    res = buildReductionOp<btor::RedOrOp>(kids[0], lineId);
     break;
   case BTOR2_TAG_redxor:
-    res = buildReductionOp<btor::RedXorOp>(kids[0]);
+    res = buildReductionOp<btor::RedXorOp>(kids[0], lineId);
     break;
   case BTOR2_TAG_const:
     res = buildConstantOp(line->sort.bitvec.width,
-                        std::string(line->constant), 2);
+                        std::string(line->constant), 2, lineId);
     break;
   case BTOR2_TAG_constd:
     res = buildConstantOp(line->sort.bitvec.width, 
-                        std::string(line->constant), 10);
+                        std::string(line->constant), 10, lineId);
     break;
   case BTOR2_TAG_consth:
     res = buildConstantOp(line->sort.bitvec.width, 
-                        std::string(line->constant), 16);
+                        std::string(line->constant), 16, lineId);
     break;
   case BTOR2_TAG_one:
     res = buildConstantOp(line->sort.bitvec.width, 
-                        std::string("one"), 10);
+                        std::string("one"), 10, lineId);
     break;
   case BTOR2_TAG_ones:
     res = buildConstantOp(line->sort.bitvec.width,
-                        std::string("ones"), 10);
+                        std::string("ones"), 10, lineId);
     break;
   case BTOR2_TAG_zero:
     res = buildConstantOp(line->sort.bitvec.width, 
-                        std::string("zero"), 10);
+                        std::string("zero"), 10, lineId);
     break;
   case BTOR2_TAG_input:
-    res = buildInputOp(line->sort.bitvec.width);
+    res = buildInputOp(line->sort.bitvec.width, lineId);
     break;
   case BTOR2_TAG_constraint:
-    res = buildUnaryOp<btor::ConstraintOp>(kids[0]);
+    res = buildUnaryOp<btor::ConstraintOp>(kids[0], lineId);
     break;
 
 
   // indexed ops
   case BTOR2_TAG_slice:
-    res = buildSliceOp(kids[0], arguments[0], arguments[1]);
+    res = buildSliceOp(kids[0], arguments[0], arguments[1], lineId);
     break;
   case BTOR2_TAG_sext:
-    res = buildExtOp<btor::SExtOp>(kids[0], line->sort.bitvec.width);
+    res = buildExtOp<btor::SExtOp>(kids[0], line->sort.bitvec.width, lineId);
     break;
   case BTOR2_TAG_uext:
-    res = buildExtOp<btor::UExtOp>(kids[0], line->sort.bitvec.width);
+    res = buildExtOp<btor::UExtOp>(kids[0], line->sort.bitvec.width, lineId);
     break;
 
   // ternary ops
   case BTOR2_TAG_ite:
-    res = buildIteOp(kids[0], kids[1], kids[2]);
+    res = buildIteOp(kids[0], kids[1], kids[2], lineId);
     break;
 
   // array ops
   case BTOR2_TAG_read: // read op: array, index
-    res = buildReadOp(kids[0], kids[1]);
+    res = buildReadOp(kids[0], kids[1], lineId);
     break;
 
   case BTOR2_TAG_write: // write op: array, index, value
-    res = buildWriteOp(kids[0], kids[1], kids[2]);
+    res = buildWriteOp(kids[0], kids[1], kids[2], lineId);
     break;
 
   // unmapped ops
@@ -316,8 +324,11 @@ Operation * Deserialize::createMLIR(const Btor2Line *line,
 /// the cache, only after the caller ensures that the original line has been 
 /// created and saved in the cache
 ///===----------------------------------------------------------------------===//
-void Deserialize::createNegateLine(int64_t negativeLine, const Value &child) {
-  auto res = buildUnaryOp<btor::NotOp>(getFromCacheById(std::abs(negativeLine)));
+void Deserialize::createNegateLine(int64_t negativeLine,
+                                  const unsigned lineId,
+                                  const Value &child) {
+  auto res = buildUnaryOp<btor::NotOp>(getFromCacheById(std::abs(negativeLine)),
+                                      lineId);
   assert(res);
   assert(res->getNumResults() == 1);
   setCacheWithId(negativeLine, res->getResult(0));
@@ -397,7 +408,7 @@ void Deserialize::toOp(Btor2Line *line) {
         if (arg_i < 0) {
           // if original operation is cached, negate it on the fly
           if (valueAtIdIsInCache(std::abs(arg_i))) {
-            createNegateLine(arg_i, getFromCacheById(std::abs(arg_i))); 
+            createNegateLine(arg_i, cur->lineno, getFromCacheById(std::abs(arg_i))); 
           } else {
             todo.push_back(getLineById(std::abs(arg_i)));
           }
@@ -465,9 +476,15 @@ std::vector<Value> Deserialize::buildNextFunction(
   for (unsigned i = 0; i < m_states.size(); ++i) {
     int64_t nextState = m_states.at(i)->next;
     if (nextState == 0) { 
+      if (m_states.at(i)->init != 0) {
+        results[i] = getFromCacheById(m_states.at(i)->id);
+        continue;
+      }
       auto stateType = getFromCacheById(m_states.at(i)->id).getType();
-      auto res = m_builder.create<btor::NdBitvectorOp>(m_unknownLoc,
-                                                  stateType);
+      auto res = m_builder.create<btor::NDStateOp>(
+        FileLineColLoc::get(m_sourceFile, m_states.at(i)->lineno, 0), 
+        stateType,
+        m_builder.getIntegerAttr(m_builder.getIntegerType(64), i));
       assert(res);
       assert(res->getNumResults() == 1);
       results[i] = res->getResult(0);

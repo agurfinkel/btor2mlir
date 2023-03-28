@@ -217,10 +217,10 @@ struct SModOpLowering : public ConvertOpToLLVMPattern<btor::SModOp> {
                   ConversionPatternRewriter &rewriter) const override;
 };
 
-struct NdBitvectorOpLowering : public ConvertOpToLLVMPattern<btor::NdBitvectorOp> {
-  using ConvertOpToLLVMPattern<btor::NdBitvectorOp>::ConvertOpToLLVMPattern;
+struct NDStateOpLowering : public ConvertOpToLLVMPattern<btor::NDStateOp> {
+  using ConvertOpToLLVMPattern<btor::NDStateOp>::ConvertOpToLLVMPattern;
   LogicalResult
-  matchAndRewrite(btor::NdBitvectorOp op, OpAdaptor adaptor,
+  matchAndRewrite(btor::NDStateOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override;
 };
 
@@ -291,11 +291,8 @@ NotOpLowering::matchAndRewrite(btor::NotOp notOp, OpAdaptor adaptor,
                                ConversionPatternRewriter &rewriter) const {
   Value operand = adaptor.operand();
   Type opType = operand.getType();
-
-  int width = opType.getIntOrFloatBitWidth();
-  int trueVal = pow(2, width) - 1;
   Value trueConst = rewriter.create<LLVM::ConstantOp>(
-      notOp.getLoc(), opType, rewriter.getIntegerAttr(opType, trueVal));
+      notOp.getLoc(), opType, rewriter.getIntegerAttr(opType, -1));
   rewriter.replaceOpWithNewOp<LLVM::XOrOp>(notOp, operand, trueConst);
   return success();
 }
@@ -312,18 +309,18 @@ LogicalResult AssertNotOpLowering::matchAndRewrite(
 
   Value notBad = rewriter.create<btor::NotOp>(loc, adaptor.arg());
 
-  // Insert the `verifier_error` declaration if necessary.
+  // Insert the `__VERIFIER_error` declaration if necessary.
   auto module = assertOp->getParentOfType<ModuleOp>();
-  auto verifierError = "verifier.error";
-  auto verfifierErrorFunc =
+  auto verifierError = "__VERIFIER_error";
+  auto verifierErrorFunc =
       module.lookupSymbol<LLVM::LLVMFuncOp>(verifierError);
-  if (!verfifierErrorFunc) {
+  if (!verifierErrorFunc) {
     OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointToStart(module.getBody());
-    auto verfifierErrorFuncTy =
+    auto verifierErrorFuncTy =
         LLVM::LLVMFunctionType::get(LLVM::LLVMVoidType::get(getContext()), {});
-    verfifierErrorFunc = rewriter.create<LLVM::LLVMFuncOp>(
-        rewriter.getUnknownLoc(), verifierError, verfifierErrorFuncTy);
+    verifierErrorFunc = rewriter.create<LLVM::LLVMFuncOp>(
+        rewriter.getUnknownLoc(), verifierError, verifierErrorFuncTy);
   }
 
   // Split block at `assert` operation.
@@ -333,7 +330,7 @@ LogicalResult AssertNotOpLowering::matchAndRewrite(
 
   // Generate IR to call `abort`.
   Block *failureBlock = rewriter.createBlock(opBlock->getParent());
-  rewriter.create<LLVM::CallOp>(loc, verfifierErrorFunc, llvm::None);
+  rewriter.create<LLVM::CallOp>(loc, verifierErrorFunc, llvm::None);
   rewriter.create<LLVM::UnreachableOp>(loc);
 
   // Generate assertion test.
@@ -576,10 +573,10 @@ SModOpLowering::matchAndRewrite(mlir::btor::SModOp smodOp, OpAdaptor adaptor,
 }
 
 //===----------------------------------------------------------------------===//
-// NdBitvectorOpLowering
+// NDStateOpLowering
 //===----------------------------------------------------------------------===//
 LogicalResult
-NdBitvectorOpLowering::matchAndRewrite(btor::NdBitvectorOp op, OpAdaptor adaptor,
+NDStateOpLowering::matchAndRewrite(btor::NDStateOp op, OpAdaptor adaptor,
                                  ConversionPatternRewriter &rewriter) const {
   auto opType = op.result().getType();
   // Insert the `havoc` declaration if necessary.
@@ -608,21 +605,21 @@ ConstraintOpLowering::matchAndRewrite(btor::ConstraintOp op, OpAdaptor adaptor,
                                   ConversionPatternRewriter &rewriter) const {
   auto opType = op.constraint().getType();
 
-  // Insert the `verifier.assume` declaration if necessary.
+  // Insert the `__SEA_assume` declaration if necessary.
   auto module = op->getParentOfType<ModuleOp>();
-  auto verifierAssume = "verifier.assume";
-  auto verfifierAssumeFunc =
-      module.lookupSymbol<LLVM::LLVMFuncOp>(verifierAssume);
-  if (!verfifierAssumeFunc) {
+  auto seaAssume = "__SEA_assume";
+  auto seaAssumeFunc =
+      module.lookupSymbol<LLVM::LLVMFuncOp>(seaAssume);
+  if (!seaAssumeFunc) {
     OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointToStart(module.getBody());
-    auto verfifierAssumeFuncTy =
+    auto seaAssumeFuncTy =
         LLVM::LLVMFunctionType::get(LLVM::LLVMVoidType::get(getContext()), opType);
-    verfifierAssumeFunc = rewriter.create<LLVM::LLVMFuncOp>(
-        rewriter.getUnknownLoc(), verifierAssume, verfifierAssumeFuncTy);
+    seaAssumeFunc = rewriter.create<LLVM::LLVMFuncOp>(
+        rewriter.getUnknownLoc(), seaAssume, seaAssumeFuncTy);
   }
 
-  rewriter.replaceOpWithNewOp<LLVM::CallOp>(op, verfifierAssumeFunc, op.constraint());
+  rewriter.replaceOpWithNewOp<LLVM::CallOp>(op, seaAssumeFunc, op.constraint());
   return success();
 }
 
@@ -632,7 +629,22 @@ ConstraintOpLowering::matchAndRewrite(btor::ConstraintOp op, OpAdaptor adaptor,
 LogicalResult
 InputOpLowering::matchAndRewrite(btor::InputOp op, OpAdaptor adaptor,
                 ConversionPatternRewriter &rewriter) const {
-  rewriter.replaceOpWithNewOp<btor::NdBitvectorOp>(op, op.result().getType());
+  auto opType = op.result().getType();
+  // Insert the `havoc` declaration if necessary.
+  auto module = op->getParentOfType<ModuleOp>();
+  std::string havoc;
+  havoc.append("nd_bv");
+  havoc.append(std::to_string(opType.getIntOrFloatBitWidth()));
+  auto havocFunc = module.lookupSymbol<LLVM::LLVMFuncOp>(havoc);
+  if (!havocFunc) {
+    OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointToStart(module.getBody());
+    auto havocFuncTy =
+        LLVM::LLVMFunctionType::get(opType, {});
+    havocFunc = rewriter.create<LLVM::LLVMFuncOp>(
+        rewriter.getUnknownLoc(), havoc, havocFuncTy);
+  }
+  rewriter.replaceOpWithNewOp<LLVM::CallOp>(op, havocFunc, llvm::None);
   return success();            
 }
 
@@ -699,7 +711,7 @@ void BtorToLLVMLoweringPass::runOnOperation() {
   /// unary operators
   target.addIllegalOp<btor::NotOp, btor::IncOp, btor::DecOp, btor::NegOp>();
   target.addIllegalOp<btor::RedAndOp, btor::RedXorOp, btor::RedOrOp, btor::InputOp>();
-  target.addIllegalOp<btor::AssertNotOp, btor::ConstantOp, btor::NdBitvectorOp>();
+  target.addIllegalOp<btor::AssertNotOp, btor::ConstantOp, btor::NDStateOp>();
 
   /// binary operators
   // logical
@@ -748,7 +760,7 @@ void mlir::btor::populateBtorToLLVMConversionPatterns(
       IffOpLowering, ImpliesOpLowering, XnorOpLowering, NandOpLowering,
       NorOpLowering, IncOpLowering, DecOpLowering, NegOpLowering,
       RedOrOpLowering, RedAndOpLowering, RedXorOpLowering, UExtOpLowering,
-      SExtOpLowering, SliceOpLowering, ConcatOpLowering, NdBitvectorOpLowering,
+      SExtOpLowering, SliceOpLowering, ConcatOpLowering, NDStateOpLowering,
       ConstraintOpLowering, InputOpLowering, ArrayOpLowering>(converter);
 }
 
