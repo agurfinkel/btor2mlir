@@ -69,8 +69,6 @@ public:
 using AddOpLowering = VectorConvertToLLVMPattern<btor::AddOp, LLVM::AddOp>;
 using SubOpLowering = VectorConvertToLLVMPattern<btor::SubOp, LLVM::SubOp>;
 using MulOpLowering = VectorConvertToLLVMPattern<btor::MulOp, LLVM::MulOp>;
-using UDivOpLowering = VectorConvertToLLVMPattern<btor::UDivOp, LLVM::UDivOp>;
-using SDivOpLowering = VectorConvertToLLVMPattern<btor::SDivOp, LLVM::SDivOp>;
 using URemOpLowering = VectorConvertToLLVMPattern<btor::URemOp, LLVM::URemOp>;
 using SRemOpLowering = VectorConvertToLLVMPattern<btor::SRemOp, LLVM::SRemOp>;
 using AndOpLowering = VectorConvertToLLVMPattern<btor::AndOp, LLVM::AndOp>;
@@ -242,6 +240,20 @@ struct ArrayOpLowering : public ConvertOpToLLVMPattern<mlir::btor::ArrayOp> {
   using ConvertOpToLLVMPattern<mlir::btor::ArrayOp>::ConvertOpToLLVMPattern;
   LogicalResult
   matchAndRewrite(mlir::btor::ArrayOp arrayOp, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override;
+};
+
+struct UDivOpLowering : public ConvertOpToLLVMPattern<btor::UDivOp> {
+  using ConvertOpToLLVMPattern<btor::UDivOp>::ConvertOpToLLVMPattern;
+  LogicalResult
+  matchAndRewrite(btor::UDivOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override;
+};
+
+struct SDivOpLowering : public ConvertOpToLLVMPattern<btor::SDivOp> {
+  using ConvertOpToLLVMPattern<btor::SDivOp>::ConvertOpToLLVMPattern;
+  LogicalResult
+  matchAndRewrite(btor::SDivOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override;
 };
 } // end anonymous namespace
@@ -678,6 +690,53 @@ ArrayOpLowering::matchAndRewrite(mlir::btor::ArrayOp arrayOp, OpAdaptor adaptor,
   rewriter.replaceOp(arrayOp, result);
   return success();
 }
+
+//===----------------------------------------------------------------------===//
+// SDivOpLowering
+//===----------------------------------------------------------------------===//
+
+LogicalResult
+SDivOpLowering::matchAndRewrite(mlir::btor::SDivOp op, OpAdaptor adaptor,
+                                ConversionPatternRewriter &rewriter) const {
+  // ensure that if divisor is zero, result is -1
+  auto loc = op.getLoc();
+  auto rhs = adaptor.rhs(), lhs = adaptor.lhs();
+  auto opType = rhs.getType();
+
+  Value zeroConst = rewriter.create<LLVM::ConstantOp>(
+      loc, opType, rewriter.getIntegerAttr(opType, 0));  
+  Value sdiv = rewriter.create<LLVM::SDivOp>(loc, lhs, rhs);
+  Value divisorIsZero = rewriter.create<LLVM::ICmpOp>(
+      loc, LLVM::ICmpPredicate::eq, rhs, zeroConst);
+  Value onesConst = rewriter.create<LLVM::ConstantOp>(
+      loc, opType, rewriter.getIntegerAttr(opType, -1));
+  rewriter.replaceOpWithNewOp<LLVM::SelectOp>(op, divisorIsZero, onesConst, sdiv);
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
+// UDivOpLowering
+//===----------------------------------------------------------------------===//
+
+LogicalResult
+UDivOpLowering::matchAndRewrite(mlir::btor::UDivOp op, OpAdaptor adaptor,
+                                ConversionPatternRewriter &rewriter) const {
+  // ensure that if divisor is zero, result is -1
+  auto loc = op.getLoc();
+  auto rhs = adaptor.rhs(), lhs = adaptor.lhs();
+  auto opType = rhs.getType();
+
+  Value zeroConst = rewriter.create<LLVM::ConstantOp>(
+      loc, opType, rewriter.getIntegerAttr(opType, 0));  
+  Value sdiv = rewriter.create<LLVM::UDivOp>(loc, lhs, rhs);
+  Value divisorIsZero = rewriter.create<LLVM::ICmpOp>(
+      loc, LLVM::ICmpPredicate::eq, rhs, zeroConst);
+  Value onesConst = rewriter.create<LLVM::ConstantOp>(
+      loc, opType, rewriter.getIntegerAttr(opType, -1));
+  rewriter.replaceOpWithNewOp<LLVM::SelectOp>(op, divisorIsZero, onesConst, sdiv);
+  return success();
+}
+
 //===----------------------------------------------------------------------===//
 // Pass Definition
 //===----------------------------------------------------------------------===//
