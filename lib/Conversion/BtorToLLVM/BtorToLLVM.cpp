@@ -69,8 +69,6 @@ public:
 using AddOpLowering = VectorConvertToLLVMPattern<btor::AddOp, LLVM::AddOp>;
 using SubOpLowering = VectorConvertToLLVMPattern<btor::SubOp, LLVM::SubOp>;
 using MulOpLowering = VectorConvertToLLVMPattern<btor::MulOp, LLVM::MulOp>;
-using URemOpLowering = VectorConvertToLLVMPattern<btor::URemOp, LLVM::URemOp>;
-using SRemOpLowering = VectorConvertToLLVMPattern<btor::SRemOp, LLVM::SRemOp>;
 using AndOpLowering = VectorConvertToLLVMPattern<btor::AndOp, LLVM::AndOp>;
 using OrOpLowering = VectorConvertToLLVMPattern<btor::OrOp, LLVM::OrOp>;
 using XOrOpLowering = VectorConvertToLLVMPattern<btor::XOrOp, LLVM::XOrOp>;
@@ -254,6 +252,20 @@ struct SDivOpLowering : public ConvertOpToLLVMPattern<btor::SDivOp> {
   using ConvertOpToLLVMPattern<btor::SDivOp>::ConvertOpToLLVMPattern;
   LogicalResult
   matchAndRewrite(btor::SDivOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override;
+};
+
+struct URemOpLowering : public ConvertOpToLLVMPattern<btor::URemOp> {
+  using ConvertOpToLLVMPattern<btor::URemOp>::ConvertOpToLLVMPattern;
+  LogicalResult
+  matchAndRewrite(btor::URemOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override;
+};
+
+struct SRemOpLowering : public ConvertOpToLLVMPattern<btor::SRemOp> {
+  using ConvertOpToLLVMPattern<btor::SRemOp>::ConvertOpToLLVMPattern;
+  LogicalResult
+  matchAndRewrite(btor::SRemOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override;
 };
 } // end anonymous namespace
@@ -728,12 +740,54 @@ UDivOpLowering::matchAndRewrite(mlir::btor::UDivOp op, OpAdaptor adaptor,
 
   Value zeroConst = rewriter.create<LLVM::ConstantOp>(
       loc, opType, rewriter.getIntegerAttr(opType, 0));  
-  Value sdiv = rewriter.create<LLVM::UDivOp>(loc, lhs, rhs);
+  Value udiv = rewriter.create<LLVM::UDivOp>(loc, lhs, rhs);
   Value divisorIsZero = rewriter.create<LLVM::ICmpOp>(
       loc, LLVM::ICmpPredicate::eq, rhs, zeroConst);
   Value onesConst = rewriter.create<LLVM::ConstantOp>(
       loc, opType, rewriter.getIntegerAttr(opType, -1));
-  rewriter.replaceOpWithNewOp<LLVM::SelectOp>(op, divisorIsZero, onesConst, sdiv);
+  rewriter.replaceOpWithNewOp<LLVM::SelectOp>(op, divisorIsZero, onesConst, udiv);
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
+// SDivOpLowering
+//===----------------------------------------------------------------------===//
+
+LogicalResult
+SRemOpLowering::matchAndRewrite(mlir::btor::SRemOp op, OpAdaptor adaptor,
+                                ConversionPatternRewriter &rewriter) const {
+  // ensure that if divisor is zero, result is lhs
+  auto loc = op.getLoc();
+  auto rhs = adaptor.rhs(), lhs = adaptor.lhs();
+  auto opType = rhs.getType();
+
+  Value zeroConst = rewriter.create<LLVM::ConstantOp>(
+      loc, opType, rewriter.getIntegerAttr(opType, 0));  
+  Value srem = rewriter.create<LLVM::SRemOp>(loc, lhs, rhs);
+  Value divisorIsZero = rewriter.create<LLVM::ICmpOp>(
+      loc, LLVM::ICmpPredicate::eq, rhs, zeroConst);
+  rewriter.replaceOpWithNewOp<LLVM::SelectOp>(op, divisorIsZero, lhs, srem);
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
+// URemOpLowering
+//===----------------------------------------------------------------------===//
+
+LogicalResult
+URemOpLowering::matchAndRewrite(mlir::btor::URemOp op, OpAdaptor adaptor,
+                                ConversionPatternRewriter &rewriter) const {
+  // ensure that if divisor is zero, result is lhs
+  auto loc = op.getLoc();
+  auto rhs = adaptor.rhs(), lhs = adaptor.lhs();
+  auto opType = rhs.getType();
+
+  Value zeroConst = rewriter.create<LLVM::ConstantOp>(
+      loc, opType, rewriter.getIntegerAttr(opType, 0));  
+  Value urem = rewriter.create<LLVM::URemOp>(loc, lhs, rhs);
+  Value divisorIsZero = rewriter.create<LLVM::ICmpOp>(
+      loc, LLVM::ICmpPredicate::eq, rhs, zeroConst);
+  rewriter.replaceOpWithNewOp<LLVM::SelectOp>(op, divisorIsZero, lhs, urem);
   return success();
 }
 
