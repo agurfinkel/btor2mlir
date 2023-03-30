@@ -584,15 +584,19 @@ SModOpLowering::matchAndRewrite(mlir::btor::SModOp smodOp, OpAdaptor adaptor,
 
   Value zeroConst = rewriter.create<LLVM::ConstantOp>(
       loc, opType, rewriter.getIntegerAttr(opType, 0));
-  Value srem = rewriter.create<LLVM::SRemOp>(loc, lhs, rhs);
+  Value srem = rewriter.create<btor::SRemOp>(loc, lhs, rhs);
   Value remLessThanZero = rewriter.create<LLVM::ICmpOp>(
-      loc, LLVM::ICmpPredicate::sle, srem, zeroConst);
+      loc, LLVM::ICmpPredicate::slt, srem, zeroConst);
   Value rhsLessThanZero = rewriter.create<LLVM::ICmpOp>(
-      loc, LLVM::ICmpPredicate::sle, rhs, zeroConst);
+      loc, LLVM::ICmpPredicate::slt, rhs, zeroConst);
+  Value rhsIsNotZero = rewriter.create<LLVM::ICmpOp>(
+      loc, LLVM::ICmpPredicate::ne, rhs, zeroConst);
   Value xorOp =
       rewriter.create<LLVM::XOrOp>(loc, remLessThanZero, rhsLessThanZero);
+  Value needsNegationAndRhsNotZero =
+    rewriter.create<LLVM::AndOp>(loc, xorOp, rhsIsNotZero);
   Value negOp = rewriter.create<btor::NegOp>(loc, srem);
-  rewriter.replaceOpWithNewOp<LLVM::SelectOp>(smodOp, xorOp, negOp, srem);
+  rewriter.replaceOpWithNewOp<LLVM::SelectOp>(smodOp, needsNegationAndRhsNotZero, negOp, srem);
   return success();
 }
 

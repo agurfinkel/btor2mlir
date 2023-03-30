@@ -1,0 +1,10 @@
+; modulus by zero should return lhs
+; sat in first cycle
+1 sort bitvec 5
+2 zero 1
+3 ones 1
+4 constd 1 6
+5 smod 1 4 2
+6 sort bitvec 1
+7 eq 6 5 4
+8 bad 7

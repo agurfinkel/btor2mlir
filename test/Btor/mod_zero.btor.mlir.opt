@@ -1,0 +1,32 @@
+module attributes {llvm.data_layout = ""} {
+  llvm.func @__VERIFIER_error()
+  llvm.func @main() {
+    llvm.br ^bb1
+  ^bb1:  // 2 preds: ^bb0, ^bb2
+    %0 = llvm.mlir.constant(6 : i5) : i5
+    %1 = llvm.mlir.constant(0 : i5) : i5
+    %2 = llvm.mlir.constant(0 : i5) : i5
+    %3 = llvm.mlir.constant(0 : i5) : i5
+    %4 = llvm.srem %0, %1  : i5
+    %5 = llvm.icmp "eq" %1, %3 : i5
+    %6 = llvm.select %5, %0, %4 : i1, i5
+    %7 = llvm.icmp "slt" %6, %2 : i5
+    %8 = llvm.icmp "slt" %1, %2 : i5
+    %9 = llvm.icmp "ne" %1, %2 : i5
+    %10 = llvm.xor %7, %8  : i1
+    %11 = llvm.and %10, %9  : i1
+    %12 = llvm.mlir.constant(0 : i5) : i5
+    %13 = llvm.sub %12, %6  : i5
+    %14 = llvm.select %11, %13, %6 : i1, i5
+    %15 = llvm.icmp "eq" %14, %0 : i5
+    %16 = llvm.mlir.constant(true) : i1
+    %17 = llvm.xor %15, %16  : i1
+    llvm.cond_br %17, ^bb2, ^bb3
+  ^bb2:  // pred: ^bb1
+    llvm.br ^bb1
+  ^bb3:  // pred: ^bb1
+    llvm.call @__VERIFIER_error() : () -> ()
+    llvm.unreachable
+  }
+}
+
