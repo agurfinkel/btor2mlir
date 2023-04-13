@@ -1,6 +1,6 @@
 //===----------------------------------------------------------------------===//
 //
-// This provides registration calls for Btor dialect to Btor IR translation.
+// This provides registration calls for Btor to Btor IR translation.
 //
 //===----------------------------------------------------------------------===//
 

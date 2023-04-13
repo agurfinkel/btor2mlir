@@ -5,7 +5,10 @@
 4 zero 3
 5 state 3
 6 init 3 5 4
-7 redor 3 2
+7 redand 3 2
 8 next 3 5 7
 9 bad 5
-
+;7 zero 1
+;8 redxor 3 2
+;9 next 3 5 8
+;10 bad 5

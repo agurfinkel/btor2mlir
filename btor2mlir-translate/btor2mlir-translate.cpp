@@ -17,10 +17,12 @@
 
 #include "Dialect/Btor/IR/Btor.h"
 #include "Target/Btor/BtorToBtorIRTranslation.h"
+#include "Target/Btor/BtorIRToBtorTranslation.h"
 
 int main(int argc, char **argv) {
   mlir::registerAllTranslations();
   mlir::btor::registerFromBtorTranslation();
+  mlir::btor::registerToBtorTranslation();
   
   return failed(
       mlir::mlirTranslateMain(argc, argv, "MLIR Translation Testing Tool"));
