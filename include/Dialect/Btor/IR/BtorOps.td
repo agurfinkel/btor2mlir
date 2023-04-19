@@ -15,6 +15,7 @@ include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/IR/OpAsmInterface.td"
 include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/VectorInterfaces.td"
+include "mlir/IR/BuiltinAttributes.td"
 
 
 //===----------------------------------------------------------------------===//
@@ -857,13 +858,8 @@ def ConstantOp : Btor_Op<"constant", [ConstantLike, NoSideEffect,
     ```
   }];
 
-  let arguments = (ins AnyAttr:$value);
+  let arguments = (ins Builtin_IntegerAttr:$value);
   let results = (outs AnyType:$result);
-
-  let builders = [
-    OpBuilder<(ins "Attribute":$value, "Type":$type),
-    [{ build($_builder, $_state, type, value); }]>,
-  ];
 
   let assemblyFormat = "attr-dict $value";
   let hasFolder = 1;
