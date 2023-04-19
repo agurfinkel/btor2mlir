@@ -158,12 +158,14 @@ LogicalResult Serialize::createBtorLine(btor::ShiftRAOp &op, bool isInit) { retu
 
 LogicalResult Serialize::createBtorLine(btor::ShiftRLOp &op, bool isInit) { return failure(); }
 
-LogicalResult Serialize::createBtorLine(btor::ConcatOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::ConcatOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(),
+                            op.getType(), "concat");
+}
 
 LogicalResult Serialize::createBtorLine(btor::AddOp &op, bool isInit) {
   return buildBinaryOperation(op.lhs(), op.rhs(), op.result(),
                               op.getType(), "add");
-  return failure();
 }
 
 LogicalResult Serialize::createBtorLine(btor::MulOp &op, bool isInit) { return failure(); }
