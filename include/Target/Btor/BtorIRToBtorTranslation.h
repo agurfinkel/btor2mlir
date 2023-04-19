@@ -42,9 +42,99 @@ class Serialize {
 
   LogicalResult translateMainFunction();
 
+  uint64_t getSort(const int type) {
+    assert(sortIsInCache(type));
+    return m_sorts.at(type);
+  }
+
+  void setSortWithType(const int type, const uint64_t id) {
+    assert(!sortIsInCache(type));
+    m_sorts[type] = id;
+    assert(sortIsInCache(type));
+  }
+
+  bool sortIsInCache(const int type) {
+    return m_sorts.count(type) != 0;
+  }
+
+  uint64_t getOpFromCache(const ::llvm::hash_code &op) {
+    assert(opIsInCache(op));
+    return m_cache.at(op);
+  }
+
+  void setCacheWithOp(const ::llvm::hash_code &op, const uint64_t id) {
+    assert(!opIsInCache(op));
+    m_cache[op] = id;
+    assert(opIsInCache(op));
+  }
+
+  bool opIsInCache(const ::llvm::hash_code &op) {
+    return m_cache.count(op) != 0;
+  }
  private:
   ModuleOp m_module;
   raw_ostream &m_output;
+  uint64_t nextLine = 1;
+
+  std::vector<uint64_t> m_states;
+
+  std::map<::llvm::hash_code, uint64_t> m_cache;
+  std::map<int, uint64_t> m_sorts;
+
+  void createSort(int bitWidth);
+  LogicalResult translateInitFunction(mlir::Block &initBlock);
+  LogicalResult translateNextFunction(mlir::Block &nextBlock);
+  LogicalResult createBtor(mlir::Operation &op, bool isInit);
+  
+  LogicalResult createBtorLine(btor::ConstantOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::InputOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::RedAndOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::AssertNotOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::NDStateOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::UExtOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::SExtOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::SliceOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::NotOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::IncOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::DecOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::NegOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::RedOrOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::RedXorOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::IffOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::ImpliesOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::CmpOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::AndOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::NandOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::NorOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::OrOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::XnorOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::XOrOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::RotateROp &op, bool isInit);
+  LogicalResult createBtorLine(btor::RotateLOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::ShiftLLOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::ShiftRAOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::ShiftRLOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::ConcatOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::AddOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::MulOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::SDivOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::UDivOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::SModOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::SRemOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::URemOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::SubOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::SAddOverflowOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::UAddOverflowOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::SDivOverflowOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::SMulOverflowOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::UMulOverflowOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::SSubOverflowOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::USubOverflowOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::IteOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::ArrayOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::ConstraintOp &op, bool isInit);
+
+  LogicalResult createBtorLine(mlir::BranchOp &op, bool isInit);
 };
 
 /// Register the Btor translation
