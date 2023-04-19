@@ -21,6 +21,8 @@
 
 #include "btor2parser/btor2parser.h"
 
+using llvm::hash_value;
+
 namespace mlir {
 class ModuleOp;
 
@@ -42,34 +44,40 @@ class Serialize {
 
   LogicalResult translateMainFunction();
 
-  uint64_t getSort(const int type) {
+  uint64_t getSort(const Type type) {
+    assert (sortIsInCache(type));
+    ::llvm::hash_code code = hash_value(type);
+    return m_sorts.at(code);
+  }
+
+  void setSortWithType(const Type type, const uint64_t id) {
+    assert (!sortIsInCache(type));
+    ::llvm::hash_code code = hash_value(type);
+    m_sorts[code] = id;
     assert(sortIsInCache(type));
-    return m_sorts.at(type);
   }
 
-  void setSortWithType(const int type, const uint64_t id) {
-    assert(!sortIsInCache(type));
-    m_sorts[type] = id;
-    assert(sortIsInCache(type));
+  bool sortIsInCache(const Type type) {
+    ::llvm::hash_code code = hash_value(type);
+    return m_sorts.count(code) != 0;
   }
 
-  bool sortIsInCache(const int type) {
-    return m_sorts.count(type) != 0;
+  uint64_t getOpFromCache(const Value &value) {
+    assert (opIsInCache(value));
+    ::llvm::hash_code code = hash_value(value);
+    return m_cache.at(code);
   }
 
-  uint64_t getOpFromCache(const ::llvm::hash_code &op) {
-    assert(opIsInCache(op));
-    return m_cache.at(op);
+  void setCacheWithOp(const Value &value, const uint64_t id) {
+    assert (!opIsInCache(value));
+    ::llvm::hash_code code = hash_value(value);
+    m_cache[code] = id;
+    assert (opIsInCache(value));
   }
 
-  void setCacheWithOp(const ::llvm::hash_code &op, const uint64_t id) {
-    assert(!opIsInCache(op));
-    m_cache[op] = id;
-    assert(opIsInCache(op));
-  }
-
-  bool opIsInCache(const ::llvm::hash_code &op) {
-    return m_cache.count(op) != 0;
+  bool opIsInCache(const Value &value) {
+    ::llvm::hash_code code = hash_value(value);
+    return m_cache.count(code) != 0;
   }
  private:
   ModuleOp m_module;
@@ -79,9 +87,11 @@ class Serialize {
   std::vector<uint64_t> m_states;
 
   std::map<::llvm::hash_code, uint64_t> m_cache;
-  std::map<int, uint64_t> m_sorts;
+  std::map<::llvm::hash_code, uint64_t> m_sorts;
 
-  void createSort(int bitWidth);
+  void createSort(Type type);
+  uint64_t getOrCreateSort(Type type);
+
   LogicalResult translateInitFunction(mlir::Block &initBlock);
   LogicalResult translateNextFunction(mlir::Block &nextBlock);
   LogicalResult createBtor(mlir::Operation &op, bool isInit);
@@ -133,8 +143,14 @@ class Serialize {
   LogicalResult createBtorLine(btor::IteOp &op, bool isInit);
   LogicalResult createBtorLine(btor::ArrayOp &op, bool isInit);
   LogicalResult createBtorLine(btor::ConstraintOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::InitArrayOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::ReadOp &op, bool isInit);
+  LogicalResult createBtorLine(btor::WriteOp &op, bool isInit);
 
   LogicalResult createBtorLine(mlir::BranchOp &op, bool isInit);
+
+  LogicalResult buildBinaryOperation(const Value &lhs, const Value &rhs,
+                const Value &res, Type type, std::string op);
 };
 
 /// Register the Btor translation

@@ -17,13 +17,53 @@
 
 using namespace mlir;
 using namespace mlir::btor;
-using llvm::hash_value;
 
-void Serialize::createSort(int bitWidth) {
-  assert (bitWidth > 0);
-  setSortWithType(bitWidth, nextLine);
-  m_output << nextLine << " sort bitvec " << bitWidth << '\n';
+LogicalResult Serialize::buildBinaryOperation(const Value &lhs,
+                                              const Value &rhs,
+                                              const Value &res,
+                                              const Type type,
+                                              std::string op) {
+  assert (opIsInCache(lhs));
+  assert (opIsInCache(rhs));
+  auto sortId = getOrCreateSort(type);
+
+  m_output << nextLine << " ";
+  m_output << op << " ";
+  m_output << sortId 
+    << " " << getOpFromCache(lhs) << " "
+    << getOpFromCache(rhs) << '\n';
+
+  setCacheWithOp(res, nextLine);
   nextLine += 1;
+  return success();
+}
+
+void Serialize::createSort(Type type) {
+  if (type.isIntOrFloat()) {
+    auto bitWidth = type.getIntOrFloatBitWidth();
+    assert (bitWidth > 0);
+    setSortWithType(type, nextLine);
+    m_output << nextLine << " sort bitvec " << bitWidth << '\n';
+  } else {
+    assert (type.isa<VectorType>());
+    auto shape = type.cast<VectorType>().getShape().front();
+    auto elementType = type.cast<VectorType>().getElementType();
+    Type shapeType = IntegerType::get(type.getContext(), unsigned (log2(shape)));
+    assert (elementType.getIntOrFloatBitWidth() > 0);
+    assert (shapeType.getIntOrFloatBitWidth() > 0);
+
+    setSortWithType(type, nextLine);
+    m_output << nextLine << " sort array "
+      << getOrCreateSort(shapeType) << " "
+      << getOrCreateSort(elementType) << '\n';
+  }
+  nextLine += 1;
+}
+
+uint64_t Serialize::getOrCreateSort(Type opType) {
+  if (!sortIsInCache(opType))
+    createSort(opType);
+  return getSort(opType);
 }
 
 LogicalResult Serialize::createBtorLine(btor::UExtOp &op, bool isInit) { return failure(); }
@@ -49,13 +89,9 @@ LogicalResult Serialize::createBtorLine(btor::IffOp &op, bool isInit) { return f
 LogicalResult Serialize::createBtorLine(btor::ImpliesOp &op, bool isInit) { return failure(); }
 
 LogicalResult Serialize::createBtorLine(btor::CmpOp &op, bool isInit) {
-  ::llvm::hash_code lhsCode = hash_value(op.lhs());
-  ::llvm::hash_code rhsCode = hash_value(op.rhs());
-  assert (opIsInCache(lhsCode));
-  assert (opIsInCache(rhsCode));
-  auto bitWidth = op.getType().getIntOrFloatBitWidth();
-  if (!sortIsInCache(bitWidth))
-    createSort(bitWidth);
+  assert (opIsInCache(op.lhs()));
+  assert (opIsInCache(op.rhs()));
+  auto sortId = getOrCreateSort(op.getType());
   
   m_output << nextLine;
   switch (op.predicate())
@@ -91,12 +127,11 @@ LogicalResult Serialize::createBtorLine(btor::CmpOp &op, bool isInit) {
     m_output << " ult ";
     break;
   }
-  m_output << getSort(bitWidth) 
-    << " " << getOpFromCache(lhsCode) << " "
-    << getOpFromCache(rhsCode) << '\n';
+  m_output << sortId
+    << " " << getOpFromCache(op.lhs()) << " "
+    << getOpFromCache(op.rhs()) << '\n';
 
-  llvm::hash_code resCode = hash_value(op.getResult());
-  setCacheWithOp(resCode, nextLine);
+  setCacheWithOp(op.getResult(), nextLine);
   nextLine += 1;
   return success();
 }
@@ -125,29 +160,19 @@ LogicalResult Serialize::createBtorLine(btor::ShiftRLOp &op, bool isInit) { retu
 
 LogicalResult Serialize::createBtorLine(btor::ConcatOp &op, bool isInit) { return failure(); }
 
-LogicalResult Serialize::createBtorLine(btor::AddOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::AddOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(),
+                              op.getType(), "add");
+  return failure();
+}
 
 LogicalResult Serialize::createBtorLine(btor::MulOp &op, bool isInit) { return failure(); }
 
 LogicalResult Serialize::createBtorLine(btor::SDivOp &op, bool isInit) { return failure(); }
 
 LogicalResult Serialize::createBtorLine(btor::UDivOp &op, bool isInit) { 
-  ::llvm::hash_code lhsCode = hash_value(op.lhs());
-  ::llvm::hash_code rhsCode = hash_value(op.rhs());
-  assert (opIsInCache(lhsCode));
-  assert (opIsInCache(rhsCode));
-  auto bitWidth = op.getType().getIntOrFloatBitWidth();
-  if (!sortIsInCache(bitWidth))
-    createSort(bitWidth);
-  
-  m_output << nextLine << " udiv " << getSort(bitWidth) 
-    << " " << getOpFromCache(lhsCode) << " "
-    << getOpFromCache(rhsCode) << '\n';
-
-  llvm::hash_code resCode = hash_value(op.getResult());
-  setCacheWithOp(resCode, nextLine);
-  nextLine += 1;
-  return success(); 
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(),
+                              op.getType(), "udiv");
 }
 
 LogicalResult Serialize::createBtorLine(btor::SModOp &op, bool isInit) { return failure(); }
@@ -174,61 +199,79 @@ LogicalResult Serialize::createBtorLine(btor::USubOverflowOp &op, bool isInit) {
 
 LogicalResult Serialize::createBtorLine(btor::IteOp &op, bool isInit) { return failure(); }
 
-LogicalResult Serialize::createBtorLine(btor::ArrayOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::ArrayOp &op, bool isInit) {
+  return success(); // no work needs to be done here
+}
+
+LogicalResult Serialize::createBtorLine(btor::InitArrayOp &op, bool isInit) {
+  assert (opIsInCache(op.init()));
+  setCacheWithOp(op.result(), getOpFromCache(op.init()));
+  return success();
+}
+
+LogicalResult Serialize::createBtorLine(btor::ReadOp &op, bool isInit) {
+  return buildBinaryOperation(op.base(), op.index(), op.result(),
+                              op.getType(), "read");
+}
+
+LogicalResult Serialize::createBtorLine(btor::WriteOp &op, bool isInit) {
+  assert (opIsInCache(op.index()));
+  assert (opIsInCache(op.base()));
+  assert (opIsInCache(op.value()));
+  auto sortId = getOrCreateSort(op.getType());
+
+  m_output << nextLine << " write " << sortId 
+    << " " << getOpFromCache(op.base()) << " "
+    << getOpFromCache(op.index()) << " "
+    << getOpFromCache(op.value()) << '\n';
+
+  setCacheWithOp(op.result(), nextLine);
+  nextLine += 1;
+  return success();
+}
 
 LogicalResult Serialize::createBtorLine(btor::ConstraintOp &op, bool isInit) { return failure(); }
 
 
 LogicalResult Serialize::createBtorLine(btor::ConstantOp &op, bool isInit) {
-  auto opType = op.getType().getIntOrFloatBitWidth();
-  if (!sortIsInCache(opType))
-    createSort(opType);
+  auto sortId = getOrCreateSort(op.getType());
   m_output << nextLine << " constd " 
-    << getSort(opType) << " "
-    << op.value() << '\n';
+    << sortId << " "
+    << op.value().getInt() << '\n';
 
-  llvm::hash_code resCode = hash_value(op.getResult());
-  setCacheWithOp(resCode, nextLine);
+  setCacheWithOp(op.getResult(), nextLine);
   nextLine += 1;
   return success();
 }
 
 LogicalResult Serialize::createBtorLine(btor::InputOp &op, bool isInit) {
-  auto opType = op.getType().getIntOrFloatBitWidth();
-  if (!sortIsInCache(opType))
-    createSort(opType);
-  m_output << nextLine << " input " << getSort(opType) << '\n';
+  auto sortId = getOrCreateSort(op.getType());
+  m_output << nextLine << " input " << sortId << '\n';
 
-  llvm::hash_code resCode = hash_value(op.getResult());
-  setCacheWithOp(resCode, nextLine);
+  setCacheWithOp(op.getResult(), nextLine);
   nextLine += 1;
   return success();
 }
 
 LogicalResult Serialize::createBtorLine(btor::RedAndOp &op, bool isInit) {
-  auto opType = op.getType().getIntOrFloatBitWidth();
-  if (!sortIsInCache(opType))
-    createSort(opType);
-  llvm::hash_code opCode = hash_value(op.operand());
-  if (!opIsInCache(opCode)) 
+  auto sortId = getOrCreateSort(op.getType());
+  if (!opIsInCache(op.operand())) 
     return failure();
   
-  auto operand = getOpFromCache(opCode);  
-  m_output << nextLine << " redand " << getSort(opType) 
+  auto operand = getOpFromCache(op.operand());  
+  m_output << nextLine << " redand " << sortId 
     << " " << operand << '\n';
 
-  llvm::hash_code resCode = hash_value(op.getResult());
-  setCacheWithOp(resCode, nextLine);
+  setCacheWithOp(op.getResult(), nextLine);
   nextLine += 1;
   return success();
 }
 
 LogicalResult Serialize::createBtorLine(btor::AssertNotOp &op, bool isInit) {
-  llvm::hash_code argCode = hash_value(op.arg());
-  if (!opIsInCache(argCode)) 
+  if (!opIsInCache(op.arg())) 
     return failure();
 
-  m_output << nextLine << " bad " << getOpFromCache(argCode) << '\n';
+  m_output << nextLine << " bad " << getOpFromCache(op.arg()) << '\n';
   nextLine += 1;
   return success();
 }
@@ -240,26 +283,23 @@ LogicalResult Serialize::createBtorLine(btor::NDStateOp &op, bool isInit) {
 LogicalResult Serialize::createBtorLine(mlir::BranchOp &op, bool isInit) {
   if (isInit) {
     // create the states
-    for (Type type : op.getOperandTypes()) {
-      auto bitWidth = type.getIntOrFloatBitWidth();
-      if (!sortIsInCache(bitWidth))
-        createSort(bitWidth);
+    for (Type opType : op.getOperandTypes()) {;
+      auto sortId = getOrCreateSort(opType);
       m_states.push_back(nextLine);
-      m_output << nextLine << " state " << getSort(bitWidth) << '\n';
+      m_output << nextLine << " state " << sortId << '\n';
       nextLine += 1;
     }
   } 
 
   for (unsigned i = 0; i < m_states.size(); ++i) {
     Value res = op.getOperand(i);
-    auto sort = res.getType().getIntOrFloatBitWidth();
-    llvm::hash_code code = hash_value(res);
-    if (opIsInCache(code)) {
-      auto opNextState = getOpFromCache(code);
+    auto sortId = getOrCreateSort(res.getType());
+    if (opIsInCache(res)) {
+      auto opNextState = getOpFromCache(res);
       m_output << nextLine;
       if (isInit) { m_output << " init "; } 
       else {  m_output << " next "; }
-      m_output << getSort(sort)
+      m_output << sortId
         << " " << m_states.at(i) << " " 
         << opNextState << "\n";
       nextLine += 1;
@@ -283,9 +323,9 @@ LogicalResult Serialize::Serialize::createBtor(mlir::Operation &op, bool isInit)
                 btor::AddOp, btor::MulOp, btor::SDivOp, btor::UDivOp,
                 btor::SModOp, btor::SRemOp, btor::URemOp, btor::SubOp,
                 btor::SAddOverflowOp, btor::UAddOverflowOp, btor::SDivOverflowOp,
-                btor::SMulOverflowOp, btor::UMulOverflowOp,
-                btor::SSubOverflowOp, btor::USubOverflowOp,
-                btor::IteOp, btor::ArrayOp, btor::ConstraintOp>(
+                btor::SMulOverflowOp, btor::UMulOverflowOp, btor::InitArrayOp,
+                btor::SSubOverflowOp, btor::USubOverflowOp, btor::ReadOp,
+                btor::IteOp, btor::ArrayOp, btor::ConstraintOp, btor::WriteOp>(
               [&](auto op) { return createBtorLine(op, isInit); })
           // Standard ops.
           .Case<BranchOp>(
@@ -324,8 +364,7 @@ LogicalResult Serialize::translateNextFunction(mlir::Block &nextBlock) {
     << nextBlock.getOperations().size() << " operations\n";
   // set states from block arguments
   for (unsigned i = 0; i < m_states.size(); ++i) {
-    llvm::hash_code blockArgCode = hash_value(nextBlock.getArgument(i));
-    setCacheWithOp(blockArgCode, m_states.at(i));
+    setCacheWithOp(nextBlock.getArgument(i), m_states.at(i));
   }
   // compute next states
   for (Operation &op : nextBlock.getOperations()) {
@@ -369,10 +408,6 @@ static LogicalResult serializeModule(ModuleOp module, raw_ostream &output) {
 
   if (serialize.translateMainFunction().failed())
     return failure();
-
-  // output.write(reinterpret_cast<char *>(module.dump()),
-  //              30 * sizeof(uint32_t));
-  output << '\n';
 
   return mlir::success();
 }
