@@ -27,47 +27,89 @@ void Serialize::createSort(int bitWidth) {
 }
 
 LogicalResult Serialize::createBtorLine(btor::UExtOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::SExtOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::SliceOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::NotOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::IncOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::DecOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::NegOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::RedOrOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::RedXorOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::IffOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::ImpliesOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::CmpOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::AndOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::NandOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::NorOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::OrOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::XnorOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::XOrOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::RotateROp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::RotateLOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::ShiftLLOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::ShiftRAOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::ShiftRLOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::ConcatOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::AddOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::MulOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::SDivOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::UDivOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::SModOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::SRemOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::URemOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::SubOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::SAddOverflowOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::UAddOverflowOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::SDivOverflowOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::SMulOverflowOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::UMulOverflowOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::SSubOverflowOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::USubOverflowOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::IteOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::ArrayOp &op, bool isInit) { return success(); }
+
 LogicalResult Serialize::createBtorLine(btor::ConstraintOp &op, bool isInit) { return success(); }
+
 
 LogicalResult Serialize::createBtorLine(btor::ConstantOp &op, bool isInit) {
   auto opType = op.getType().getIntOrFloatBitWidth();
