@@ -529,8 +529,7 @@ OwningOpRef<FuncOp> Deserialize::buildMainFunction() {
 
 static OwningOpRef<ModuleOp> deserializeModule(const llvm::MemoryBuffer *input,
                                          MLIRContext *context) {
-  context->loadDialect<btor::BtorDialect>();
-  context->loadDialect<arith::ArithmeticDialect, StandardOpsDialect>();
+  context->loadDialect<btor::BtorDialect, StandardOpsDialect>();
 
   OwningOpRef<ModuleOp> owningModule(ModuleOp::create(FileLineColLoc::get(
       context, input->getBufferIdentifier(), /*line=*/0, /*column=*/0)));

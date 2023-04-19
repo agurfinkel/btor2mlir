@@ -827,8 +827,10 @@ void BtorToLLVMLoweringPass::runOnOperation() {
 
   /// unary operators
   target.addIllegalOp<btor::NotOp, btor::IncOp, btor::DecOp, btor::NegOp>();
-  target.addIllegalOp<btor::RedAndOp, btor::RedXorOp, btor::RedOrOp, btor::InputOp>();
-  target.addIllegalOp<btor::AssertNotOp, btor::ConstantOp, btor::NDStateOp>();
+  target.addIllegalOp<btor::RedAndOp, btor::RedXorOp, btor::RedOrOp, 
+                      btor::InputOp>();
+  target.addIllegalOp<btor::AssertNotOp, btor::ConstraintOp, btor::ConstantOp, 
+                      btor::NDStateOp>();
 
   /// binary operators
   // logical
