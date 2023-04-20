@@ -149,8 +149,12 @@ class Serialize {
 
   LogicalResult createBtorLine(mlir::BranchOp &op, bool isInit);
 
+  LogicalResult buildTernaryOperation(const Value &first, const Value &second,
+                const Value &third, const Value &res, Type type, std::string op);
   LogicalResult buildBinaryOperation(const Value &lhs, const Value &rhs,
                 const Value &res, Type type, std::string op);
+  LogicalResult buildUnaryOperation(const Value &lhs, const Value &res,
+                Type type, std::string op);
 };
 
 /// Register the Btor translation

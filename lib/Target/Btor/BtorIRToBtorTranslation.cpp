@@ -18,6 +18,27 @@
 using namespace mlir;
 using namespace mlir::btor;
 
+LogicalResult Serialize::buildTernaryOperation(const Value &first,
+                                              const Value &second,
+                                              const Value &third,
+                                              const Value &res,
+                                              const Type type,
+                                              std::string op) {
+  assert (opIsInCache(first));
+  assert (opIsInCache(second));
+  assert (opIsInCache(third));
+  auto sortId = getOrCreateSort(type);
+
+  m_output << nextLine << " ";
+  m_output << op << " " << sortId << " " << getOpFromCache(first) 
+    << " " << getOpFromCache(second) << " "
+    << getOpFromCache(third) << '\n';
+
+  setCacheWithOp(res, nextLine);
+  nextLine += 1;
+  return success();
+}
+
 LogicalResult Serialize::buildBinaryOperation(const Value &lhs,
                                               const Value &rhs,
                                               const Value &res,
@@ -28,10 +49,23 @@ LogicalResult Serialize::buildBinaryOperation(const Value &lhs,
   auto sortId = getOrCreateSort(type);
 
   m_output << nextLine << " ";
+  m_output << op << " " << sortId << " " << getOpFromCache(lhs) 
+    << " " << getOpFromCache(rhs) << '\n';
+
+  setCacheWithOp(res, nextLine);
+  nextLine += 1;
+  return success();
+}
+
+LogicalResult Serialize::buildUnaryOperation(const Value &value,
+              const Value &res, const Type type, std::string op) {
+  assert (opIsInCache(value));
+  auto sortId = getOrCreateSort(type);
+
+  m_output << nextLine << " ";
   m_output << op << " ";
   m_output << sortId 
-    << " " << getOpFromCache(lhs) << " "
-    << getOpFromCache(rhs) << '\n';
+    << " " << getOpFromCache(value) << "\n";
 
   setCacheWithOp(res, nextLine);
   nextLine += 1;
@@ -66,27 +100,69 @@ uint64_t Serialize::getOrCreateSort(Type opType) {
   return getSort(opType);
 }
 
-LogicalResult Serialize::createBtorLine(btor::UExtOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::UExtOp &op, bool isInit) {
+  return buildUnaryOperation(op.in(), op.out(), op.getType(), "uext");
+}
 
-LogicalResult Serialize::createBtorLine(btor::SExtOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::SExtOp &op, bool isInit) {
+  return buildUnaryOperation(op.in(), op.out(), op.getType(), "sext");
+}
 
-LogicalResult Serialize::createBtorLine(btor::SliceOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::SliceOp &op, bool isInit) {
+  assert (opIsInCache(op.lower_bound()));
+  assert (opIsInCache(op.upper_bound()));
+  assert (opIsInCache(op.in()));
+  btor::ConstantOp lower = op.lower_bound().getDefiningOp<btor::ConstantOp>();
+  btor::ConstantOp upper = op.upper_bound().getDefiningOp<btor::ConstantOp>();
+  assert (lower);
+  assert (upper);
+  auto sortId = getOrCreateSort(op.getType());
 
-LogicalResult Serialize::createBtorLine(btor::NotOp &op, bool isInit) { return failure(); }
+  m_output << nextLine << " slice " << sortId 
+    << " " << getOpFromCache(op.in()) << " "
+    << upper.value().getInt() << " "
+    << lower.value().getInt() << "\n"; 
 
-LogicalResult Serialize::createBtorLine(btor::IncOp &op, bool isInit) { return failure(); }
+  setCacheWithOp(op.result(), nextLine);
+  nextLine += 1;  
+  return success();
+}
 
-LogicalResult Serialize::createBtorLine(btor::DecOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::NotOp &op, bool isInit) {
+  return buildUnaryOperation(op.operand(), op.result(), op.getType(), "not");
+}
 
-LogicalResult Serialize::createBtorLine(btor::NegOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::IncOp &op, bool isInit) {
+  return buildUnaryOperation(op.operand(), op.result(), op.getType(), "inc");
+}
 
-LogicalResult Serialize::createBtorLine(btor::RedOrOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::DecOp &op, bool isInit) {
+  return buildUnaryOperation(op.operand(), op.result(), op.getType(), "dec");
+}
 
-LogicalResult Serialize::createBtorLine(btor::RedXorOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::NegOp &op, bool isInit) {
+  return buildUnaryOperation(op.operand(), op.result(), op.getType(), "neg");
+}
 
-LogicalResult Serialize::createBtorLine(btor::IffOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::RedOrOp &op, bool isInit) {
+  return buildUnaryOperation(op.operand(), op.result(), op.getType(), "redor");
+}
 
-LogicalResult Serialize::createBtorLine(btor::ImpliesOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::RedXorOp &op, bool isInit) {
+  return buildUnaryOperation(op.operand(), op.result(), op.getType(), "redxor");
+}
+
+LogicalResult Serialize::createBtorLine(btor::RedAndOp &op, bool isInit) {
+  return buildUnaryOperation(op.operand(), op.result(), op.getType(), "redand");
+}
+
+LogicalResult Serialize::createBtorLine(btor::IffOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "iff");
+}
+
+LogicalResult Serialize::createBtorLine(btor::ImpliesOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "implies");
+}
 
 LogicalResult Serialize::createBtorLine(btor::CmpOp &op, bool isInit) {
   assert (opIsInCache(op.lhs()));
@@ -136,70 +212,118 @@ LogicalResult Serialize::createBtorLine(btor::CmpOp &op, bool isInit) {
   return success();
 }
 
-LogicalResult Serialize::createBtorLine(btor::AndOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::AndOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "and");
+}
 
-LogicalResult Serialize::createBtorLine(btor::NandOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::NandOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "nand");
+}
 
-LogicalResult Serialize::createBtorLine(btor::NorOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::NorOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "nor");
+}
 
-LogicalResult Serialize::createBtorLine(btor::OrOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::OrOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "or");
+}
 
-LogicalResult Serialize::createBtorLine(btor::XnorOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::XnorOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "xnor");
+}
 
-LogicalResult Serialize::createBtorLine(btor::XOrOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::XOrOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "xor");
+}
 
-LogicalResult Serialize::createBtorLine(btor::RotateROp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::RotateROp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "ror");
+}
 
-LogicalResult Serialize::createBtorLine(btor::RotateLOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::RotateLOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "rol");
+}
 
-LogicalResult Serialize::createBtorLine(btor::ShiftLLOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::ShiftLLOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "sll");
+}
 
-LogicalResult Serialize::createBtorLine(btor::ShiftRAOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::ShiftRAOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "sra");
+}
 
-LogicalResult Serialize::createBtorLine(btor::ShiftRLOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::ShiftRLOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "srl");
+}
 
 LogicalResult Serialize::createBtorLine(btor::ConcatOp &op, bool isInit) {
-  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(),
-                            op.getType(), "concat");
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "concat");
 }
 
 LogicalResult Serialize::createBtorLine(btor::AddOp &op, bool isInit) {
-  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(),
-                              op.getType(), "add");
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "add");
 }
 
-LogicalResult Serialize::createBtorLine(btor::MulOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::MulOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "mul");
+}
 
-LogicalResult Serialize::createBtorLine(btor::SDivOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::SDivOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "sdiv");
+}
 
 LogicalResult Serialize::createBtorLine(btor::UDivOp &op, bool isInit) { 
-  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(),
-                              op.getType(), "udiv");
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "udiv");
 }
 
-LogicalResult Serialize::createBtorLine(btor::SModOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::SModOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "smod");
+}
 
-LogicalResult Serialize::createBtorLine(btor::SRemOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::SRemOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "srem");
+}
 
-LogicalResult Serialize::createBtorLine(btor::URemOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::URemOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "urem");
+}
 
-LogicalResult Serialize::createBtorLine(btor::SubOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::SubOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "sub");
+}
 
-LogicalResult Serialize::createBtorLine(btor::SAddOverflowOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::SAddOverflowOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "saddo");
+}
 
-LogicalResult Serialize::createBtorLine(btor::UAddOverflowOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::UAddOverflowOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "uaddo");
+}
 
-LogicalResult Serialize::createBtorLine(btor::SDivOverflowOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::SDivOverflowOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "sdivo");
+}
 
-LogicalResult Serialize::createBtorLine(btor::SMulOverflowOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::SMulOverflowOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "smulo");
+}
 
-LogicalResult Serialize::createBtorLine(btor::UMulOverflowOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::UMulOverflowOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "umulo");
+}
 
-LogicalResult Serialize::createBtorLine(btor::SSubOverflowOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::SSubOverflowOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "ssubo");
+}
 
-LogicalResult Serialize::createBtorLine(btor::USubOverflowOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::USubOverflowOp &op, bool isInit) {
+  return buildBinaryOperation(op.lhs(), op.rhs(), op.result(), op.getType(), "usubo");
+}
 
-LogicalResult Serialize::createBtorLine(btor::IteOp &op, bool isInit) { return failure(); }
+LogicalResult Serialize::createBtorLine(btor::IteOp &op, bool isInit) {
+  return buildTernaryOperation(op.condition(), op.true_value(), 
+    op.false_value(), op.result(), op.getType(), "ite");
+}
 
 LogicalResult Serialize::createBtorLine(btor::ArrayOp &op, bool isInit) {
   return success(); // no work needs to be done here
@@ -212,27 +336,22 @@ LogicalResult Serialize::createBtorLine(btor::InitArrayOp &op, bool isInit) {
 }
 
 LogicalResult Serialize::createBtorLine(btor::ReadOp &op, bool isInit) {
-  return buildBinaryOperation(op.base(), op.index(), op.result(),
-                              op.getType(), "read");
+  return buildBinaryOperation(op.base(), op.index(), op.result(), op.getType(), "read");
 }
 
 LogicalResult Serialize::createBtorLine(btor::WriteOp &op, bool isInit) {
-  assert (opIsInCache(op.index()));
-  assert (opIsInCache(op.base()));
-  assert (opIsInCache(op.value()));
-  auto sortId = getOrCreateSort(op.getType());
+  return buildTernaryOperation(op.base(), op.index(), 
+    op.value(), op.result(), op.getType(), "write");
+}
 
-  m_output << nextLine << " write " << sortId 
-    << " " << getOpFromCache(op.base()) << " "
-    << getOpFromCache(op.index()) << " "
-    << getOpFromCache(op.value()) << '\n';
+LogicalResult Serialize::createBtorLine(btor::ConstraintOp &op, bool isInit) {
+  assert (opIsInCache(op.constraint()));
 
-  setCacheWithOp(op.result(), nextLine);
+  m_output << nextLine << " constraint " 
+    << getOpFromCache(op.constraint()) << '\n';
   nextLine += 1;
   return success();
 }
-
-LogicalResult Serialize::createBtorLine(btor::ConstraintOp &op, bool isInit) { return failure(); }
 
 
 LogicalResult Serialize::createBtorLine(btor::ConstantOp &op, bool isInit) {
@@ -255,23 +374,8 @@ LogicalResult Serialize::createBtorLine(btor::InputOp &op, bool isInit) {
   return success();
 }
 
-LogicalResult Serialize::createBtorLine(btor::RedAndOp &op, bool isInit) {
-  auto sortId = getOrCreateSort(op.getType());
-  if (!opIsInCache(op.operand())) 
-    return failure();
-  
-  auto operand = getOpFromCache(op.operand());  
-  m_output << nextLine << " redand " << sortId 
-    << " " << operand << '\n';
-
-  setCacheWithOp(op.getResult(), nextLine);
-  nextLine += 1;
-  return success();
-}
-
 LogicalResult Serialize::createBtorLine(btor::AssertNotOp &op, bool isInit) {
-  if (!opIsInCache(op.arg())) 
-    return failure();
+  assert (opIsInCache(op.arg()));
 
   m_output << nextLine << " bad " << getOpFromCache(op.arg()) << '\n';
   nextLine += 1;
