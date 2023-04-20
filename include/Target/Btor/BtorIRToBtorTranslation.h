@@ -155,6 +155,8 @@ class Serialize {
                 const Value &res, Type type, std::string op);
   LogicalResult buildUnaryOperation(const Value &lhs, const Value &res,
                 Type type, std::string op);
+  LogicalResult buildCastOperation(const Value &in, const Value &res, 
+                Type type, std::string op);
 };
 
 /// Register the Btor translation

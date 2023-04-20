@@ -72,6 +72,22 @@ LogicalResult Serialize::buildUnaryOperation(const Value &value,
   return success();
 }
 
+LogicalResult Serialize::buildCastOperation(const Value &value,
+              const Value &res, const Type type, std::string op) {
+  assert (opIsInCache(value));
+  auto sortId = getOrCreateSort(type);
+  auto width = type.getIntOrFloatBitWidth() - 
+    value.getType().getIntOrFloatBitWidth();
+
+  m_output << nextLine << " ";
+  m_output << op << " " << sortId << " " 
+    << getOpFromCache(value) << " " << width << "\n";
+
+  setCacheWithOp(res, nextLine);
+  nextLine += 1;
+  return success();
+}
+
 void Serialize::createSort(Type type) {
   if (type.isIntOrFloat()) {
     auto bitWidth = type.getIntOrFloatBitWidth();
@@ -86,10 +102,11 @@ void Serialize::createSort(Type type) {
     assert (elementType.getIntOrFloatBitWidth() > 0);
     assert (shapeType.getIntOrFloatBitWidth() > 0);
 
+    auto shapeSort = getOrCreateSort(shapeType);
+    auto elementSort = getOrCreateSort(elementType);
     setSortWithType(type, nextLine);
     m_output << nextLine << " sort array "
-      << getOrCreateSort(shapeType) << " "
-      << getOrCreateSort(elementType) << '\n';
+      << shapeSort << " " << elementSort << '\n';
   }
   nextLine += 1;
 }
@@ -101,11 +118,11 @@ uint64_t Serialize::getOrCreateSort(Type opType) {
 }
 
 LogicalResult Serialize::createBtorLine(btor::UExtOp &op, bool isInit) {
-  return buildUnaryOperation(op.in(), op.out(), op.getType(), "uext");
+  return buildCastOperation(op.in(), op.out(), op.getType(), "uext");
 }
 
 LogicalResult Serialize::createBtorLine(btor::SExtOp &op, bool isInit) {
-  return buildUnaryOperation(op.in(), op.out(), op.getType(), "sext");
+  return buildCastOperation(op.in(), op.out(), op.getType(), "sext");
 }
 
 LogicalResult Serialize::createBtorLine(btor::SliceOp &op, bool isInit) {
