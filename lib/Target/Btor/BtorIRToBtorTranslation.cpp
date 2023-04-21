@@ -412,8 +412,8 @@ LogicalResult Serialize::createBtorLine(mlir::BranchOp &op, bool isInit) {
       m_output << nextLine << " state " << sortId << '\n';
       nextLine += 1;
     }
-  } 
-
+  }
+  // populate init/next operations for states
   for (unsigned i = 0; i < m_states.size(); ++i) {
     Value res = op.getOperand(i);
     auto sortId = getOrCreateSort(res.getType());
@@ -426,6 +426,28 @@ LogicalResult Serialize::createBtorLine(mlir::BranchOp &op, bool isInit) {
         << " " << m_states.at(i) << " " 
         << opNextState << "\n";
       nextLine += 1;
+    }
+  }
+  // handle nd states that copy another state
+  std::map<::llvm::hash_code, uint64_t> trackCopiedStates;
+  using llvm::hash_value;
+  for (unsigned i = 0; i < m_states.size(); ++i) {
+    Value res = op.getOperand(i);
+    if (opIsInCache(res)) {
+      continue;
+    } 
+    auto sortId = getOrCreateSort(res.getType());
+    auto resCode = hash_value(res);
+    if (trackCopiedStates.count(resCode) != 0) {
+      m_output << nextLine;
+      if (isInit) { m_output << " init "; } 
+      else {  m_output << " next "; }
+      m_output << sortId
+        << " " << m_states.at(i) << " " 
+        << trackCopiedStates.at(resCode) << "\n";
+      nextLine += 1;
+    } else {
+      trackCopiedStates[resCode] = m_states.at(i);
     }
   }
   return success();
