@@ -153,40 +153,30 @@ class Deserialize {
     std::vector<Value>
   collectReturnValuesForInit(const std::vector<Type> &returnTypes) {
     std::vector<Value> results(m_states.size(), nullptr);
-    std::map<std::pair<unsigned, unsigned>, Value> arrayTypes;
     for (unsigned i = 0, sz = m_states.size(); i < sz; ++i) {
       auto state_i = m_states.at(i);
-      std::pair<unsigned, unsigned> arraySort;
-      if (state_i->sort.tag == BTOR2_TAG_SORT_array) {
-        unsigned index =
-            m_sorts.at(state_i->sort.array.index)->sort.bitvec.width;
-        unsigned element =
-            m_sorts.at(state_i->sort.array.element)->sort.bitvec.width;
-        arraySort = std::make_pair(index, element);
-      }
       if (int64_t initLine = m_states.at(i)->init) {
         if (state_i->sort.tag == BTOR2_TAG_SORT_array) {
-          if (arrayTypes.count(arraySort) == 0) {
+          if (m_lines.at(initLine)->sort.tag == BTOR2_TAG_SORT_bitvec) {
             auto res = m_builder.create<btor::InitArrayOp>(
                 m_unknownLoc, getTypeOf(state_i), getFromCacheById(initLine));
             assert(res);
             assert(res->getNumResults() == 1);
-            arrayTypes[arraySort] = res->getResult(0);
+            results[i] = res->getResult(0);
+          } else {
+            results[i] = getFromCacheById(initLine);
           }
-          results[i] = arrayTypes.at(arraySort);
         } else {
           results[i] = getFromCacheById(initLine);
         }
       } else {
         if (state_i->sort.tag == BTOR2_TAG_SORT_array) {
-          if (arrayTypes.count(arraySort) == 0) {
-            auto res = m_builder.create<btor::ArrayOp>(m_unknownLoc,
-                                                       getTypeOf(state_i));
-            assert(res);
-            assert(res->getNumResults() == 1);
-            arrayTypes[arraySort] = res->getResult(0);
-          }
-          results[i] = arrayTypes.at(arraySort);
+          auto res = m_builder.create<btor::ArrayOp>(m_unknownLoc,
+                                                      getTypeOf(state_i));
+          assert(res);
+          assert(res->getNumResults() == 1);
+          setCacheWithId(m_states.at(i)->id, res->getResult(0));
+          results[i] = res->getResult(0);
         } else {
           auto res = m_builder.create<btor::NDStateOp>(m_unknownLoc,
                         returnTypes.at(i),
@@ -194,6 +184,7 @@ class Deserialize {
           assert(res);
           assert(res->getNumResults() == 1);
           results[i] = res->getResult(0);
+          setCacheWithId(m_states.at(i)->id, res->getResult(0));
         }
       }
       assert(results[i]);
