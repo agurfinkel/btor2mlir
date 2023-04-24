@@ -68,7 +68,6 @@ class Deserialize {
   }
 
   void setCacheWithId(const int64_t id, const Value &value) {
-    assert(!valueAtIdIsInCache(id));
     m_cache[id] = value;
     assert(valueAtIdIsInCache(id));
   }
@@ -98,11 +97,11 @@ class Deserialize {
 
   std::vector<Btor2Line *> m_states;
   std::vector<Btor2Line *> m_bads;
-  std::vector<Btor2Line *> m_inits;
   std::vector<Btor2Line *> m_nexts;
   std::vector<Btor2Line *> m_constraints;
   std::vector<Btor2Line *> m_lines;
 
+  std::map<int64_t, Btor2Line *> m_inits;
   std::map<int64_t, Value> m_cache;
   std::map<int64_t, Btor2Line *> m_sorts;
   std::map<unsigned, unsigned> m_inputs; // lineId -> input #
@@ -137,9 +136,10 @@ class Deserialize {
   std::vector<Value> buildInitFunction(const std::vector<Type> &returnTypes);
   std::vector<Value> buildNextFunction(const std::vector<Type> &returnTypes, 
                                     Block *body);
+  std::vector<Value> collectReturnValuesForInit(const std::vector<Type> &returnTypes);
 
   // Builder wrappers
-  Type getTypeOf(Btor2Line *line) {
+  Type getTypeOf(const Btor2Line *line) {
     if (line->sort.tag == BTOR2_TAG_SORT_array) {
       unsigned indexWidth = pow(2, m_sorts.at(line->sort.array.index)->sort.bitvec.width);
       auto elementType = m_builder.getIntegerType(
@@ -148,48 +148,6 @@ class Deserialize {
       ;
     }
     return m_builder.getIntegerType(line->sort.bitvec.width);
-  }
-
-    std::vector<Value>
-  collectReturnValuesForInit(const std::vector<Type> &returnTypes) {
-    std::vector<Value> results(m_states.size(), nullptr);
-    for (unsigned i = 0, sz = m_states.size(); i < sz; ++i) {
-      auto state_i = m_states.at(i);
-      if (int64_t initLine = m_states.at(i)->init) {
-        if (state_i->sort.tag == BTOR2_TAG_SORT_array) {
-          if (m_lines.at(initLine)->sort.tag == BTOR2_TAG_SORT_bitvec) {
-            auto res = m_builder.create<btor::InitArrayOp>(
-                m_unknownLoc, getTypeOf(state_i), getFromCacheById(initLine));
-            assert(res);
-            assert(res->getNumResults() == 1);
-            results[i] = res->getResult(0);
-          } else {
-            results[i] = getFromCacheById(initLine);
-          }
-        } else {
-          results[i] = getFromCacheById(initLine);
-        }
-      } else {
-        if (state_i->sort.tag == BTOR2_TAG_SORT_array) {
-          auto res = m_builder.create<btor::ArrayOp>(m_unknownLoc,
-                                                      getTypeOf(state_i));
-          assert(res);
-          assert(res->getNumResults() == 1);
-          setCacheWithId(m_states.at(i)->id, res->getResult(0));
-          results[i] = res->getResult(0);
-        } else {
-          auto res = m_builder.create<btor::NDStateOp>(m_unknownLoc,
-                        returnTypes.at(i),
-                        m_builder.getIntegerAttr(m_builder.getIntegerType(64), i));
-          assert(res);
-          assert(res->getNumResults() == 1);
-          results[i] = res->getResult(0);
-          setCacheWithId(m_states.at(i)->id, res->getResult(0));
-        }
-      }
-      assert(results[i]);
-    }
-    return results;
   }
 
   // Binary Operations
@@ -341,6 +299,38 @@ class Deserialize {
                             array.getType(),
                             value, array, index);
     return res;
+  }
+
+  // State Operations
+  Operation *buildNDStateOp(const Btor2Line *line, const unsigned lineId) {
+    if (auto initLine = line->init)
+      return nullptr;
+    auto it = std::find(m_states.begin(), m_states.end(), line);
+    assert (it != m_states.end());
+    auto index = it - m_states.begin();
+    if (line->sort.tag == BTOR2_TAG_SORT_array) {
+      auto res = m_builder.create<btor::ArrayOp>(FileLineColLoc::get(m_sourceFile, lineId, 0),
+                    getTypeOf(line));
+      return res;
+    } else {
+      auto res = m_builder.create<btor::NDStateOp>(FileLineColLoc::get(m_sourceFile, lineId, 0),
+                    getTypeOf(line),
+                    m_builder.getIntegerAttr(m_builder.getIntegerType(64), index));
+      return res;
+    }
+  }
+
+  void buildInitOp(const Btor2Line *line, const Value &initValue, const unsigned lineId) {
+    auto stateId = line->args[0];
+    if (line->sort.tag == BTOR2_TAG_SORT_array) {
+      auto res = m_builder.create<btor::InitArrayOp>(FileLineColLoc::get(m_sourceFile, lineId, 0),
+                    getTypeOf(line), initValue);
+      assert(res);
+      assert(res->getNumResults() == 1);
+      setCacheWithId(stateId, res->getResult(0));
+      return;
+    }
+    setCacheWithId(stateId, initValue);
   }
 };
 

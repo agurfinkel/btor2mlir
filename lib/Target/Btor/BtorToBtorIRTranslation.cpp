@@ -29,7 +29,7 @@ unsigned Deserialize::parseModelLine(Btor2Line *l, unsigned inputNo) {
     break;
 
   case BTOR2_TAG_init:
-    m_inits.push_back(l);
+    m_inits[l->args[0]] = l;
     break;
 
   case BTOR2_TAG_next:
@@ -305,11 +305,17 @@ Operation * Deserialize::createMLIR(const Btor2Line *line,
     res = buildWriteOp(kids[0], kids[1], kids[2], lineId);
     break;
 
-  // unmapped ops
+  // state ops
+  case BTOR2_TAG_state:
+      res = buildNDStateOp(line, lineId);
+    break;
+
   case BTOR2_TAG_init:
+    buildInitOp(line, kids[1], lineId);
+    break;
+  // unmapped ops
   case BTOR2_TAG_next:
   case BTOR2_TAG_sort:
-  case BTOR2_TAG_state:
   case BTOR2_TAG_fair:
   case BTOR2_TAG_justice:
   case BTOR2_TAG_output:
@@ -342,6 +348,12 @@ bool Deserialize::hasReturnValue(Btor2Line * line) {
   switch (line->tag) {
   case BTOR2_TAG_constraint:
   case BTOR2_TAG_bad:
+  case BTOR2_TAG_init:
+  case BTOR2_TAG_next:
+  case BTOR2_TAG_sort:
+  case BTOR2_TAG_fair:
+  case BTOR2_TAG_justice:
+  case BTOR2_TAG_output:
     hasReturnValue = false;
     break;
   default:
@@ -357,9 +369,7 @@ bool Deserialize::hasReturnValue(Btor2Line * line) {
 bool Deserialize::needsMLIROp(Btor2Line * line) {
   bool isValid = true;
   switch (line->tag) {
-  case BTOR2_TAG_init:
   case BTOR2_TAG_next:
-  case BTOR2_TAG_state:
   case BTOR2_TAG_sort:
   case BTOR2_TAG_fair:
   case BTOR2_TAG_justice:
@@ -448,10 +458,27 @@ void Deserialize::toOp(Btor2Line *line) {
   }
 }
 
+std::vector<Value> Deserialize::collectReturnValuesForInit(const std::vector<Type> &returnTypes) {
+  std::vector<Value> results(m_states.size(), nullptr);
+  for (unsigned i = 0; i < m_states.size(); ++i) {
+    results[i] = getFromCacheById(m_states.at(i)->id);
+  }
+  return results;
+}
+
 std::vector<Value> Deserialize::buildInitFunction(const std::vector<Type> &returnTypes) {
   // clear cache so that values are mapped to the right Basic Block
   m_cache.clear();
-  for (auto init : m_inits) { toOp(init); }
+  // We need to make sure that states are initialized in order of 
+  // appearance to avoid using a nd value when an initialization 
+  // exists later in the btor file
+  for (auto state : m_states) {
+    if (int64_t initLine = state->init) {
+      toOp(m_inits.at(state->id));
+    } else {
+      toOp(getLineById(state->id));
+    }
+  }
 
   return collectReturnValuesForInit(returnTypes);
 }
