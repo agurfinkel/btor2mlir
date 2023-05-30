@@ -5,7 +5,11 @@
 
 ## Results
 Detailed analysis of run-times is available in an accompanying [Jupyter
-Notebook][data] in Google Collab. We also contribute translations of the 2019/20 Hardware Model Checking Competion benchmarks to our Btor Dialect, LLVM-IR and SMT-LIB in [hwmcc20-mlir](https://github.com/jetafese/hwmcc20-mlir).
+Notebook][data] in Google Collab. We also contribute translations of the 2019/20 Hardware Model Checking Competion benchmarks to our Btor Dialect, LLVM-IR and SMT-LIB in [hwmcc20-mlir](https://github.com/jetafese/hwmcc20-mlir). The image below shows the different verification strategies employed. 
+
+![strategies-img](./assets/strategies.png "Verification Strategies")
+
+<!-- ![arch-img](./assets/btor2mlir.png "Architecture") -->
 
 [data]: https://colab.research.google.com/drive/1wau9yTHvsWdBdMjF0TbvHTHEKW6rFHiQ?usp=sharing
 
