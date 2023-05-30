@@ -5,13 +5,13 @@
 
 ## Results
 Detailed analysis of run-times is available in an accompanying [Jupyter
-Notebook][data] in Google Collab.
+Notebook][data] in Google Collab. We also contribute translations of the 2019/20 Hardware Model Checking Competion benchmarks to our Btor Dialect, LLVM-IR and SMT-LIB in [hwmcc20-mlir](https://github.com/jetafese/hwmcc20-mlir).
 
 [data]: https://colab.research.google.com/drive/1wau9yTHvsWdBdMjF0TbvHTHEKW6rFHiQ?usp=sharing
 
 ## Demo
 
-Consider a simple counter represented in Bᴛᴏʀ2 below:
+Consider a simple counter that ensures we do not reach 15, represented in Bᴛᴏʀ2 below:
 
 ```btor
 1 sort bitvec 4
@@ -89,6 +89,9 @@ define void @main() !dbg !3 {
   unreachable, !dbg !15
 }
 ```
+
+If you have SeaHorn installed locally (a distribution is included in the Docker), we can show that the bad state in the original circuit is reached using SeaHorn's Bounded Model Checking engine. This is indicated by the output **sat** when we run the command: `sea bpf counter.ll`
+
 ## Docker
 
 Dockerfile: [`docker/btor2mlir.Dockerfile`](docker/btor2mlir.Dockerfile).
