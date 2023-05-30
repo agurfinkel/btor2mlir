@@ -406,7 +406,8 @@ LogicalResult Serialize::createBtorLine(btor::NDStateOp &op, bool isInit) {
 LogicalResult Serialize::createBtorLine(mlir::BranchOp &op, bool isInit) {
   if (isInit) {
     // create the states
-    for (Type opType : op.getOperandTypes()) {;
+    for (Type opType : op.getOperandTypes()) {
+      // TODO: Check if the state has already been created
       auto sortId = getOrCreateSort(opType);
       m_states.push_back(nextLine);
       m_output << nextLine << " state " << sortId << '\n';
@@ -537,7 +538,6 @@ LogicalResult Serialize::translateMainFunction() {
     return failure();
   if (translateNextFunction(regions.getBlocks().back()).failed())
     return failure();
-  m_module.dump();
   return success();
 }
 

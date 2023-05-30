@@ -323,6 +323,11 @@ class Deserialize {
   void buildInitOp(const Btor2Line *line, const Value &initValue, const unsigned lineId) {
     auto stateId = line->args[0];
     if (line->sort.tag == BTOR2_TAG_SORT_array) {
+      auto initValueType = initValue.getType();
+      if (initValueType.isa<VectorType>()) {
+        setCacheWithId(stateId, initValue);
+        return;
+      }
       auto res = m_builder.create<btor::InitArrayOp>(FileLineColLoc::get(m_sourceFile, lineId, 0),
                     getTypeOf(line), initValue);
       assert(res);
