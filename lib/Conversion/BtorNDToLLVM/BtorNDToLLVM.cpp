@@ -98,7 +98,6 @@ void createPrintFunctionHelper(
   if (!printFunc) {
     OpBuilder::InsertionGuard printerGuard(rewriter);
     rewriter.setInsertionPointToStart(module.getBody());
-    assert(insert == rewriter.getInsertionPoint());
     auto printFuncTy = LLVM::LLVMFunctionType::get(
           LLVM::LLVMVoidType::get(rewriter.getContext()), 
           {i64Type, i64Type, i64Type});
@@ -175,7 +174,6 @@ InputOpLowering::matchAndRewrite(btor::InputOp op, OpAdaptor adaptor,
   if (!havocFunc) {
     OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointToStart(module.getBody());
-    assert(insert == rewriter.getInsertionPoint());
     auto havocFuncTy =
         LLVM::LLVMFunctionType::get(createFunctionTypeHelper(op, rewriter), {});
     havocFunc = rewriter.create<LLVM::LLVMFuncOp>(
