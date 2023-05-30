@@ -91,7 +91,7 @@ define void @main() !dbg !3 {
 ```
 ## Docker
 
-Dockerfile: [`docker/btor2mlir.Dockerfile`](docker/btor2mlir-builder.Dockerfile).
+Dockerfile: [`docker/btor2mlir.Dockerfile`](docker/btor2mlir.Dockerfile).
 
 ## Building Locally
 
@@ -104,7 +104,7 @@ Commands to configure and compile LLVM
 ```sh
 $ mkdir debug && cd debug 
 $ cmake -G Ninja ../llvm \
-    -DCMAKE_C_COMPILER=clang-12 -DCMAKE_CXX_COMPILER=clang++-12 \
+    -DCMAKE_C_COMPILER=clang-14 -DCMAKE_CXX_COMPILER=clang++-14 \
     -DLLVM_ENABLE_PROJECTS=mlir -DLLVM_BUILD_EXAMPLES=ON  \ 
     -DCMAKE_BUILD_TYPE=Debug \ # change to RelWithDebInfo for release build
     -DLLVM_TARGETS_TO_BUILD="X86"  \
