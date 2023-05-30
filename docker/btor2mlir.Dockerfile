@@ -1,7 +1,5 @@
 FROM seahorn/seahorn-llvm14:nightly
 
-# ENV SEAHORN=/home/usea/seahorn/bin/sea PATH="$PATH:/home/usea/seahorn/bin:/home/usea/bin"
-
 ## install required pacakges
 USER root
 
@@ -11,7 +9,7 @@ RUN apt -y update
 RUN apt -y install wget python3-pip
 RUN python3 -m pip install --upgrade pip
 RUN pip3 install cmake --upgrade
-# RUN apt-get install libmlir-14-dev mlir-14-tools
+RUN apt install -y libmlir-14-dev mlir-14-tools
 
 
 # Assume that docker-build is ran in the top-level directory
@@ -24,8 +22,8 @@ RUN curl -O -L https://raw.githubusercontent.com/Boolector/btor2tools/master/src
 RUN curl -O -L https://raw.githubusercontent.com/Boolector/btor2tools/master/src/btor2parser/btor2parser.h
 
 
-RUN mkdir -p /opt/btor2mlir/debug 
-WORKDIR /opt/btor2mlir/debug 
+RUN mkdir -p /opt/btor2mlir/build
+WORKDIR /opt/btor2mlir/build
 
 ARG BUILD_TYPE=RelWithDebInfo
 
@@ -33,8 +31,8 @@ ARG BUILD_TYPE=RelWithDebInfo
 RUN cmake -G Ninja .. \
     -DCMAKE_C_COMPILER=clang-14 \
     -DCMAKE_CXX_COMPILER=clang++-14 \
-    -DMLIR_DIR=/opt/llvm/run/lib/cmake/mlir \
-    -DLLVM_DIR=/opt/llvm/run/lib/cmake/llvm \
+    -DMLIR_DIR=/usr/lib/llvm-14/lib/cmake/mlir \
+    -DLLVM_DIR=/usr/lib/llvm-14/lib/cmake/llvm \
     -DCMAKE_BUILD_TYPE=BUILD_TYPE \
     -DLLVM_EXTERNAL_LIT=$(which lit) \
     -DLLVM_ENABLE_LLD=ON \
