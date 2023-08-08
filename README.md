@@ -1,4 +1,4 @@
-# Bᴛᴏʀ2ᴍʟɪʀ: A Format for Hardware Verification
+# Bᴛᴏʀ2ᴍʟɪʀ: A Format and Toolchain for Hardware Verification
 ![os](https://img.shields.io/badge/os-linux-orange?logo=linux)
 ![os](https://img.shields.io/badge/os-macos-silver?logo=apple)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)][data]
