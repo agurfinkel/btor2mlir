@@ -305,7 +305,6 @@ LogicalResult NotLowering::matchAndRewrite(mlir::btor::NotOp notOp,
   Value operand = notOp.operand();
   Type opType = operand.getType();
 
-  int width = opType.getIntOrFloatBitWidth();
   int trueVal = -1;
   Value trueConst = rewriter.create<arith::ConstantOp>(
       notOp.getLoc(), opType, rewriter.getIntegerAttr(opType, trueVal));

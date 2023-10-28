@@ -101,7 +101,7 @@ class Deserialize {
   std::vector<Btor2Line *> m_constraints;
   std::vector<Btor2Line *> m_lines;
 
-  std::map<int64_t, Btor2Line *> m_inits;
+  std::map<int64_t, Btor2Line *> m_inits; // lets us quickly find the initLine from state->init
   std::map<int64_t, Value> m_cache;
   std::map<int64_t, Btor2Line *> m_sorts;
   std::map<unsigned, unsigned> m_inputs; // lineId -> input #

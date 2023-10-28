@@ -397,6 +397,7 @@ bool Deserialize::needsMLIROp(Btor2Line * line) {
 ///  the prerequisite operations before storing the result in our cache
 ///===----------------------------------------------------------------------===//
 void Deserialize::toOp(Btor2Line *line) {
+std::cerr << "toOp: build given line " << line->id << std::endl;
   if (valueAtIdIsInCache(line->id)) {
     return;
   }
@@ -407,7 +408,9 @@ void Deserialize::toOp(Btor2Line *line) {
   while (!todo.empty()) {
     auto cur = todo.back();
     unsigned oldsize = todo.size();
+std::cerr << "toOp: loop on curLine = " << cur->id << std::endl;
     for (unsigned i = 0; i < cur->nargs; ++i) {
+std::cerr << "toOp-for: look at argument = " << cur->args[i] << std::endl;
       auto arg_i = cur->args[i];
       // exit early if we do not need to compute this line
       if (arg_i > 0 && !needsMLIROp(getLineById(arg_i))) {
@@ -420,9 +423,19 @@ void Deserialize::toOp(Btor2Line *line) {
           if (valueAtIdIsInCache(std::abs(arg_i))) {
             createNegateLine(arg_i, cur->lineno, getFromCacheById(std::abs(arg_i))); 
           } else {
+std::cerr << "toOp-for: add arg_i < 0 line for i = " << arg_i << std::endl;
             todo.push_back(getLineById(std::abs(arg_i)));
           }
+        } else if ((BTOR2_TAG_init == cur->tag) && (BTOR2_TAG_state == getLineById(arg_i)->tag)){
+// make sure that we check for the case that the state is initialized!
+// maybe use: hasReturnValue(getLineById(cur->id))
+          if (auto initLine = getLineById(arg_i)->init) {
+            continue;
+          }
+std::cerr << "toOp-for: add line for nd state for i = " << arg_i << std::endl;
+            todo.push_back(getLineById(arg_i));
         } else {
+std::cerr << "toOp-for: add line for i = " << arg_i << std::endl;
           todo.push_back(getLineById(arg_i));
         }
       }
@@ -442,6 +455,10 @@ void Deserialize::toOp(Btor2Line *line) {
     SmallVector<unsigned> arguments;
     if (cur->tag != BTOR2_TAG_slice) {
       for (unsigned i = 0; i < cur->nargs; ++i) {
+          if ((BTOR2_TAG_init == cur->tag) && (BTOR2_TAG_state == getLineById(cur->args[i])->tag)) {
+              kids.push_back(nullptr);
+              continue;
+          }
           kids.push_back(getFromCacheById(cur->args[i]));
       }
     } else {
@@ -452,8 +469,10 @@ void Deserialize::toOp(Btor2Line *line) {
     res = createMLIR(cur, kids, arguments);
     // We never have to use the result of a btor line with no 
     // return values since btor2 doesn't allow it
-    if (hasReturnValue(getLineById(cur->id))) 
+    if (hasReturnValue(getLineById(cur->id))) {
+      assert (res);
       setCacheWithId(cur->id, res);
+    } 
     todo.pop_back();
   }
 }
@@ -473,7 +492,9 @@ std::vector<Value> Deserialize::buildInitFunction(const std::vector<Type> &retur
   // appearance to avoid using a nd value when an initialization 
   // exists later in the btor file
   for (auto state : m_states) {
+std::cerr << "buildInit: state at line " << state->id << " has init at " << state->init << std::endl;
     if (int64_t initLine = state->init) {
+std::cerr << "buildInit: build operation at line " << m_inits.at(state->id)->id << std::endl;
       toOp(m_inits.at(state->id));
     } else {
       toOp(getLineById(state->id));
