@@ -400,14 +400,27 @@ LogicalResult Serialize::createBtorLine(btor::AssertNotOp &op, bool isInit) {
 }
 
 LogicalResult Serialize::createBtorLine(btor::NDStateOp &op, bool isInit) {
-  return success(); // no work needs to be done here
+  if (isInit) {
+    auto sortId = getOrCreateSort(op.getType());
+    m_output << nextLine << " state " << sortId << '\n';
+    setCacheWithOp(op.getResult(), nextLine);
+    nextLine += 1;
+  }
+  return success();
 }
 
 LogicalResult Serialize::createBtorLine(mlir::BranchOp &op, bool isInit) {
   if (isInit) {
     // create the states
-    for (Type opType : op.getOperandTypes()) {
-      // TODO: Check if the state has already been created
+    for (Value blockOperand : op.getOperands()) {
+      auto parOp = blockOperand.getDefiningOp();
+      if (auto parentOp = isa<NDStateOp>(parOp)) {
+        // add the nd_state to the vector of states to match order
+        assert(parOp->getNumResults() == 1);
+        m_states.push_back(getOpFromCache(parOp->getResult(0)));
+        continue;
+      }
+      auto opType = blockOperand.getType();
       auto sortId = getOrCreateSort(opType);
       m_states.push_back(nextLine);
       m_output << nextLine << " state " << sortId << '\n';
@@ -486,17 +499,8 @@ LogicalResult Serialize::Serialize::createBtor(mlir::Operation &op, bool isInit)
 }
 
 LogicalResult Serialize::translateInitFunction(mlir::Block &initBlock) {
-  std::cerr << "initBlock with " << initBlock.getNumArguments() << " arguments, "
-    << initBlock.getNumSuccessors() << " successors, and "
-    // Note, this `.size()` is traversing a linked-list and is O(n).
-    << initBlock.getOperations().size() << " operations\n";
   for (Operation &op : initBlock.getOperations()) {
-    std::cerr << "visiting op: '";
-    op.getName().dump();
-    std::cerr << "' with " << op.getNumOperands() << " operands and "
-          << op.getNumResults() << " results\n";
     if (failed(createBtor(op, true))) {
-      std::cerr << "Init Function creation failed";
       return failure();
     }
   }
@@ -504,22 +508,13 @@ LogicalResult Serialize::translateInitFunction(mlir::Block &initBlock) {
 }
 
 LogicalResult Serialize::translateNextFunction(mlir::Block &nextBlock) {
-  std::cerr << "nextBlock with " << nextBlock.getNumArguments() << " arguments, "
-    << nextBlock.getNumSuccessors() << " successors, and "
-    // Note, this `.size()` is traversing a linked-list and is O(n).
-    << nextBlock.getOperations().size() << " operations\n";
   // set states from block arguments
   for (unsigned i = 0; i < m_states.size(); ++i) {
     setCacheWithOp(nextBlock.getArgument(i), m_states.at(i));
   }
   // compute next states
   for (Operation &op : nextBlock.getOperations()) {
-    std::cerr << "visiting op: '";
-    op.getName().dump();
-    std::cerr << "' with " << op.getNumOperands() << " operands and "
-          << op.getNumResults() << " results\n";
     if (failed(createBtor(op, false))) {
-      std::cerr << "Next Function creation failed";
       return failure();
     }
   }
