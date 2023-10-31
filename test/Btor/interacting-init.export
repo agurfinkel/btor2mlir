@@ -1,0 +1,17 @@
+1 sort bitvec 8
+2 constd 1 0
+3 input 1
+4 add 1 2 3
+5 state 1
+6 and 1 5 2
+7 state 1
+8 state 1
+9 state 1
+10 init 1 7 2
+11 init 1 8 4
+12 init 1 9 6
+13 input 1
+14 add 1 7 13
+15 sort bitvec 1
+16 eq 15 7 14
+17 bad 16
