@@ -363,6 +363,14 @@ bool Deserialize::hasReturnValue(Btor2Line * line) {
 }
 
 ///===----------------------------------------------------------------------===//
+/// This method determines if we are dealing with the state argument of
+///   a Btor2 init operation
+///===----------------------------------------------------------------------===//
+bool Deserialize::isStateArgumentOfInitOp(Btor2Line * cur, Btor2Line * argument) {
+  return (BTOR2_TAG_init == cur->tag) && (BTOR2_TAG_state == argument->tag);
+}
+
+///===----------------------------------------------------------------------===//
 /// We use this method to check if a line needs to have a corresponding MLIR
 /// operation created
 ///===----------------------------------------------------------------------===//
@@ -397,7 +405,6 @@ bool Deserialize::needsMLIROp(Btor2Line * line) {
 ///  the prerequisite operations before storing the result in our cache
 ///===----------------------------------------------------------------------===//
 void Deserialize::toOp(Btor2Line *line) {
-std::cerr << "toOp: build given line " << line->id << std::endl;
   if (valueAtIdIsInCache(line->id)) {
     return;
   }
@@ -408,9 +415,7 @@ std::cerr << "toOp: build given line " << line->id << std::endl;
   while (!todo.empty()) {
     auto cur = todo.back();
     unsigned oldsize = todo.size();
-std::cerr << "toOp: loop on curLine = " << cur->id << std::endl;
     for (unsigned i = 0; i < cur->nargs; ++i) {
-std::cerr << "toOp-for: look at argument = " << cur->args[i] << std::endl;
       auto arg_i = cur->args[i];
       // exit early if we do not need to compute this line
       if (arg_i > 0 && !needsMLIROp(getLineById(arg_i))) {
@@ -423,19 +428,15 @@ std::cerr << "toOp-for: look at argument = " << cur->args[i] << std::endl;
           if (valueAtIdIsInCache(std::abs(arg_i))) {
             createNegateLine(arg_i, cur->lineno, getFromCacheById(std::abs(arg_i))); 
           } else {
-std::cerr << "toOp-for: add arg_i < 0 line for i = " << arg_i << std::endl;
             todo.push_back(getLineById(std::abs(arg_i)));
           }
-        } else if ((BTOR2_TAG_init == cur->tag) && (BTOR2_TAG_state == getLineById(arg_i)->tag)){
-// make sure that we check for the case that the state is initialized!
-// maybe use: hasReturnValue(getLineById(cur->id))
+        } else if (isStateArgumentOfInitOp(cur, getLineById(arg_i))){
+          // make sure that we check for the case that the state has an initialization!
           if (auto initLine = getLineById(arg_i)->init) {
             continue;
           }
-std::cerr << "toOp-for: add line for nd state for i = " << arg_i << std::endl;
             todo.push_back(getLineById(arg_i));
         } else {
-std::cerr << "toOp-for: add line for i = " << arg_i << std::endl;
           todo.push_back(getLineById(arg_i));
         }
       }
@@ -445,8 +446,7 @@ std::cerr << "toOp-for: add line for i = " << arg_i << std::endl;
       continue;
     }
 
-    if (!needsMLIROp(cur) 
-    || valueAtIdIsInCache(cur->id)) {
+    if (!needsMLIROp(cur) || valueAtIdIsInCache(cur->id)) {
       todo.pop_back();
       continue;
     }
@@ -455,7 +455,7 @@ std::cerr << "toOp-for: add line for i = " << arg_i << std::endl;
     SmallVector<unsigned> arguments;
     if (cur->tag != BTOR2_TAG_slice) {
       for (unsigned i = 0; i < cur->nargs; ++i) {
-          if ((BTOR2_TAG_init == cur->tag) && (BTOR2_TAG_state == getLineById(cur->args[i])->tag)) {
+          if (isStateArgumentOfInitOp(cur, getLineById(cur->args[i]))) {
               kids.push_back(nullptr);
               continue;
           }
@@ -492,9 +492,7 @@ std::vector<Value> Deserialize::buildInitFunction(const std::vector<Type> &retur
   // appearance to avoid using a nd value when an initialization 
   // exists later in the btor file
   for (auto state : m_states) {
-std::cerr << "buildInit: state at line " << state->id << " has init at " << state->init << std::endl;
     if (int64_t initLine = state->init) {
-std::cerr << "buildInit: build operation at line " << m_inits.at(state->id)->id << std::endl;
       toOp(m_inits.at(state->id));
     } else {
       toOp(getLineById(state->id));
