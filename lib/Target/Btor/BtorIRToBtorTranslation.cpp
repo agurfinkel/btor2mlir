@@ -433,7 +433,7 @@ LogicalResult Serialize::createBtorLine(mlir::BranchOp &op, bool isInit) {
     auto sortId = getOrCreateSort(res.getType());
     if (opIsInCache(res)) {
       auto opNextState = getOpFromCache(res);
-      if (opNextState == m_states.at(i)) { continue; }
+      if ((opNextState == m_states.at(i)) && isInit) { continue; }
       m_output << nextLine;
       if (isInit) { m_output << " init "; } 
       else {  m_output << " next "; }
