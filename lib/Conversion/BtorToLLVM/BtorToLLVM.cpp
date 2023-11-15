@@ -827,10 +827,9 @@ void BtorToLLVMLoweringPass::runOnOperation() {
 
   /// unary operators
   target.addIllegalOp<btor::NotOp, btor::IncOp, btor::DecOp, btor::NegOp>();
-  target.addIllegalOp<btor::RedAndOp, btor::RedXorOp, btor::RedOrOp, 
-                      btor::InputOp>();
-  target.addIllegalOp<btor::AssertNotOp, btor::ConstraintOp, btor::ConstantOp, 
-                      btor::NDStateOp>();
+  target.addIllegalOp<btor::RedAndOp, btor::RedXorOp, btor::RedOrOp>();
+  // target.addIllegalOp<btor::NDStateOp, btor::InputOp>();
+  target.addIllegalOp<btor::AssertNotOp, btor::ConstraintOp, btor::ConstantOp>(); 
 
   /// binary operators
   // logical
@@ -879,8 +878,9 @@ void mlir::btor::populateBtorToLLVMConversionPatterns(
       IffOpLowering, ImpliesOpLowering, XnorOpLowering, NandOpLowering,
       NorOpLowering, IncOpLowering, DecOpLowering, NegOpLowering,
       RedOrOpLowering, RedAndOpLowering, RedXorOpLowering, UExtOpLowering,
-      SExtOpLowering, SliceOpLowering, ConcatOpLowering, NDStateOpLowering,
-      ConstraintOpLowering, InputOpLowering, ArrayOpLowering>(converter);
+      SExtOpLowering, SliceOpLowering, ConcatOpLowering, 
+      // NDStateOpLowering, InputOpLowering,
+      ConstraintOpLowering, ArrayOpLowering>(converter);
 }
 
 /// Create a pass for lowering operations the remaining `Btor` operations
