@@ -100,6 +100,12 @@ If you have SeaHorn installed locally (a distribution is included in the Docker)
 
 Dockerfile: [`docker/btor2mlir.Dockerfile`](docker/btor2mlir.Dockerfile).
 
+From the root folder use the following commands to:
+
+Build: `docker build -t btor2mlir . --file docker/btor2mlir.Dockerfile`
+
+Run: `docker run -it btor2mlir`
+
 ## Building Locally
 
 The instructions assume that `cmake`, `clang/clang++` and `ninja` are installed on your machine,  `LLVM_PROJECT=/ag/llvm-gh-mlir`, and that `lit`
