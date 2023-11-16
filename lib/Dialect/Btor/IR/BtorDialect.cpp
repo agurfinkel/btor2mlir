@@ -19,6 +19,8 @@ using namespace mlir::btor;
 //===----------------------------------------------------------------------===//
 
 void BtorDialect::initialize() {
+  registerTypes();
+  registerAttrs();
   addOperations<
 #define GET_OP_LIST
 #include "Dialect/Btor/IR/BtorOps.cpp.inc"

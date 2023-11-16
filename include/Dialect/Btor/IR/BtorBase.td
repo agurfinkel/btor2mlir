@@ -9,30 +9,7 @@
 #ifndef BTOR_BASE
 #define BTOR_BASE
 
-include "mlir/IR/EnumAttr.td"
 include "mlir/IR/OpBase.td"
-
-//===----------------------------------------------------------------------===//
-// btor constants definition.
-//===----------------------------------------------------------------------===//
-
-def BTOR_EQ  : I64EnumAttrCase<"eq", 0>;
-def BTOR_NE  : I64EnumAttrCase<"ne", 1>;
-def BTOR_SLT : I64EnumAttrCase<"slt", 2>;
-def BTOR_SLE : I64EnumAttrCase<"sle", 3>;
-def BTOR_SGT : I64EnumAttrCase<"sgt", 4>;
-def BTOR_SGE : I64EnumAttrCase<"sge", 5>;
-def BTOR_ULT : I64EnumAttrCase<"ult", 6>;
-def BTOR_ULE : I64EnumAttrCase<"ule", 7>;
-def BTOR_UGT : I64EnumAttrCase<"ugt", 8>;
-def BTOR_UGE : I64EnumAttrCase<"uge", 9>;
-
-def BtorPredicateAttr : I64EnumAttr<
-    "BtorPredicate", "btor.cmp comparison predicate",
-    [BTOR_EQ, BTOR_NE, BTOR_SLT, BTOR_SLE, BTOR_SGT,
-     BTOR_SGE, BTOR_ULT, BTOR_ULE, BTOR_UGT, BTOR_UGE]> {
-  let cppNamespace = "::mlir::btor";
-}
 
 //===----------------------------------------------------------------------===//
 // Btor dialect definition.
@@ -42,6 +19,15 @@ def Btor_Dialect : Dialect {
     let name = "btor";
     let summary = "A BTOR2 MLIR dialect";
     let cppNamespace = "::mlir::btor";
+    let extraClassDeclaration = [{
+    private:
+            // Register the custom btor Types.
+            void registerTypes();
+
+            // Register the custom btor attributes.
+            void registerAttrs();
+    public:
+    }];
 }
 
 #endif // BTOR_DIALECT
