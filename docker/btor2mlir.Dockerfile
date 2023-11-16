@@ -16,12 +16,6 @@ RUN apt install -y libmlir-14-dev mlir-14-tools
 WORKDIR /opt
 COPY . btor2mlir
 
-# Get btor2parser files
-RUN mkdir -p /opt/btor2mlir/include/Target/Btor/btor2parser
-RUN curl -O -L https://raw.githubusercontent.com/Boolector/btor2tools/master/src/btor2parser/btor2parser.c
-RUN curl -O -L https://raw.githubusercontent.com/Boolector/btor2tools/master/src/btor2parser/btor2parser.h
-
-
 RUN mkdir -p /opt/btor2mlir/build
 WORKDIR /opt/btor2mlir/build
 
