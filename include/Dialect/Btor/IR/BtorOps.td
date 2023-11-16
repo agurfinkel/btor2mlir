@@ -838,9 +838,9 @@ def AssertNotOp : Btor_Op<"assert_not"> {
         ```
     }];
 
-    let arguments = (ins I1:$arg);
+    let arguments = (ins I1:$arg, AnyI64Attr:$id);
 
-    let assemblyFormat = "`(` $arg `)` attr-dict";
+    let assemblyFormat = "`(` $arg `)` attr-dict `,` $id";
 }
 
 def ConstantOp : Btor_Op<"constant", [ConstantLike, NoSideEffect,

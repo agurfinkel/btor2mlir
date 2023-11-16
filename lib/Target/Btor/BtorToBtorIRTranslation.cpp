@@ -17,11 +17,13 @@
 using namespace mlir;
 using namespace mlir::btor;
 
-unsigned Deserialize::parseModelLine(Btor2Line *l, unsigned inputNo) {
+std::pair <int,int> Deserialize::parseModelLine(Btor2Line *l, std::pair <int,int> numberedCommands) {
   setLineWithId(l->id, l);
   switch (l->tag) {
   case BTOR2_TAG_bad:
     m_bads.push_back(l);
+    map_bads[l->lineno] = numberedCommands.second;
+    numberedCommands.second = numberedCommands.second + 1;
     break;
 
   case BTOR2_TAG_constraint:
@@ -45,14 +47,14 @@ unsigned Deserialize::parseModelLine(Btor2Line *l, unsigned inputNo) {
     break;
   
   case BTOR2_TAG_input:
-    m_inputs[l->lineno] = inputNo;
-    inputNo = inputNo + 1;
+    m_inputs[l->lineno] = numberedCommands.first;
+    numberedCommands.first = numberedCommands.first + 1;
     break;
   
   default:
     break;
   }
-  return inputNo;
+  return numberedCommands;
 }
 
 bool Deserialize::parseModelIsSuccessful() {
@@ -68,9 +70,10 @@ bool Deserialize::parseModelIsSuccessful() {
   m_lines.resize(numLines + 1, nullptr);
   Btor2LineIterator it = btor2parser_iter_init(m_model);
   Btor2Line *line;
-  unsigned inputNo = 0;
+  // (inputNumber, badPropertyNumber)
+  std::pair <int,int> numberedCommands (0,0);
   while ((line = btor2parser_iter_next(&it))) {
-    inputNo = parseModelLine(line, inputNo);
+    numberedCommands = parseModelLine(line, numberedCommands);
   }
 
   return true;
@@ -237,7 +240,7 @@ Operation * Deserialize::createMLIR(const Btor2Line *line,
     res = buildUnaryOp<btor::NotOp>(kids[0], lineId);
     break;
   case BTOR2_TAG_bad:
-    res = buildUnaryOp<btor::AssertNotOp>(kids[0], lineId);
+    res = buildAssertNotOp(kids[0], lineId);
     break;
   case BTOR2_TAG_redand:
     res = buildReductionOp<btor::RedAndOp>(kids[0], lineId);

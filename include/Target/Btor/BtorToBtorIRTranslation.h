@@ -18,6 +18,7 @@
 
 #include <vector>
 #include <map>
+#include <utility>
 
 #include "btor2parser/btor2parser.h"
 
@@ -105,8 +106,9 @@ class Deserialize {
   std::map<int64_t, Value> m_cache;
   std::map<int64_t, Btor2Line *> m_sorts;
   std::map<unsigned, unsigned> m_inputs; // lineId -> input #
+  std::map<unsigned, unsigned> map_bads; // lineId -> bad #
 
-  unsigned parseModelLine(Btor2Line *l, unsigned inputNo);
+  std::pair <int,int> parseModelLine(Btor2Line *l, std::pair <int,int> numberedCommands);
 
   Btor2Line * getLineById(unsigned id) {
       assert(id < m_lines.size());
@@ -226,12 +228,20 @@ class Deserialize {
     m_builder.create<mlir::ReturnOp>(m_unknownLoc, results);
   }
 
-   Operation * buildInputOp(const unsigned width, const unsigned lineId) {
+  Operation * buildInputOp(const unsigned width, const unsigned lineId) {
     Type type = m_builder.getIntegerType(width);
     auto res = m_builder.create<btor::InputOp>(
         FileLineColLoc::get(m_sourceFile, lineId, 0),
         type, 
         m_builder.getIntegerAttr(m_builder.getIntegerType(64), m_inputs.at(lineId)));
+    return res;
+  }
+
+  Operation * buildAssertNotOp(const Value &val, const unsigned  lineId) {
+    auto res = m_builder.create<btor::AssertNotOp>(
+        FileLineColLoc::get(m_sourceFile, lineId, 0),
+        val,
+        m_builder.getIntegerAttr(m_builder.getIntegerType(64), map_bads.at(lineId)));
     return res;
   }
 
