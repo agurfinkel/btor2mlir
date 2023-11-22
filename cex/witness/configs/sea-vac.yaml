@@ -1,0 +1,13 @@
+verify_options:
+  # Unify all assumes - needed for Vacuity check
+  horn-unify-assumes: true
+  # don't ignore control flow
+  horn-vcgen-only-dataflow: false
+  # don't reduce by data dependence
+  horn-bmc-coi: false
+  horn-bv2-vacuity-check: "all"
+  # unwinding assertions
+  # Note: checked only by the incremental checking during vacuity
+  assert-on-backedge: true
+  # evaluate branch sentinel intrinsic
+  eval-branch-sentinel: ''

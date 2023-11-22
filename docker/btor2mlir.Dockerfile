@@ -33,3 +33,16 @@ RUN cmake -G Ninja .. \
     -DCMAKE_INSTALL_PREFIX=$(pwd)/run && \
     ninja && \
     ninja install
+
+RUN cp bin/* /usr/bin
+
+# get btor2tools
+WORKDIR /opt
+RUN git clone https://github.com/Boolector/btor2tools.git
+WORKDIR /opt/btor2tools
+RUN ./configure.sh
+WORKDIR /opt/btor2tools/build
+RUN make
+RUN cp bin/* /usr/bin
+
+WORKDIR /opt/btor2mlir

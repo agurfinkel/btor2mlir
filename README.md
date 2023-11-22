@@ -96,6 +96,14 @@ define void @main() !dbg !3 {
 
 If you have SeaHorn installed locally (a distribution is included in the Docker), we can show that the bad state in the original circuit is reached using SeaHorn's Bounded Model Checking engine. This is indicated by the output **sat** when we run the command: `sea bpf counter.ll`
 
+## Witness Generation
+
+Run the shell script [`./get_cex_seahorn.sh $btor2_file`](cex/witness/get_cex_seahorn.sh) to:
+
+a) extract a counter example from SeaHorn \
+b) generate a Btor2 Witness \
+c) simulate the witness using `btorsim`
+
 ## Docker
 
 Dockerfile: [`docker/btor2mlir.Dockerfile`](docker/btor2mlir.Dockerfile).
