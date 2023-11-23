@@ -147,8 +147,8 @@ class Deserialize {
   Type getTypeOf(const Btor2Line *line) {
     if (line->sort.tag == BTOR2_TAG_SORT_array) {
       unsigned indexWidth = pow(2, m_sorts.at(line->sort.array.index)->sort.bitvec.width);
-      auto elementType = m_builder.getIntegerType(
-          m_sorts.at(line->sort.array.element)->sort.bitvec.width);
+      auto elementType = btor::BitVecType::get(m_context,
+        m_sorts.at(line->sort.array.element)->sort.bitvec.width);
       return VectorType::get(ArrayRef<int64_t>{indexWidth}, elementType);
       ;
     }
@@ -176,15 +176,15 @@ class Deserialize {
   template <typename btorOp>
   Operation * buildOverflowOp(const Value &lhs, const Value &rhs, const unsigned  lineId) {
     auto res = m_builder.create<btorOp>(FileLineColLoc::get(m_sourceFile, lineId, 0), 
-                                    m_builder.getIntegerType(1), 
+                                    btor::BitVecType::get(m_context, 1),
                                     lhs, rhs);
     return res;
   }
 
   Operation * buildConcatOp(const Value &lhs, const Value &rhs, const unsigned  lineId) {
-    auto newWidth = lhs.getType().getIntOrFloatBitWidth() +
-               rhs.getType().getIntOrFloatBitWidth();
-    Type resType = m_builder.getIntegerType(newWidth);
+    auto newWidth = lhs.getType().dyn_cast<btor::BitVecType>().getLength() +
+               rhs.getType().dyn_cast<btor::BitVecType>().getLength();
+    Type resType = btor::BitVecType::get(m_context, newWidth);
     auto res = m_builder.create<btor::ConcatOp>(FileLineColLoc::get(m_sourceFile, lineId, 0),
                                                 resType, lhs, rhs);
     return res;
@@ -223,7 +223,7 @@ class Deserialize {
   Operation * buildReductionOp(const Value &val, const unsigned  lineId) {
     auto res = m_builder.create<btorOp>(
                                 FileLineColLoc::get(m_sourceFile, lineId, 0), 
-                                m_builder.getIntegerType(1), val);
+                                btor::BitVecType::get(m_context, 1), val);
     return res;
   }
 
@@ -232,7 +232,7 @@ class Deserialize {
   }
 
   Operation * buildInputOp(const unsigned width, const unsigned lineId) {
-    Type type = m_builder.getIntegerType(width);
+    Type type = btor::BitVecType::get(m_context, width);
     auto res = m_builder.create<btor::InputOp>(
         FileLineColLoc::get(m_sourceFile, lineId, 0),
         type, 
@@ -255,10 +255,10 @@ class Deserialize {
                         const unsigned  lineId) {
     Type resultType = val.getType();
     btor::BitVecType opType = resultType.dyn_cast<btor::BitVecType>();
-    assert(opType.getIntOrFloatBitWidth() > upper && upper >= lower);
+    assert(opType.getLength() > upper && upper >= lower);
     auto loc = FileLineColLoc::get(m_sourceFile, lineId, 0);
 
-    auto resType = m_builder.getIntegerType(upper - lower + 1);
+    auto resType = btor::BitVecType::get(m_context, upper - lower + 1);
     auto u = m_builder.create<btor::ConstantOp>(
         loc, opType, BitVecAttr::get(m_context, opType, APInt(opType.getLength(), upper)));
     assert(u && u->getNumResults() == 1);
@@ -278,7 +278,7 @@ class Deserialize {
                         const unsigned  lineId) {
     auto res = m_builder.create<btorOp>(
                             FileLineColLoc::get(m_sourceFile, lineId, 0), 
-                            val, m_builder.getIntegerType(width));
+                            val, btor::BitVecType::get(m_context, width));
     return res;
   }
 

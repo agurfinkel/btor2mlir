@@ -95,7 +95,7 @@ static LogicalResult verifySliceOp(Op op) {
   Type srcType = getElementTypeOrSelf(op.in().getType());
   Type dstType = getElementTypeOrSelf(op.getType());
 
-  if (srcType.cast<ValType>().getWidth() < dstType.cast<ValType>().getWidth())
+  if (srcType.cast<ValType>().getLength() < dstType.cast<ValType>().getLength())
     return op.emitError("result type ")
            << dstType << " must be smaller or equal to the operand type " << srcType;
 
@@ -128,7 +128,7 @@ static ParseResult parseIteOp(OpAsmParser &parser, OperationState &result) {
     if (parser.parseType(resultType))
       return failure();
   } else {
-    conditionType = parser.getBuilder().getI1Type();
+    conditionType = btor::BitVecType::get(parser.getContext(), 1);
   }
 
   result.addTypes(resultType);
@@ -155,7 +155,7 @@ static ParseResult parseBinaryOverflowOp(OpAsmParser &parser,
       parser.parseColonType(operandType))
     return failure();
   
-  result.addTypes(parser.getBuilder().getI1Type());
+  result.addTypes(btor::BitVecType::get(parser.getContext(), 1));
   return parser.resolveOperands(operands,
                                 {operandType, operandType},
                                 parser.getNameLoc(), result.operands);
@@ -181,7 +181,7 @@ static LogicalResult verifyExtOp(Op op) {
   Type srcType = getElementTypeOrSelf(op.in().getType());
   Type dstType = getElementTypeOrSelf(op.getType());
 
-  if (srcType.cast<ValType>().getWidth() > dstType.cast<ValType>().getWidth())
+  if (srcType.cast<ValType>().getLength() > dstType.cast<ValType>().getLength())
     return op.emitError("result type ")
            << dstType << " must be wider than operand type " << srcType;
 
@@ -225,9 +225,9 @@ static LogicalResult verifyConcatOp(Op op) {
   Type secondType = getElementTypeOrSelf(op.rhs().getType());
   Type dstType = getElementTypeOrSelf(op.getType());
 
-  auto sumOfTypes = firstType.cast<ValType>().getWidth() + 
-              secondType.cast<ValType>().getWidth();
-  if (sumOfTypes != dstType.cast<ValType>().getWidth())
+  auto sumOfTypes = firstType.cast<ValType>().getLength() + 
+              secondType.cast<ValType>().getLength();
+  if (sumOfTypes != dstType.cast<ValType>().getLength())
     return op.emitError("sum of ") << firstType << " and "
          << secondType << " must be equal to operand type " << dstType;
 
@@ -459,6 +459,19 @@ LogicalResult verifyConstantOp(Op op) {
   else return failure();
 }
 
+//===----------------------------------------------------------------------===//
+// Constant Operations
+//===----------------------------------------------------------------------===//
+
+template <typename Op>
+LogicalResult verifyConstraintOp(Op op) {
+  Type resType = op.constraint().getType();
+  btor::BitVecType resultType = resType.dyn_cast<btor::BitVecType>();
+  if (resultType.getLength() == 1) {
+    return success();
+  }
+  return failure();
+}
 //===----------------------------------------------------------------------===//
 // Compare Operations
 //===----------------------------------------------------------------------===//

@@ -41,16 +41,9 @@ class Btor_CastOp<string mnemonic, TypeConstraint From, TypeConstraint To,
   let assemblyFormat = "$in attr-dict `:` type($in) `to` type($out)";
 }
 
-def SignlessFixedWidthIntegerLike : TypeConstraint<Or<[
-        AnySignlessInteger.predicate,
-        VectorOf<[AnySignlessInteger]>.predicate,
-        TensorOf<[AnySignlessInteger]>.predicate]>,
-    "signless-fixed-width-integer-like">;
-
 // Cast from an integer type to another integer type.
 class BtorCastOp<string mnemonic> :
-    Btor_CastOp<mnemonic, SignlessFixedWidthIntegerLike,
-                          SignlessFixedWidthIntegerLike> {
+    Btor_CastOp<mnemonic, Btor_BitVec, Btor_BitVec> {
   let builders = [
     OpBuilder<(ins "Value":$in, "Type":$type),
      [{
@@ -71,10 +64,10 @@ def UExtOp : BtorCastOp<"uext"> {
     Example:
 
     ```mlir
-      %2 = btor.uext %1 : i3 to i6
+      %2 = btor.uext %1 : !bv<3> to !bv<9>
     ```
   }];
-  let verifier = [{ return verifyExtOp<IntegerType>(*this); }];
+  let verifier = [{ return verifyExtOp<btor::BitVecType>(*this); }];
 }
 
 def SExtOp : BtorCastOp<"sext"> {
@@ -89,10 +82,10 @@ def SExtOp : BtorCastOp<"sext"> {
     Example:
 
     ```mlir
-      %2 = btor.sext %1 : i3 to i6
+      %2 = btor.sext %1 : !bv<3> to !bv<9>
     ```
   }];
-  let verifier = [{ return verifyExtOp<IntegerType>(*this); }];
+  let verifier = [{ return verifyExtOp<btor::BitVecType>(*this); }];
 }
 
 //===----------------------------------------------------------------------===//
@@ -111,11 +104,11 @@ def IteOp : Btor_Op<"ite", [NoSideEffect,
         Example:
         
         ```mlir
-        %res = btor.ite %cond, %true, %false : i32
+        %res = btor.ite %cond, %true, %false : !bv<32>
         ```
     }];
 
-  let arguments = (ins BoolLike:$condition,
+  let arguments = (ins Btor_BitVec:$condition,
                       AnyType:$true_value,
                       AnyType:$false_value);
   let results = (outs AnyType:$result);
@@ -152,10 +145,10 @@ def SliceOp : Btor_Op<"slice", [NoSideEffect,
         ```
     }];
 
-  let arguments = (ins SignlessIntegerLike:$in,
-                      SignlessIntegerLike:$upper_bound,
-                      SignlessIntegerLike:$lower_bound);
-  let results = (outs SignlessIntegerLike:$result);
+  let arguments = (ins Btor_BitVec:$in,
+                      Btor_BitVec:$upper_bound,
+                      Btor_BitVec:$lower_bound);
+  let results = (outs Btor_BitVec:$result);
 
   let builders = [
     OpBuilder<(ins "Value":$in, 
@@ -163,7 +156,6 @@ def SliceOp : Btor_Op<"slice", [NoSideEffect,
                    "Value":$lower_bound),
      [{
        $_state.addOperands({in, upper_bound, lower_bound});
-       //$_state.addTypes(trueValue.getType());
       }]>
     ];
 
@@ -175,7 +167,7 @@ def SliceOp : Btor_Op<"slice", [NoSideEffect,
     return printSliceOp(p, this->getOperation());
   }];
 
-  let verifier = [{ return verifySliceOp<IntegerType>(*this); }];
+  let verifier = [{ return verifySliceOp<btor::BitVecType>(*this); }];
 }
 
 //===----------------------------------------------------------------------===//
@@ -192,7 +184,7 @@ class BtorArithmeticOp<string mnemonic, list<Trait> traits = []> :
 // each of these is required to be of the same type.
 //  The custom assembly form of the operation is as follows
 //
-//     <op> %0, %1 : i32
+//     <op> %0, %1 : !bv<32>
 class BtorBinaryOp<string mnemonic, list<Trait> traits = []> :
     BtorArithmeticOp<mnemonic, !listconcat(traits, [SameOperandsAndResultType])>,
     Arguments<(ins Btor_BitVec:$lhs, Btor_BitVec:$rhs)>,
@@ -201,14 +193,14 @@ class BtorBinaryOp<string mnemonic, list<Trait> traits = []> :
     }
 
 // This operation takes two operands or the same type
-// and returns one result of type I1
+// and returns one result of type !bv<1>
 //
-//     <op> %0, %1 : i1
+//     <op> %0, %1 : !bv<1>
 class BtorBinaryDifferentResultTypeOp<string mnemonic, list<Trait> traits = []> :
     BtorArithmeticOp<mnemonic, traits>,
-    Arguments<(ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs)> {
+    Arguments<(ins Btor_BitVec:$lhs, Btor_BitVec:$rhs)> {
 
-  let results = (outs BoolLike:$result);
+  let results = (outs Btor_BitVec:$result);
   
   let parser = [{
     return parseBinaryOverflowOp(parser, result);
@@ -227,7 +219,7 @@ def AddOp : BtorBinaryOp<"add", [Commutative]> {
         Example:
         
         ```mlir
-        %res = btor.add %lhs, %rhs : i32
+        %res = btor.add %lhs, %rhs : !bv<32>
         ```
     }];
 }
@@ -240,7 +232,7 @@ def SAddOverflowOp : BtorBinaryDifferentResultTypeOp<"saddo", [Commutative]> {
         Example:
         
         ```mlir
-        %res = btor.saddo %lhs, %rhs : i32
+        %res = btor.saddo %lhs, %rhs : !bv<1>
         ```
     }];  
 }
@@ -253,7 +245,7 @@ def UAddOverflowOp : BtorBinaryDifferentResultTypeOp<"uaddo", [Commutative]> {
         Example:
         
         ```mlir
-        %res = btor.uaddo %lhs, %rhs : i32
+        %res = btor.uaddo %lhs, %rhs : !bv<1>
         ```
     }];  
 }
@@ -266,7 +258,7 @@ def SubOp : BtorBinaryOp<"sub"> {
         Example:
         
         ```mlir
-        %res = btor.sub %lhs, %rhs : i32
+        %res = btor.sub %lhs, %rhs : !bv<32>
         ```
     }];
 }
@@ -279,7 +271,7 @@ def SSubOverflowOp : BtorBinaryDifferentResultTypeOp<"ssubo"> {
         Example:
         
         ```mlir
-        %res = btor.ssubo %lhs, %rhs : i32
+        %res = btor.ssubo %lhs, %rhs : !bv<1>
         ```
     }];  
 }
@@ -292,7 +284,7 @@ def USubOverflowOp : BtorBinaryDifferentResultTypeOp<"usubo"> {
         Example:
         
         ```mlir
-        %res = btor.usubo %lhs, %rhs : i32
+        %res = btor.usubo %lhs, %rhs : !bv<1>
         ```
     }];  
 }
@@ -305,7 +297,7 @@ def MulOp : BtorBinaryOp<"mul", [Commutative]> {
         Example:
         
         ```mlir
-        %res = btor.mul %lhs, %rhs : i32
+        %res = btor.mul %lhs, %rhs : !bv<32>
         ```
     }];
 }
@@ -318,7 +310,7 @@ def SMulOverflowOp : BtorBinaryDifferentResultTypeOp<"smulo"> {
         Example:
         
         ```mlir
-        %res = btor.smulo %lhs, %rhs : i32
+        %res = btor.smulo %lhs, %rhs : !bv<1>
         ```
     }];  
 }
@@ -331,7 +323,7 @@ def UMulOverflowOp : BtorBinaryDifferentResultTypeOp<"umulo"> {
         Example:
         
         ```mlir
-        %res = btor.umulo %lhs, %rhs : i32
+        %res = btor.umulo %lhs, %rhs : !bv<1>
         ```
     }];  
 }
@@ -344,7 +336,7 @@ def SModOp : BtorBinaryOp<"smod"> {
         Example:
         
         ```mlir
-        %res = btor.smod %lhs, %rhs : i32
+        %res = btor.smod %lhs, %rhs : !bv<32>
         ```
     }];
 }
@@ -357,7 +349,7 @@ def SRemOp : BtorBinaryOp<"srem"> {
         Example:
         
         ```mlir
-        %res = btor.srem %lhs, %rhs : i32
+        %res = btor.srem %lhs, %rhs : !bv<32>
         ```
     }];
 }
@@ -370,7 +362,7 @@ def URemOp : BtorBinaryOp<"urem"> {
         Example:
         
         ```mlir
-        %res = btor.urem %lhs, %rhs : i32
+        %res = btor.urem %lhs, %rhs : !bv<32>
         ```
     }];
 }
@@ -383,7 +375,7 @@ def SDivOp : BtorBinaryOp<"sdiv"> {
         Example:
         
         ```mlir
-        %res = btor.sdiv %lhs, %rhs : i32
+        %res = btor.sdiv %lhs, %rhs : !bv<32>
         ```
     }];
 }
@@ -396,7 +388,7 @@ def SDivOverflowOp : BtorBinaryDifferentResultTypeOp<"sdivo"> {
         Example:
         
         ```mlir
-        %res = btor.sdivo %lhs, %rhs : i32
+        %res = btor.sdivo %lhs, %rhs : !bv<1>
         ```
     }];  
 }
@@ -409,7 +401,7 @@ def UDivOp : BtorBinaryOp<"udiv"> {
         Example:
         
         ```mlir
-        %res = btor.udiv %lhs, %rhs : i32
+        %res = btor.udiv %lhs, %rhs : !bv<32>
         ```
     }];
 }
@@ -422,7 +414,7 @@ def OrOp : BtorBinaryOp<"or", [Commutative]> {
         Example:
         
         ```mlir
-        %res = btor.or %lhs, %rhs : i32
+        %res = btor.or %lhs, %rhs : !bv<32>
         ```
     }];
 }
@@ -435,7 +427,7 @@ def NorOp : BtorBinaryOp<"nor", [Commutative]> {
         Example:
         
         ```mlir
-        %res = btor.nor %lhs, %rhs : i32
+        %res = btor.nor %lhs, %rhs : !bv<32>
         ```
     }];
 }
@@ -448,7 +440,7 @@ def AndOp : BtorBinaryOp<"and", [Commutative]> {
         Example:
         
         ```mlir
-        %res = btor.and %lhs, %rhs : i32
+        %res = btor.and %lhs, %rhs : !bv<32>
         ```
     }];
 }
@@ -461,7 +453,7 @@ def NandOp : BtorBinaryOp<"nand", [Commutative]> {
         Example:
         
         ```mlir
-        %res = btor.nand %lhs, %rhs : i32
+        %res = btor.nand %lhs, %rhs : !bv<32>
         ```
     }];
 }
@@ -474,7 +466,7 @@ def XOrOp : BtorBinaryOp<"xor", [Commutative]> {
         Example:
         
         ```mlir
-        %res = btor.xor %lhs, %rhs : i32
+        %res = btor.xor %lhs, %rhs : !bv<32>
         ```
     }];
 }
@@ -487,13 +479,13 @@ def XnorOp : BtorBinaryOp<"xnor", [Commutative]> {
         Example:
         
         ```mlir
-        %res = btor.xnor %lhs, %rhs : i32
+        %res = btor.xnor %lhs, %rhs : !bv<32>
         ```
     }];
 }
 
 def CmpOp : Btor_Op<"cmp", [NoSideEffect, SameTypeOperands,
-     TypesMatchWith<"result type has i1 element type and same shape as operands",
+     TypesMatchWith<"result type has !bv<1> element type and same shape as operands",
     "lhs", "result", "getI1SameShape($_self)">] # ElementwiseMappable.traits> {
   let summary = "integer comparison operation";
   let description = [{
@@ -520,7 +512,7 @@ def CmpOp : Btor_Op<"cmp", [NoSideEffect, SameTypeOperands,
 
     ```mlir
     // Custom form of scalar "signed less than" comparison.
-    %x = btor.cmp "slt", %lhs, %rhs : i32
+    %x = btor.cmp "slt", %lhs, %rhs : !bv<1>
     ```
   }];
 
@@ -557,12 +549,12 @@ def CmpOp : Btor_Op<"cmp", [NoSideEffect, SameTypeOperands,
 def IffOp : BtorBinaryOp<"iff"> {
     let summary = "integer if-and-only-if operation";
     let description = [{
-        This operation takes two i1 arguments and returns an integer.
+        This operation takes two !bv<1> arguments and returns an integer.
 
         Example:
         
         ```mlir
-        %res = btor.ror %lhs, %rhs : i1
+        %res = btor.iff %lhs, %rhs : !bv<1>
         ```
     }];
 
@@ -572,12 +564,12 @@ def IffOp : BtorBinaryOp<"iff"> {
 def ImpliesOp : BtorBinaryOp<"implies"> {
     let summary = "integer implication operation";
     let description = [{
-        This operation takes two i1 arguments and returns an integer.
+        This operation takes two !bv<1> arguments and returns an integer.
 
         Example:
         
         ```mlir
-        %res = btor.ror %lhs, %rhs : i1
+        %res = btor.implies %lhs, %rhs : !bv<1>
         ```
     }];
     
@@ -592,7 +584,7 @@ def ShiftLLOp : BtorBinaryOp<"sll"> {
         Example:
         
         ```mlir
-        %res = btor.sll %lhs, %rhs : i32
+        %res = btor.sll %lhs, %rhs : !bv<32>
         ```
     }];
 }
@@ -605,7 +597,7 @@ def ShiftRLOp : BtorBinaryOp<"srl"> {
         Example:
         
         ```mlir
-        %res = btor.srl %lhs, %rhs : i32
+        %res = btor.srl %lhs, %rhs : !bv<32>
         ```
     }];
 }
@@ -618,7 +610,7 @@ def ShiftRAOp : BtorBinaryOp<"sra"> {
         Example:
         
         ```mlir
-        %res = btor.sra %lhs, %rhs : i32
+        %res = btor.sra %lhs, %rhs : !bv<32>
         ```
     }];
 }
@@ -631,7 +623,7 @@ def RotateLOp : BtorBinaryOp<"rol"> {
         Example:
         
         ```mlir
-        %res = btor.rol %lhs, %rhs : i32
+        %res = btor.rol %lhs, %rhs : !bv<32>
         ```
     }];
 }
@@ -644,7 +636,7 @@ def RotateROp : BtorBinaryOp<"ror"> {
         Example:
         
         ```mlir
-        %res = btor.ror %lhs, %rhs : i32
+        %res = btor.ror %lhs, %rhs : !bv<32>
         ```
     }];
 }
@@ -658,13 +650,12 @@ def ConcatOp : Btor_Op<"concat"> {
         Example:
         
         ```mlir
-        %res = btor.concat %lhs, %rhs : i3, i2, i5
+        %res = btor.concat %lhs, %rhs : !bv<3>, !bv<2>, !bv<5>
         ```
     }];  
 
-    let arguments = (ins SignlessIntegerLike:$lhs,
-                      SignlessIntegerLike:$rhs);
-    let results = (outs SignlessIntegerLike:$result);
+    let arguments = (ins Btor_BitVec:$lhs, Btor_BitVec:$rhs);
+    let results = (outs Btor_BitVec:$result);
 
     let parser = [{
       return parseConcatOp(parser, result);
@@ -672,7 +663,7 @@ def ConcatOp : Btor_Op<"concat"> {
     let printer = [{
       return printConcatOp(p, *this);
     }];
-    let verifier = [{ return verifyConcatOp<IntegerType>(*this); }];
+    let verifier = [{ return verifyConcatOp<btor::BitVecType>(*this); }];
 }
 
 //===----------------------------------------------------------------------===//
@@ -684,19 +675,19 @@ def ConcatOp : Btor_Op<"concat"> {
 class BtorUnaryOp<string mnemonic, list<Trait> traits = []> :
     Op<Btor_Dialect, mnemonic, !listconcat(traits, [NoSideEffect,
         SameOperandsAndResultType])>,
-    Arguments<(ins SignlessIntegerLike:$operand)>,
-    Results<(outs SignlessIntegerLike:$result)> {
+    Arguments<(ins Btor_BitVec:$operand)>,
+    Results<(outs Btor_BitVec:$result)> {
     
-    let assemblyFormat = "$operand attr-dict `:` type($result)";
+    let assemblyFormat = "$operand attr-dict `:` qualified(type($result))";
 }
 
 // This operation takes an operand
 // and returns one result of type I1
 //
-//     <op> %0 : i1
+//     <op> %0 : !bv<1>
 class BtorUnaryDifferentResultTypeOp<string mnemonic, list<Trait> traits = []> :
     Op<Btor_Dialect, mnemonic, !listconcat(traits, [NoSideEffect])>,
-    Arguments<(ins SignlessIntegerLike:$operand)> {
+    Arguments<(ins Btor_BitVec:$operand)> {
 
   let results = (outs BoolLike:$result);
    let parser = [{
@@ -720,7 +711,7 @@ def NotOp : BtorUnaryOp<"not"> {
 
     ```mlir
     // Scalar negation value.
-    %a = btor.not %b : i32
+    %a = btor.not %b : !bv<32>
     ```
   }];
 }
@@ -737,7 +728,7 @@ def IncOp : BtorUnaryOp<"inc"> {
 
     ```mlir
     // Scalar increment value.
-    %a = btor.inc %b : i32
+    %a = btor.inc %b : !bv<32>
     ```
   }];
 }
@@ -754,7 +745,7 @@ def DecOp : BtorUnaryOp<"dec"> {
 
     ```mlir
     // Scalar decrement value.
-    %a = btor.dec %b : i32
+    %a = btor.dec %b : !bv<32>
     ```
   }];
 }
@@ -771,7 +762,7 @@ def NegOp : BtorUnaryOp<"neg"> {
 
     ```mlir
     // Scalar decrement value.
-    %a = btor.neg %b : i32
+    %a = btor.neg %b : !bv<32>
     ```
   }];
 }
@@ -782,13 +773,13 @@ def RedAndOp : BtorUnaryDifferentResultTypeOp<"redand"> {
     Syntax:
 
     The `redand` operation computes the and reduction of a given value. It takes one
-    operand and returns one result of type i1. 
+    operand and returns one result of type !bv<1>. 
 
     Example:
 
     ```mlir
     // Scalar redand value.
-    %a = btor.redand %b : i1
+    %a = btor.redand %b : !bv<1>
     ```
   }];
 }
@@ -799,13 +790,13 @@ def RedOrOp : BtorUnaryDifferentResultTypeOp<"redor"> {
     Syntax:
 
     This operation computes the or reduction of a given value. It takes one
-    operand and returns one result of type i1. 
+    operand and returns one result of type !bv<1>. 
 
     Example:
 
     ```mlir
     // Scalar redand value.
-    %a = btor.redand %b : i1
+    %a = btor.redand %b : !bv<1>
     ```
   }];
 }
@@ -816,13 +807,13 @@ def RedXorOp : BtorUnaryDifferentResultTypeOp<"redxor"> {
     Syntax:
 
     This operation computes the xor reduction of a given value. It takes one
-    operand and returns one result of type i1. 
+    operand and returns one result of type !bv<1>. 
 
     Example:
 
     ```mlir
     // Scalar redand value.
-    %a = btor.redand %b : i1
+    %a = btor.redand %b : !bv<1>
     ```
   }];
 }
@@ -836,7 +827,7 @@ def AssertNotOp : Btor_Op<"assert_not"> {
         Example:
         
         ```mlir
-        %0 = constant 1 : i1
+        %0 = constant 1 : !bv<1>
         // Apply the assert operation to %0
         btor.assert_not ( %0 )
         ```
@@ -844,7 +835,7 @@ def AssertNotOp : Btor_Op<"assert_not"> {
 
     let arguments = (ins Btor_BitVec:$arg, AnyI64Attr:$id);
 
-    let assemblyFormat = "`(` $arg `)` attr-dict `,` $id `:` qualified(type($arg))";
+    let assemblyFormat = "`(` $arg `)` attr-dict `,` $id qualified(type($arg))";
 }
 
 //, AllTypesMatch<["value", "result"]>
@@ -858,7 +849,7 @@ def ConstantOp : Btor_Op<"constant", [ConstantLike, NoSideEffect]> {
 
     ```mlir
     // Integer constant
-    %1 = constant 42 : i32
+    %1 = constant 42 : !bv<32>
     ```
   }];
 
@@ -881,15 +872,17 @@ def ConstraintOp : Btor_Op<"constraint"> {
         Example:
         
         ```mlir
-        %0 = constant 1 : i1
+        %0 = constant 1 : !bv<1>
         // Apply the constraint operation to %0
-        btor.constraint ( %0 )
+        btor.constraint ( %0 ) : !bv<1>
         ```
     }];
 
-    let arguments = (ins I1:$constraint);
+    let arguments = (ins Btor_BitVec:$constraint);
 
-    let assemblyFormat = "`(` $constraint `)` attr-dict";
+    let assemblyFormat = "`(` $constraint `)` attr-dict `:` qualified(type($constraint))";
+
+    let verifier = [{ return verifyConstraintOp(*this); }];
 }
 
 def NDStateOp : Btor_Op<"nd_state"> {
@@ -902,7 +895,7 @@ def NDStateOp : Btor_Op<"nd_state"> {
 
         ```mlir
         // invoke the nd_bv operation 
-        %0 = btor.nd_state 15 : i3
+        %0 = btor.nd_state 15 : !bv<32>
         ```
         In the example above, 15 gets interpreted as an
         i64 integer to represent the 15th input of a circuit
@@ -930,7 +923,7 @@ def InputOp : Btor_Op<"input"> {
 
         ```mlir
         // invoke the input operation to %0
-        %0 = btor.input 15 : i3
+        %0 = btor.input 15 : !bv<32>
         ```
 
         In the example above, 15 gets interpreted as an
@@ -938,7 +931,7 @@ def InputOp : Btor_Op<"input"> {
     }];
 
     let arguments = (ins AnyI64Attr:$id);
-    let results = (outs SignlessIntegerLike:$result);
+    let results = (outs Btor_BitVec:$result);
 
     let parser = [{
       return parseInputOp(parser, result);
@@ -960,7 +953,7 @@ def ArrayOp : Btor_Op<"nd_array"> {
     bitvec -> bitvec. For example:
 
     ```mlir
-    %0 = btor.nd_array : vector<8,i32>
+    %0 = btor.nd_array : vector<8,!bv<32>>
     ```
 
     This operation returns a single SSA value of a btor array type used
@@ -986,7 +979,7 @@ def InitArrayOp : Btor_Op<"array"> {
     For example:
 
     ```mlir
-    %4 = btor.array %1 : vector<8,i32>
+    %4 = btor.array %1 : vector<8,!bv<32>>
     ```
 
     This operation returns a single SSA value of a btor array type used
@@ -1019,7 +1012,7 @@ def ReadOp : Btor_Op<"read"> {
     Example:
 
     ```mlir
-    %1 = btor.read %A[%0] : vector<8,i32>, i32
+    %1 = btor.read %A[%0] : vector<8,!bv<32>>, !bv<32>
     ```
   }];
 
@@ -1050,7 +1043,7 @@ def WriteOp : Btor_Op<"write"> {
     Example:
 
     ```mlir
-    %4 = btor.write %2, %A[%1] : vector<8, i32>
+    %4 = btor.write %2, %A[%1] : vector<8, !bv<32>>
     ```
   }];
 
