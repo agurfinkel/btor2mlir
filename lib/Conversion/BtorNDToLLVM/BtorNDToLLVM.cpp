@@ -32,14 +32,18 @@ struct InputOpLowering : public ConvertOpToLLVMPattern<btor::InputOp> {
                   ConversionPatternRewriter &rewriter) const override;
 };
 
+btor::BitVecType getBVType(Type opType) {
+  return opType.dyn_cast<btor::BitVecType>();
+}
+
 template <typename Op>
 std::string createNDFunctionHelper(Op op, std::string suffix, mlir::ConversionPatternRewriter &rewriter) {
-  auto opType = op.result().getType();
+  auto opType = getBVType(op.result().getType());
   auto functionType = rewriter.getIntegerType(8);
   // Insert the `havoc` declaration if necessary.
   std::string havoc;
   havoc.append("nd_bv");
-  auto bvWidth = opType.getIntOrFloatBitWidth();
+  auto bvWidth = opType.getLength();
   if (bvWidth <= 8) {
     havoc.append(std::to_string(8));
   } else if (bvWidth <= 16) {
@@ -67,8 +71,8 @@ template <typename Op>
 IntegerType createFunctionTypeHelper(Op op, mlir::ConversionPatternRewriter &rewriter) {
   mlir::IntegerType functionType;
 
-  auto opType = op.result().getType();
-  auto bvWidth = opType.getIntOrFloatBitWidth();
+  auto opType = getBVType(op.result().getType());
+  auto bvWidth = opType.getLength();
 
   if (bvWidth <= 8) {
     functionType = rewriter.getIntegerType(8);
@@ -91,10 +95,10 @@ void createPrintFunctionHelper(
           Op op, const Value ndValue,
           const std::string printHelper,
           mlir::ConversionPatternRewriter &rewriter,
-          ModuleOp module) {
+          ModuleOp module,
+          Type resultType) {
   auto printFunc = module.lookupSymbol<LLVM::LLVMFuncOp>(printHelper);
   auto i64Type = rewriter.getI64Type();
-  auto resultType = op.result().getType();
   if (!printFunc) {
     OpBuilder::InsertionGuard printerGuard(rewriter);
     rewriter.setInsertionPointToStart(module.getBody());
@@ -138,7 +142,7 @@ void createPrintFunctionHelper(
 LogicalResult
 NDStateOpLowering::matchAndRewrite(btor::NDStateOp op, OpAdaptor adaptor,
                                  ConversionPatternRewriter &rewriter) const {
-  auto opType = op.result().getType();
+  auto opType = typeConverter->convertType(op.result().getType());
   auto module = op->getParentOfType<ModuleOp>();
   // op.result().getType().getIntOrFloatBitWidth
   // create the nd function of name: nd_bvX_stateY
@@ -155,7 +159,7 @@ NDStateOpLowering::matchAndRewrite(btor::NDStateOp op, OpAdaptor adaptor,
   Value callND = rewriter.create<LLVM::CallOp>(op.getLoc(), havocFunc, llvm::None).getResult(0);
   // add helper function for printing
   std::string printHelper = "btor2mlir_print_state_num";
-  createPrintFunctionHelper(op, callND, printHelper, rewriter, module);
+  createPrintFunctionHelper(op, callND, printHelper, rewriter, module, opType);
   rewriter.replaceOpWithNewOp<LLVM::TruncOp>(op, TypeRange({opType}), callND);
   return success();
 }
@@ -166,7 +170,7 @@ NDStateOpLowering::matchAndRewrite(btor::NDStateOp op, OpAdaptor adaptor,
 LogicalResult
 InputOpLowering::matchAndRewrite(btor::InputOp op, OpAdaptor adaptor,
                 ConversionPatternRewriter &rewriter) const {
-  auto opType = op.result().getType();
+  auto opType = typeConverter->convertType(op.result().getType());
   auto module = op->getParentOfType<ModuleOp>();
   // create the nd function of name: nd_bvX_inputY
   std::string havoc = createNDFunctionHelper(op, std::string("_in"), rewriter);
@@ -182,9 +186,9 @@ InputOpLowering::matchAndRewrite(btor::InputOp op, OpAdaptor adaptor,
   Value callND = rewriter.create<LLVM::CallOp>(op.getLoc(), havocFunc, llvm::None).getResult(0);
   // add helper function for printing
   std::string printHelper = "btor2mlir_print_input_num";
-  createPrintFunctionHelper(op, callND, printHelper, rewriter, module);
+  createPrintFunctionHelper(op, callND, printHelper, rewriter, module, opType);
   rewriter.replaceOpWithNewOp<LLVM::TruncOp>(op, TypeRange({opType}), callND);
-  return success();            
+  return success();
 }
 
 //===----------------------------------------------------------------------===//
@@ -209,7 +213,7 @@ struct BtorNDToLLVMLoweringPass
 void BtorNDToLLVMLoweringPass::runOnOperation() {
   LLVMConversionTarget target(getContext());
   RewritePatternSet patterns(&getContext());
-  LLVMTypeConverter converter(&getContext());
+  BtorToLLVMTypeConverter converter(&getContext());
 
   mlir::btor::populateBTORNDTOLLVMConversionPatterns(converter, patterns);
 
@@ -226,7 +230,7 @@ void BtorNDToLLVMLoweringPass::runOnOperation() {
 //===----------------------------------------------------------------------===//
 
 void mlir::btor::populateBTORNDTOLLVMConversionPatterns(
-    LLVMTypeConverter &converter, RewritePatternSet &patterns) {
+    BtorToLLVMTypeConverter &converter, RewritePatternSet &patterns) {
   patterns.add<NDStateOpLowering, InputOpLowering>(converter);
 }
 

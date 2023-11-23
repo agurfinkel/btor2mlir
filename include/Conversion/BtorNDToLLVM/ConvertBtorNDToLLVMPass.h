@@ -3,15 +3,17 @@
 
 #include <memory>
 
+#include "Conversion/BtorToLLVM/ConvertBtorToLLVMPass.h"
+
 namespace mlir {
-class LLVMTypeConverter;
+class BtorToLLVMTypeConverter;
 class RewritePatternSet;
 class Pass;
 
 namespace btor {
     
     /// Collect a set of patterns to lower from btor nd operations to LLVM dialect
-    void populateBTORNDTOLLVMConversionPatterns(LLVMTypeConverter &converter,
+    void populateBTORNDTOLLVMConversionPatterns(BtorToLLVMTypeConverter &converter,
                                                 RewritePatternSet &patterns);
 
     /// Creates a pass to convert the Btor dialect nd bitvector operations into the LLVM dialect.
