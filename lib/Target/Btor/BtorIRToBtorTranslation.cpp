@@ -137,8 +137,8 @@ LogicalResult Serialize::createBtorLine(btor::SliceOp &op, bool isInit) {
 
   m_output << nextLine << " slice " << sortId 
     << " " << getOpFromCache(op.in()) << " "
-    << upper.value().getInt() << " "
-    << lower.value().getInt() << "\n"; 
+    << upper.value().getValue().getSExtValue() << " "
+    << lower.value().getValue().getSExtValue() << "\n"; 
 
   setCacheWithOp(op.result(), nextLine);
   nextLine += 1;  
@@ -375,7 +375,7 @@ LogicalResult Serialize::createBtorLine(btor::ConstantOp &op, bool isInit) {
   auto sortId = getOrCreateSort(op.getType());
   m_output << nextLine << " constd " 
     << sortId << " "
-    << op.value().getInt() << '\n';
+    << op.value().getValue().getSExtValue() << '\n';
 
   setCacheWithOp(op.getResult(), nextLine);
   nextLine += 1;

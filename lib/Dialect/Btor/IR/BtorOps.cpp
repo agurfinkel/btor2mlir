@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "Dialect/Btor/IR/Btor.h"
+#include "Dialect/Btor/IR/BtorTypes.h"
 #include "mlir/IR/OpImplementation.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/TypeUtilities.h"
@@ -56,7 +57,7 @@ static ParseResult parseUnaryDifferentResultOp(OpAsmParser &parser,
 
 // Return the type of the same shape (scalar, vector or tensor) containing i1.
 static Type getI1SameShape(Type type) {
-  auto i1Type = IntegerType::get(type.getContext(), 1);
+  auto i1Type = btor::BitVecType::get(type.getContext(), 1);
   return i1Type;
 }
 
@@ -441,6 +442,51 @@ static ParseResult parseWriteOp(OpAsmParser &parser, OperationState &result) {
   return parser.resolveOperands({value, base, index}, 
                                 {resultType.getElementType(), resultType, indexType},
                                 parser.getNameLoc(), result.operands);
+}
+
+//===----------------------------------------------------------------------===//
+// Constant Operations
+//===----------------------------------------------------------------------===//
+
+template <typename Op>
+LogicalResult verifyConstantOp(Op op) {
+  Type resType = op.result().getType();
+  btor::BitVecType resultType = resType.dyn_cast<btor::BitVecType>();
+  Type attrType = op.valueAttr().getType();
+  btor::BitVecType attributeType = attrType.dyn_cast<btor::BitVecType>();
+  if (resultType && attributeType && attributeType == resultType &&
+     resultType.getLength() == attributeType.getLength()) return success();
+  else return failure();
+}
+
+//===----------------------------------------------------------------------===//
+// Compare Operations
+//===----------------------------------------------------------------------===//
+
+template <typename Op>
+LogicalResult verifyCmpOp(Op op) {
+  Type resultType = op.result().getType();
+  unsigned resultLength = resultType.dyn_cast<btor::BitVecType>().getLength();
+  if(resultLength != 1){
+    return op.emitOpError() << "result must be bit vector of length 1 instead got length of "
+                         << resultLength;
+  }
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
+// AssertNot Operations
+//===----------------------------------------------------------------------===//
+
+template <typename Op>
+LogicalResult verifyAssertNotOp(Op op) {
+  Type resultType = op.arg().getType();
+  unsigned resultLength = resultType.dyn_cast<btor::BitVecType>().getLength();
+  if(resultLength != 1){
+    return op.emitOpError() << "result must be bit vector of length 1 instead got length of "
+                         << resultLength;
+  }
+  return success();
 }
 
 //===----------------------------------------------------------------------===//

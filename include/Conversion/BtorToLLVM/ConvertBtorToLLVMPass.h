@@ -3,8 +3,12 @@
 
 #include <memory>
 
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Conversion/LLVMCommon/TypeConverter.h"
+#include "Dialect/Btor/IR/Btor.h"
+
 namespace mlir {
-class LLVMTypeConverter;
+class BtorToLLVMTypeConverter;
 class RewritePatternSet;
 class Pass;
 
@@ -18,6 +22,22 @@ namespace btor {
     std::unique_ptr<mlir::Pass> createLowerToLLVMPass();
 
 } // namespace btor
+    class BtorToLLVMTypeConverter : public LLVMTypeConverter {
+public:
+        BtorToLLVMTypeConverter(MLIRContext *ctx,
+                                    const DataLayoutAnalysis *analysis = nullptr)
+            : LLVMTypeConverter(ctx, analysis) {
+            addConversion([&](btor::BitVecType type) -> llvm::Optional<Type> {
+            return convertBtorBitVecType(type);
+            });
+        }
+
+        Type convertBtorBitVecType(btor::BitVecType type) {
+            return ::IntegerType::get(type.getContext(), type.getLength());
+        }
+
+    };
+
 } // namespace mlir
 
 #endif // BTOR_CONVERSION_BTORTOLLVM_CONVERTBTORTOLLVMPASS_H_

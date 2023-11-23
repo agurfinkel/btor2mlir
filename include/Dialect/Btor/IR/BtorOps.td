@@ -195,9 +195,9 @@ class BtorArithmeticOp<string mnemonic, list<Trait> traits = []> :
 //     <op> %0, %1 : i32
 class BtorBinaryOp<string mnemonic, list<Trait> traits = []> :
     BtorArithmeticOp<mnemonic, !listconcat(traits, [SameOperandsAndResultType])>,
-    Arguments<(ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs)>,
-    Results<(outs SignlessIntegerLike:$result)> {
-        let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($result)";
+    Arguments<(ins Btor_BitVec:$lhs, Btor_BitVec:$rhs)>,
+    Results<(outs Btor_BitVec:$result)> {
+        let assemblyFormat = "$lhs `,` $rhs attr-dict `:` qualified(type($result))";
     }
 
 // This operation takes two operands or the same type
@@ -526,10 +526,10 @@ def CmpOp : Btor_Op<"cmp", [NoSideEffect, SameTypeOperands,
 
   let arguments = (ins
       BtorPredicateAttr:$predicate,
-      SignlessIntegerLike:$lhs,
-      SignlessIntegerLike:$rhs
+      Btor_BitVec:$lhs,
+      Btor_BitVec:$rhs
   );
-  let results = (outs BoolLike:$result);
+  let results = (outs Btor_BitVec:$result);
 
   let builders = [
     OpBuilder<(ins "BtorPredicate":$predicate, "Value":$lhs,
@@ -549,7 +549,9 @@ def CmpOp : Btor_Op<"cmp", [NoSideEffect, SameTypeOperands,
     }
   }];
 
-  let assemblyFormat = "$predicate `,` $lhs `,` $rhs attr-dict `:` type($lhs)";
+  let verifier = [{ return verifyCmpOp(*this); }];
+
+  let assemblyFormat = "$predicate `,` $lhs `,` $rhs attr-dict `:` qualified(type($lhs))";
 } 
 
 def IffOp : BtorBinaryOp<"iff"> {
@@ -840,13 +842,13 @@ def AssertNotOp : Btor_Op<"assert_not"> {
         ```
     }];
 
-    let arguments = (ins I1:$arg, AnyI64Attr:$id);
+    let arguments = (ins Btor_BitVec:$arg, AnyI64Attr:$id);
 
-    let assemblyFormat = "`(` $arg `)` attr-dict `,` $id";
+    let assemblyFormat = "`(` $arg `)` attr-dict `,` $id `:` qualified(type($arg))";
 }
 
-def ConstantOp : Btor_Op<"constant", [ConstantLike, NoSideEffect,
-    AllTypesMatch<["value", "result"]>]> {
+//, AllTypesMatch<["value", "result"]>
+def ConstantOp : Btor_Op<"constant", [ConstantLike, NoSideEffect]> {
   let summary = "integer constant";
   let description = [{
     The `constant` operation produces an SSA value equal to some constant
@@ -860,12 +862,14 @@ def ConstantOp : Btor_Op<"constant", [ConstantLike, NoSideEffect,
     ```
   }];
 
-  let arguments = (ins Builtin_IntegerAttr:$value);
-  let results = (outs AnyType:$result);
+  let arguments = (ins BitVecAttribute:$value);
+  let results = (outs Btor_BitVec:$result);
 
-  let assemblyFormat = "attr-dict $value";
+  let assemblyFormat = "attr-dict qualified(type($result)) qualified($value)";
+
+  let verifier = [{ return verifyConstantOp(*this); }];
+  
   let hasFolder = 1;
-  // let verifier = [{ return verifyConstantOp(*this); }];
 }
 
 def ConstraintOp : Btor_Op<"constraint"> {
@@ -905,7 +909,7 @@ def NDStateOp : Btor_Op<"nd_state"> {
     }];
 
     let arguments = (ins AnyI64Attr:$id);
-    let results = (outs SignlessIntegerLike:$result);
+    let results = (outs Btor_BitVec:$result);
     let parser = [{
       return parseNDStateOpOp(parser, result);
     }];
