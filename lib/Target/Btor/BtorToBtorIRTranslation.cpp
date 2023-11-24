@@ -463,7 +463,7 @@ void Deserialize::toOp(Btor2Line *line) {
     SmallVector<unsigned> arguments;
     if (cur->tag != BTOR2_TAG_slice) {
       for (unsigned i = 0; i < cur->nargs; ++i) {
-          if (isStateArgumentOfInitOp(cur, getLineById(cur->args[i]))) {
+          if (isStateArgumentOfInitOp(cur, i)) {
               kids.push_back(nullptr);
               continue;
           }
