@@ -43,7 +43,7 @@ std::string createNDFunctionHelper(Op op, std::string suffix, mlir::ConversionPa
   // Insert the `havoc` declaration if necessary.
   std::string havoc;
   havoc.append("nd_bv");
-  auto bvWidth = opType.getLength();
+  auto bvWidth = opType.getWidth();
   if (bvWidth <= 8) {
     havoc.append(std::to_string(8));
   } else if (bvWidth <= 16) {
@@ -72,7 +72,7 @@ IntegerType createFunctionTypeHelper(Op op, mlir::ConversionPatternRewriter &rew
   mlir::IntegerType functionType;
 
   auto opType = getBVType(op.result().getType());
-  auto bvWidth = opType.getLength();
+  auto bvWidth = opType.getWidth();
 
   if (bvWidth <= 8) {
     functionType = rewriter.getIntegerType(8);

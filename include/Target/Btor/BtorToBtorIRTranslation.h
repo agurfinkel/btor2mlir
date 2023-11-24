@@ -182,8 +182,8 @@ class Deserialize {
   }
 
   Operation * buildConcatOp(const Value &lhs, const Value &rhs, const unsigned  lineId) {
-    auto newWidth = lhs.getType().dyn_cast<btor::BitVecType>().getLength() +
-               rhs.getType().dyn_cast<btor::BitVecType>().getLength();
+    auto newWidth = lhs.getType().dyn_cast<btor::BitVecType>().getWidth() +
+               rhs.getType().dyn_cast<btor::BitVecType>().getWidth();
     Type resType = btor::BitVecType::get(m_context, newWidth);
     auto res = m_builder.create<btor::ConcatOp>(FileLineColLoc::get(m_sourceFile, lineId, 0),
                                                 resType, lhs, rhs);
@@ -255,15 +255,15 @@ class Deserialize {
                         const unsigned  lineId) {
     Type resultType = val.getType();
     btor::BitVecType opType = resultType.dyn_cast<btor::BitVecType>();
-    assert(opType.getLength() > upper && upper >= lower);
+    assert(opType.getWidth() > upper && upper >= lower);
     auto loc = FileLineColLoc::get(m_sourceFile, lineId, 0);
 
     auto resType = btor::BitVecType::get(m_context, upper - lower + 1);
     auto u = m_builder.create<btor::ConstantOp>(
-        loc, opType, BitVecAttr::get(m_context, opType, APInt(opType.getLength(), upper)));
+        loc, opType, BitVecAttr::get(m_context, opType, APInt(opType.getWidth(), upper)));
     assert(u && u->getNumResults() == 1);
     auto l = m_builder.create<btor::ConstantOp>(
-        loc, opType, BitVecAttr::get(m_context, opType, APInt(opType.getLength(), lower)));
+        loc, opType, BitVecAttr::get(m_context, opType, APInt(opType.getWidth(), lower)));
     assert(l && l->getNumResults() == 1);
 
     auto res = m_builder.create<btor::SliceOp>(

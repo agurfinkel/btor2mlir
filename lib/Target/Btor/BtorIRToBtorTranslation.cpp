@@ -90,7 +90,7 @@ LogicalResult Serialize::buildCastOperation(const Value &value,
 
 void Serialize::createSort(Type type) {
   if (type.isa<btor::BitVecType>()) {
-    auto bitWidth = type.dyn_cast<btor::BitVecType>().getLength();
+    auto bitWidth = type.dyn_cast<btor::BitVecType>().getWidth();
     assert (bitWidth > 0);
     setSortWithType(type, nextLine);
     m_output << nextLine << " sort bitvec " << bitWidth << '\n';

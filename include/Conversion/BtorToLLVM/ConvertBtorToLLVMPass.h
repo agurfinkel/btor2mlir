@@ -33,7 +33,7 @@ public:
         }
 
         Type convertBtorBitVecType(btor::BitVecType type) {
-            return ::IntegerType::get(type.getContext(), type.getLength());
+            return ::IntegerType::get(type.getContext(), type.getWidth());
         }
 
         Type convertIntegerType(mlir::IntegerType type) {

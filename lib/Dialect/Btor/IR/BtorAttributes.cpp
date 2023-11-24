@@ -60,7 +60,7 @@ void BitVecAttr::print(::mlir::AsmPrinter &printer) const {
     return {};
   return BitVecAttr::get(
       parser.getContext(), _result_type.getValue(),
-      APInt(_result_type.getValue().getLength(), _result_value.getValue()));
+      APInt(_result_type.getValue().getWidth(), _result_value.getValue()));
 }
 
 #define GET_ATTRDEF_CLASSES
