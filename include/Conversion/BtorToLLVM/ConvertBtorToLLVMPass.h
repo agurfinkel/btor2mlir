@@ -15,7 +15,7 @@ class Pass;
 namespace btor {
     
     /// Collect a set of patterns to lower from btor to LLVM dialect
-    void populateBtorToLLVMConversionPatterns(LLVMTypeConverter &converter,
+    void populateBtorToLLVMConversionPatterns(BtorToLLVMTypeConverter &converter,
                                                 RewritePatternSet &patterns);
 
     /// Creates a pass to convert the Btor dialect into the LLVM dialect.
@@ -28,13 +28,18 @@ public:
                                     const DataLayoutAnalysis *analysis = nullptr)
             : LLVMTypeConverter(ctx, analysis) {
             addConversion([&](btor::BitVecType type) -> llvm::Optional<Type> {
-            return convertBtorBitVecType(type);
+                return convertBtorBitVecType(type);
             });
         }
 
         Type convertBtorBitVecType(btor::BitVecType type) {
             return ::IntegerType::get(type.getContext(), type.getLength());
         }
+
+        Type convertIntegerType(mlir::IntegerType type) {
+            return btor::BitVecType::get(type.getContext(), type.getWidth());
+        }
+
 
     };
 

@@ -689,7 +689,7 @@ class BtorUnaryDifferentResultTypeOp<string mnemonic, list<Trait> traits = []> :
     Op<Btor_Dialect, mnemonic, !listconcat(traits, [NoSideEffect])>,
     Arguments<(ins Btor_BitVec:$operand)> {
 
-  let results = (outs BoolLike:$result);
+  let results = (outs Btor_BitVec:$result);
    let parser = [{
     return parseUnaryDifferentResultOp(parser, result);
   }];
@@ -889,7 +889,7 @@ def NDStateOp : Btor_Op<"nd_state"> {
     let summary = "btor nondet bv state";
     let description = [{
         This operation takes no input and returns
-        a SignlessIntegerLike
+        a BitVecType
 
         Example:
 
@@ -915,9 +915,8 @@ def NDStateOp : Btor_Op<"nd_state"> {
 def InputOp : Btor_Op<"input"> {
     let summary = "btor input";
     let description = [{
-        This operation takes an input number and a
-        SignlessIntegerLike, then returns the 
-        received SignlessIntegerLike
+        This operation takes an input number and then returns a
+        BitVec Type value
 
         Example:
 
@@ -986,7 +985,7 @@ def InitArrayOp : Btor_Op<"array"> {
     by subsequent read and write operations. 
   }];
 
-  let arguments = (ins SignlessIntegerLike:$init);
+  let arguments = (ins Btor_BitVec:$init);
   let results = (outs AnyVector:$result);
   let extraClassDeclaration = [{
     VectorType getArrayType() {
@@ -1016,8 +1015,8 @@ def ReadOp : Btor_Op<"read"> {
     ```
   }];
 
-  let arguments = (ins AnyVector:$base, SignlessIntegerLike:$index);
-  let results = (outs SignlessIntegerLike:$result);
+  let arguments = (ins AnyVector:$base, Btor_BitVec:$index);
+  let results = (outs Btor_BitVec:$result);
 
   let extraClassDeclaration = [{
     VectorType getArrayType() {
@@ -1047,8 +1046,8 @@ def WriteOp : Btor_Op<"write"> {
     ```
   }];
 
-  let arguments = (ins SignlessIntegerLike:$value, AnyVector:$base,
-                       SignlessIntegerLike:$index);
+  let arguments = (ins Btor_BitVec:$value, AnyVector:$base,
+                       Btor_BitVec:$index);
 
   let results = (outs AnyVector:$result);
     let extraClassDeclaration = [{

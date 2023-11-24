@@ -45,7 +45,7 @@ static ParseResult parseUnaryDifferentResultOp(OpAsmParser &parser,
       parser.parseColonType(operandType))
     return failure();
   
-  result.addTypes(parser.getBuilder().getI1Type());
+  result.addTypes(btor::BitVecType::get(parser.getContext(), 1));
   return parser.resolveOperands(operands,
                                 {operandType},
                                 parser.getNameLoc(), result.operands);
@@ -467,10 +467,11 @@ template <typename Op>
 LogicalResult verifyConstraintOp(Op op) {
   Type resType = op.constraint().getType();
   btor::BitVecType resultType = resType.dyn_cast<btor::BitVecType>();
-  if (resultType.getLength() == 1) {
-    return success();
+  if (resultType.getLength() != 1) {
+    return op.emitOpError() << "result must be bit vector of length 1 instead got length of "
+                         << resultType.getLength();
   }
-  return failure();
+  return success();
 }
 //===----------------------------------------------------------------------===//
 // Compare Operations

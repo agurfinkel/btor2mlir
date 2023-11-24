@@ -532,8 +532,9 @@ SliceOpLowering::matchAndRewrite(mlir::btor::SliceOp sliceOp, OpAdaptor adaptor,
   Value input = adaptor.in();
   Value valToTruncate =
       rewriter.create<LLVM::LShrOp>(sliceOp.getLoc(), input, adaptor.lower_bound());
+  Type opType = typeConverter->convertType(sliceOp.result().getType());
   rewriter.replaceOpWithNewOp<LLVM::TruncOp>(
-      sliceOp, TypeRange({sliceOp.result().getType()}), valToTruncate);
+      sliceOp, TypeRange({opType}), valToTruncate);
   return success();
 }
 
@@ -625,8 +626,7 @@ SModOpLowering::matchAndRewrite(mlir::btor::SModOp smodOp, OpAdaptor adaptor,
 LogicalResult
 NDStateOpLowering::matchAndRewrite(btor::NDStateOp op, OpAdaptor adaptor,
                                  ConversionPatternRewriter &rewriter) const {
-  auto bvType = op.result().getType().dyn_cast<btor::BitVecType>();
-  auto opType = IntegerType::get(bvType.getContext(), bvType.getLength());
+  Type opType = typeConverter->convertType(op.result().getType());
   // Insert the `havoc` declaration if necessary.
   auto module = op->getParentOfType<ModuleOp>();
   std::string havoc;
@@ -651,7 +651,7 @@ NDStateOpLowering::matchAndRewrite(btor::NDStateOp op, OpAdaptor adaptor,
 LogicalResult
 ConstraintOpLowering::matchAndRewrite(btor::ConstraintOp op, OpAdaptor adaptor,
                                   ConversionPatternRewriter &rewriter) const {
-  auto opType = op.constraint().getType();
+  auto opType = typeConverter->convertType(op.constraint().getType());
 
   // Insert the `__SEA_assume` declaration if necessary.
   auto module = op->getParentOfType<ModuleOp>();
@@ -667,7 +667,7 @@ ConstraintOpLowering::matchAndRewrite(btor::ConstraintOp op, OpAdaptor adaptor,
         rewriter.getUnknownLoc(), seaAssume, seaAssumeFuncTy);
   }
 
-  rewriter.replaceOpWithNewOp<LLVM::CallOp>(op, seaAssumeFunc, op.constraint());
+  rewriter.replaceOpWithNewOp<LLVM::CallOp>(op, seaAssumeFunc, adaptor.constraint());
   return success();
 }
 
@@ -677,7 +677,7 @@ ConstraintOpLowering::matchAndRewrite(btor::ConstraintOp op, OpAdaptor adaptor,
 LogicalResult
 InputOpLowering::matchAndRewrite(btor::InputOp op, OpAdaptor adaptor,
                 ConversionPatternRewriter &rewriter) const {
-  auto opType = op.result().getType();
+  Type opType = typeConverter->convertType(op.result().getType());
   // Insert the `havoc` declaration if necessary.
   auto module = op->getParentOfType<ModuleOp>();
   std::string havoc;
@@ -886,7 +886,7 @@ void BtorToLLVMLoweringPass::runOnOperation() {
 //===----------------------------------------------------------------------===//
 
 void mlir::btor::populateBtorToLLVMConversionPatterns(
-    LLVMTypeConverter &converter, RewritePatternSet &patterns) {
+    BtorToLLVMTypeConverter &converter, RewritePatternSet &patterns) {
   patterns.add<
       ConstantOpLowering, AddOpLowering, SubOpLowering, MulOpLowering,
       UDivOpLowering, SDivOpLowering, URemOpLowering, SRemOpLowering,
