@@ -1,5 +1,5 @@
 import sys
-import os
+
 
 class CexWitnessGenerator(object):
 
@@ -95,12 +95,12 @@ class CexWitnessGenerator(object):
     # print(states)
       for (s, i) in zip(states, inputs):
         # print(s, i)
+        f.write(f'#{frame}\n')
         if s:
-          f.write(f'#{frame}\n')
           for k, v in s.items():
             f.write(f'{k} {v}\n')
+        f.write(f'@{frame}\n')
         if i:
-          f.write(f'@{frame}\n')
           for k, v in i.items():
             f.write(f'{k} {v}\n')
         frame += 1
