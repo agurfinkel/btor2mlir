@@ -137,7 +137,7 @@ class Deserialize {
   void toOp(Btor2Line *line);
   bool needsMLIROp(Btor2Line * line);
   bool hasReturnValue(Btor2Line * line);
-  bool isStateArgumentOfInitOp(Btor2Line * cur, Btor2Line * argument);
+  bool isStateArgumentOfInitOp(Btor2Line * cur, unsigned argumentId);
   void createNegateLine(int64_t curAt, const unsigned lineId, const Value &child);
   Operation * createMLIR(const Btor2Line *line, 
                         const SmallVector<Value> &kids,

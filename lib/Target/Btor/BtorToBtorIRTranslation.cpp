@@ -369,8 +369,13 @@ bool Deserialize::hasReturnValue(Btor2Line * line) {
 /// This method determines if we are dealing with the state argument of
 ///   a Btor2 init operation
 ///===----------------------------------------------------------------------===//
-bool Deserialize::isStateArgumentOfInitOp(Btor2Line * cur, Btor2Line * argument) {
-  return (BTOR2_TAG_init == cur->tag) && (BTOR2_TAG_state == argument->tag);
+bool Deserialize::isStateArgumentOfInitOp(Btor2Line * cur, unsigned idx) {
+  if (BTOR2_TAG_init == cur->tag) {
+    auto argumentId = cur->args[idx];
+    if (argumentId < 0) { argumentId = std::abs(argumentId); }
+    return BTOR2_TAG_state == getLineById(argumentId)->tag;
+  }
+  return false;
 }
 
 ///===----------------------------------------------------------------------===//
@@ -433,7 +438,7 @@ void Deserialize::toOp(Btor2Line *line) {
           } else {
             todo.push_back(getLineById(std::abs(arg_i)));
           }
-        } else if (isStateArgumentOfInitOp(cur, getLineById(arg_i))){
+        } else if (isStateArgumentOfInitOp(cur, i)){
           // make sure that we check for the case that the state has an initialization!
           if (auto initLine = getLineById(arg_i)->init) {
             continue;
