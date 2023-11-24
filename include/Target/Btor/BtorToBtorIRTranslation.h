@@ -88,6 +88,10 @@ class Deserialize {
   }
 
   OwningOpRef<mlir::FuncOp> buildMainFunction();
+
+  btor::BitVecType getBVType(Type opType) {
+    return opType.dyn_cast<btor::BitVecType>();
+  }
   
  private: 
 ///===----------------------------------------------------------------------===//
@@ -182,8 +186,7 @@ class Deserialize {
   }
 
   Operation * buildConcatOp(const Value &lhs, const Value &rhs, const unsigned  lineId) {
-    auto newWidth = lhs.getType().dyn_cast<btor::BitVecType>().getWidth() +
-               rhs.getType().dyn_cast<btor::BitVecType>().getWidth();
+    auto newWidth = getBVType(lhs.getType()).getWidth() + getBVType(rhs.getType()).getWidth();
     Type resType = btor::BitVecType::get(m_context, newWidth);
     auto res = m_builder.create<btor::ConcatOp>(FileLineColLoc::get(m_sourceFile, lineId, 0),
                                                 resType, lhs, rhs);
@@ -253,8 +256,7 @@ class Deserialize {
                         const int64_t upper, 
                         const int64_t lower,
                         const unsigned  lineId) {
-    Type resultType = val.getType();
-    btor::BitVecType opType = resultType.dyn_cast<btor::BitVecType>();
+    btor::BitVecType opType = getBVType(val.getType());
     assert(opType.getWidth() > upper && upper >= lower);
     auto loc = FileLineColLoc::get(m_sourceFile, lineId, 0);
 

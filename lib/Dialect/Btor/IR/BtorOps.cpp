@@ -23,6 +23,11 @@
 using namespace mlir;
 using namespace mlir::btor;
 
+namespace {
+btor::BitVecType getBVType(Type opType) {
+  return opType.dyn_cast<btor::BitVecType>();
+}
+}
 
 /// A custom unary operation printer that omits the "std." prefix from the
 /// operation names.
@@ -109,7 +114,7 @@ static LogicalResult verifySliceOp(Op op) {
 static void printIteOp(OpAsmPrinter &p, IteOp *op) {
   p << " " << op->getOperands();
   p << " : ";
-  if (ShapedType condType = op->getCondition().getType().dyn_cast<ShapedType>())
+  if (ShapedType condType = getBVType(op->getCondition().getType()))
     p << condType << ", ";
   p << op->getType();
 }
@@ -450,10 +455,8 @@ static ParseResult parseWriteOp(OpAsmParser &parser, OperationState &result) {
 
 template <typename Op>
 LogicalResult verifyConstantOp(Op op) {
-  Type resType = op.result().getType();
-  btor::BitVecType resultType = resType.dyn_cast<btor::BitVecType>();
-  Type attrType = op.valueAttr().getType();
-  btor::BitVecType attributeType = attrType.dyn_cast<btor::BitVecType>();
+  btor::BitVecType resultType = getBVType( op.result().getType());
+  btor::BitVecType attributeType = getBVType(op.valueAttr().getType());
   if (resultType && attributeType && attributeType == resultType &&
      resultType.getWidth() == attributeType.getWidth()) return success();
   else return failure();
@@ -464,9 +467,8 @@ LogicalResult verifyConstantOp(Op op) {
 //===----------------------------------------------------------------------===//
 
 template <typename Op>
-LogicalResult verifyConstraintOp(Op op) {
-  Type resType = op.constraint().getType();
-  btor::BitVecType resultType = resType.dyn_cast<btor::BitVecType>();
+LogicalResult verifyConstraintOp(Op op) {;
+  btor::BitVecType resultType = getBVType(op.constraint().getType());
   if (resultType.getWidth() != 1) {
     return op.emitOpError() << "result must be bit vector of length 1 instead got length of "
                          << resultType.getWidth();
@@ -479,8 +481,7 @@ LogicalResult verifyConstraintOp(Op op) {
 
 template <typename Op>
 LogicalResult verifyCmpOp(Op op) {
-  Type resultType = op.result().getType();
-  unsigned resultLength = resultType.dyn_cast<btor::BitVecType>().getWidth();
+  unsigned resultLength = getBVType(op.result().getType()).getWidth();
   if(resultLength != 1){
     return op.emitOpError() << "result must be bit vector of length 1 instead got length of "
                          << resultLength;
@@ -494,8 +495,7 @@ LogicalResult verifyCmpOp(Op op) {
 
 template <typename Op>
 LogicalResult verifyAssertNotOp(Op op) {
-  Type resultType = op.arg().getType();
-  unsigned resultLength = resultType.dyn_cast<btor::BitVecType>().getWidth();
+  unsigned resultLength = getBVType(op.arg().getType()).getWidth();
   if(resultLength != 1){
     return op.emitOpError() << "result must be bit vector of length 1 instead got length of "
                          << resultLength;
