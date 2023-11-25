@@ -376,7 +376,7 @@ LogicalResult Serialize::createBtorLine(btor::ConstantOp &op, bool isInit) {
   auto sortId = getOrCreateSort(op.getType());
   m_output << nextLine << " constd " 
     << sortId << " "
-    << op.value().getValue().getSExtValue() << '\n';
+    << op.value().getInt() << '\n';
 
   setCacheWithOp(op.getResult(), nextLine);
   nextLine += 1;
