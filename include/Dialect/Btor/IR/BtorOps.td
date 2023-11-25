@@ -549,7 +549,7 @@ def CmpOp : Btor_Op<"cmp", [NoSideEffect, SameTypeOperands,
 def IffOp : BtorBinaryOp<"iff"> {
     let summary = "integer if-and-only-if operation";
     let description = [{
-        This operation takes two !bv<1> arguments and returns an integer.
+        This operation takes two !bv<1> arguments and returns a !bv<1>.
 
         Example:
         
@@ -558,13 +558,13 @@ def IffOp : BtorBinaryOp<"iff"> {
         ```
     }];
 
-    let arguments = (ins I1:$lhs, I1:$rhs);
+    let verifier = [{ return verifyBooleanOp(*this); }];
 }
 
 def ImpliesOp : BtorBinaryOp<"implies"> {
     let summary = "integer implication operation";
     let description = [{
-        This operation takes two !bv<1> arguments and returns an integer.
+        This operation takes two !bv<1> arguments and returns a !bv<1>.
 
         Example:
         
@@ -573,7 +573,7 @@ def ImpliesOp : BtorBinaryOp<"implies"> {
         ```
     }];
     
-    let arguments = (ins I1:$lhs, I1:$rhs);
+    let verifier = [{ return verifyBooleanOp(*this); }];
 }
 
 def ShiftLLOp : BtorBinaryOp<"sll"> {
@@ -682,7 +682,7 @@ class BtorUnaryOp<string mnemonic, list<Trait> traits = []> :
 }
 
 // This operation takes an operand
-// and returns one result of type I1
+// and returns one result of type bv<1>
 //
 //     <op> %0 : !bv<1>
 class BtorUnaryDifferentResultTypeOp<string mnemonic, list<Trait> traits = []> :

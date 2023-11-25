@@ -473,6 +473,21 @@ LogicalResult verifyConstraintOp(Op op) {;
   }
   return success();
 }
+
+//===----------------------------------------------------------------------===//
+// Boolean Operations
+//===----------------------------------------------------------------------===//
+
+template <typename Op>
+LogicalResult verifyBooleanOp(Op op) {;
+  btor::BitVecType resultType = getBVType(op.result().getType());
+  if (resultType.getWidth() != 1) {
+    return op.emitOpError() << "result must be bit vector of length 1 instead got length of "
+                         << resultType.getWidth();
+  }
+  return success();
+}
+
 //===----------------------------------------------------------------------===//
 // Compare Operations
 //===----------------------------------------------------------------------===//
