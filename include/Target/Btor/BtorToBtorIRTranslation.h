@@ -198,7 +198,6 @@ class Deserialize {
                             const std::string &str,
                             const unsigned radix,
                             const unsigned  lineId) {
-    btor::BitVecType bvAttrType = btor::BitVecType::get(m_context, width);
     Type type = btor::BitVecType::get(m_context, width);
     mlir::APInt value(width, 0, radix);
     if (str.compare("ones") == 0) {
@@ -210,7 +209,7 @@ class Deserialize {
     }
     auto res = m_builder.create<btor::ConstantOp>(
                         FileLineColLoc::get(m_sourceFile, lineId, 0),
-                        type, BitVecAttr::get(m_context, bvAttrType, value));
+                        type, m_builder.getIntegerAttr(m_builder.getIntegerType(width), value));
     return res;
   }
 
@@ -262,10 +261,12 @@ class Deserialize {
 
     auto resType = btor::BitVecType::get(m_context, upper - lower + 1);
     auto u = m_builder.create<btor::ConstantOp>(
-        loc, opType, BitVecAttr::get(m_context, opType, APInt(opType.getWidth(), upper)));
+        loc, opType,
+        m_builder.getIntegerAttr(m_builder.getIntegerType(opType.getWidth()), upper));
     assert(u && u->getNumResults() == 1);
     auto l = m_builder.create<btor::ConstantOp>(
-        loc, opType, BitVecAttr::get(m_context, opType, APInt(opType.getWidth(), lower)));
+        loc, opType, 
+        m_builder.getIntegerAttr(m_builder.getIntegerType(opType.getWidth()), lower));
     assert(l && l->getNumResults() == 1);
 
     auto res = m_builder.create<btor::SliceOp>(

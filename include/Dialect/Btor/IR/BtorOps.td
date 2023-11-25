@@ -838,7 +838,6 @@ def AssertNotOp : Btor_Op<"assert_not"> {
     let assemblyFormat = "`(` $arg `)` attr-dict `,` $id qualified(type($arg))";
 }
 
-//, AllTypesMatch<["value", "result"]>
 def ConstantOp : Btor_Op<"constant", [ConstantLike, NoSideEffect]> {
   let summary = "integer constant";
   let description = [{
@@ -853,10 +852,10 @@ def ConstantOp : Btor_Op<"constant", [ConstantLike, NoSideEffect]> {
     ```
   }];
 
-  let arguments = (ins BitVecAttribute:$value);
+  let arguments = (ins Builtin_IntegerAttr:$value);
   let results = (outs Btor_BitVec:$result);
 
-  let assemblyFormat = "attr-dict qualified(type($result)) qualified($value)";
+  let assemblyFormat = "attr-dict $value qualified(type($result))";
 
   let verifier = [{ return verifyConstantOp(*this); }];
   

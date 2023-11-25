@@ -112,11 +112,7 @@ static LogicalResult verifySliceOp(Op op) {
 //===----------------------------------------------------------------------===//
 
 static void printIteOp(OpAsmPrinter &p, IteOp *op) {
-  p << " " << op->getOperands();
-  p << " : ";
-  if (ShapedType condType = getBVType(op->getCondition().getType()))
-    p << condType << ", ";
-  p << op->getType();
+  p << " " << op->getOperands() << " : " << op->getType();
 }
 
 static ParseResult parseIteOp(OpAsmParser &parser, OperationState &result) {
@@ -455,15 +451,17 @@ static ParseResult parseWriteOp(OpAsmParser &parser, OperationState &result) {
 
 template <typename Op>
 LogicalResult verifyConstantOp(Op op) {
-  btor::BitVecType resultType = getBVType( op.result().getType());
-  btor::BitVecType attributeType = getBVType(op.valueAttr().getType());
-  if (resultType && attributeType && attributeType == resultType &&
-     resultType.getWidth() == attributeType.getWidth()) return success();
+  btor::BitVecType resultType = getBVType(op.result().getType());
+  auto attributeType = op.valueAttr().getType();
+  if (resultType && attributeType &&
+    resultType.getWidth() == attributeType.getIntOrFloatBitWidth()) {
+      return success();
+  }
   else return failure();
 }
 
 //===----------------------------------------------------------------------===//
-// Constant Operations
+// Constraint Operations
 //===----------------------------------------------------------------------===//
 
 template <typename Op>

@@ -76,8 +76,9 @@ LogicalResult Serialize::buildCastOperation(const Value &value,
               const Value &res, const Type type, std::string op) {
   assert (opIsInCache(value));
   auto sortId = getOrCreateSort(type);
-  auto width = type.getIntOrFloatBitWidth() - 
-    value.getType().getIntOrFloatBitWidth();
+  auto opType = type.dyn_cast<btor::BitVecType>();
+  auto valueType = value.getType().dyn_cast<btor::BitVecType>();
+  auto width = opType.getWidth() - valueType.getWidth();
 
   m_output << nextLine << " ";
   m_output << op << " " << sortId << " " 
@@ -137,8 +138,8 @@ LogicalResult Serialize::createBtorLine(btor::SliceOp &op, bool isInit) {
 
   m_output << nextLine << " slice " << sortId 
     << " " << getOpFromCache(op.in()) << " "
-    << upper.value().getValue().getSExtValue() << " "
-    << lower.value().getValue().getSExtValue() << "\n"; 
+    << upper.value().getInt() << " "
+    << lower.value().getInt() << "\n"; 
 
   setCacheWithOp(op.result(), nextLine);
   nextLine += 1;  
