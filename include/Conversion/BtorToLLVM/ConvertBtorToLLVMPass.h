@@ -2,6 +2,7 @@
 #define BTOR_CONVERSION_BTORTOLLVM_CONVERTBTORTOLLVMPASS_H_
 
 #include <memory>
+#include <utility>
 
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Conversion/LLVMCommon/TypeConverter.h"
@@ -30,6 +31,9 @@ public:
             addConversion([&](btor::BitVecType type) -> llvm::Optional<Type> {
                 return convertBtorBitVecType(type);
             });
+            addConversion([&](btor::ArrayType type) -> llvm::Optional<Type> {
+                return convertBtorArrayType(type);
+            });
         }
 
         Type convertBtorBitVecType(btor::BitVecType type) {
@@ -40,7 +44,12 @@ public:
             return btor::BitVecType::get(type.getContext(), type.getWidth());
         }
 
-
+        VectorType convertBtorArrayType(btor::ArrayType type) {
+            unsigned indexWidth = pow(2, type.getShape().getWidth());
+            auto elementType =  ::IntegerType::get(type.getContext(), type.getElement().getWidth());
+            // return MemRefType::get(ArrayRef<int64_t>{indexWidth}, elementType);
+            return VectorType::get(ArrayRef<int64_t>{indexWidth}, elementType);
+        }
     };
 
 } // namespace mlir

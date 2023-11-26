@@ -5,9 +5,13 @@
 #include "mlir/Conversion/LLVMCommon/ConversionTarget.h"
 #include "mlir/Conversion/LLVMCommon/VectorPattern.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/TypeRange.h"
 #include "mlir/IR/TypeUtilities.h"
 #include "mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h"
+#include "mlir/Conversion/VectorToLLVM/ConvertVectorToLLVM.h"
+#include "mlir/Dialect/Vector/Transforms/VectorRewritePatterns.h"
+#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
 #include <string>
 
@@ -235,13 +239,6 @@ struct InputOpLowering : public ConvertOpToLLVMPattern<btor::InputOp> {
                   ConversionPatternRewriter &rewriter) const override;
 };
 
-struct ArrayOpLowering : public ConvertOpToLLVMPattern<mlir::btor::ArrayOp> {
-  using ConvertOpToLLVMPattern<mlir::btor::ArrayOp>::ConvertOpToLLVMPattern;
-  LogicalResult
-  matchAndRewrite(mlir::btor::ArrayOp arrayOp, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override;
-};
-
 struct UDivOpLowering : public ConvertOpToLLVMPattern<btor::UDivOp> {
   using ConvertOpToLLVMPattern<btor::UDivOp>::ConvertOpToLLVMPattern;
   LogicalResult
@@ -269,6 +266,39 @@ struct SRemOpLowering : public ConvertOpToLLVMPattern<btor::SRemOp> {
   matchAndRewrite(btor::SRemOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override;
 };
+
+//===----------------------------------------------------------------------===//
+// Array Operations
+//===----------------------------------------------------------------------===//
+
+struct ArrayOpLowering : public ConvertOpToLLVMPattern<mlir::btor::ArrayOp> {
+  using ConvertOpToLLVMPattern<mlir::btor::ArrayOp>::ConvertOpToLLVMPattern;
+  LogicalResult
+  matchAndRewrite(mlir::btor::ArrayOp arrayOp, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override;
+};
+
+struct InitArrayOpLowering : public ConvertOpToLLVMPattern<mlir::btor::InitArrayOp> {
+  using ConvertOpToLLVMPattern<mlir::btor::InitArrayOp>::ConvertOpToLLVMPattern;
+  LogicalResult
+  matchAndRewrite(mlir::btor::InitArrayOp arrayOp, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override;
+};
+
+struct ReadOpLowering : public ConvertOpToLLVMPattern<mlir::btor::ReadOp> {
+  using ConvertOpToLLVMPattern<mlir::btor::ReadOp>::ConvertOpToLLVMPattern;
+  LogicalResult
+  matchAndRewrite(mlir::btor::ReadOp readOp, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override;
+};
+
+struct WriteOpLowering : public ConvertOpToLLVMPattern<mlir::btor::WriteOp> {
+  using ConvertOpToLLVMPattern<mlir::btor::WriteOp>::ConvertOpToLLVMPattern;
+  LogicalResult
+  matchAndRewrite(mlir::btor::WriteOp writeOp, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override;
+};
+
 } // end anonymous namespace
 
 //===----------------------------------------------------------------------===//
@@ -697,37 +727,6 @@ InputOpLowering::matchAndRewrite(btor::InputOp op, OpAdaptor adaptor,
 }
 
 //===----------------------------------------------------------------------===//
-// ArrayOpLowering
-//===----------------------------------------------------------------------===//
-
-LogicalResult
-ArrayOpLowering::matchAndRewrite(mlir::btor::ArrayOp arrayOp, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const {
-  auto opType = arrayOp.getArrayType();
-  // Insert the `havoc` declaration if necessary.
-  auto module = arrayOp->getParentOfType<ModuleOp>();
-  std::string havoc;
-  havoc.append("nd_array");
-  havoc.append(std::to_string(opType.getShape().front()));
-  havoc.append("xbv");
-  havoc.append(std::to_string(opType.getElementType().getIntOrFloatBitWidth()));
-  auto havocFunc = module.lookupSymbol<LLVM::LLVMFuncOp>(havoc);
-  if (!havocFunc) {
-    OpBuilder::InsertionGuard guard(rewriter);
-    rewriter.setInsertionPointToStart(module.getBody());
-    auto havocFuncTy =
-        LLVM::LLVMFunctionType::get(opType, {});
-    havocFunc = rewriter.create<LLVM::LLVMFuncOp>(
-        rewriter.getUnknownLoc(), havoc, havocFuncTy);
-  }
-  auto callOp = rewriter.create<LLVM::CallOp>(arrayOp.getLoc(), havocFunc, llvm::None);
-  auto result = callOp.getResult(0);
-  arrayOp.replaceAllUsesWith(result);
-  rewriter.replaceOp(arrayOp, result);
-  return success();
-}
-
-//===----------------------------------------------------------------------===//
 // SDivOpLowering
 //===----------------------------------------------------------------------===//
 
@@ -815,6 +814,69 @@ URemOpLowering::matchAndRewrite(mlir::btor::URemOp op, OpAdaptor adaptor,
   return success();
 }
 
+
+//===----------------------------------------------------------------------===//
+// ArrayOpLowering
+//===----------------------------------------------------------------------===//
+
+LogicalResult
+ArrayOpLowering::matchAndRewrite(mlir::btor::ArrayOp arrayOp, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const {
+  auto opType = arrayOp.getArrayType();
+  // Insert the `havoc` declaration if necessary.
+  auto module = arrayOp->getParentOfType<ModuleOp>();
+  std::string havoc;
+  havoc.append("nd_array");
+  havoc.append(std::to_string(opType.getShape().getWidth()));
+  havoc.append("xbv");
+  auto eleType = opType.getElement();
+  havoc.append(std::to_string(eleType.getWidth()));
+  auto havocFunc = module.lookupSymbol<LLVM::LLVMFuncOp>(havoc);
+  if (!havocFunc) {
+    OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointToStart(module.getBody());
+    auto havocFuncTy =
+        LLVM::LLVMFunctionType::get(typeConverter->convertType(opType), {});
+    havocFunc = rewriter.create<LLVM::LLVMFuncOp>(
+        rewriter.getUnknownLoc(), havoc, havocFuncTy);
+  }
+  auto callOp = rewriter.create<LLVM::CallOp>(arrayOp.getLoc(), havocFunc, llvm::None);
+  auto result = callOp.getResult(0);
+  arrayOp.replaceAllUsesWith(result);
+  rewriter.replaceOp(arrayOp, result);
+  return success();
+}
+
+
+//===----------------------------------------------------------------------===//
+// InitArrayOpLowering
+//===----------------------------------------------------------------------===//
+
+LogicalResult
+InitArrayOpLowering::matchAndRewrite(mlir::btor::InitArrayOp initArrayOp,
+    OpAdaptor adaptor, ConversionPatternRewriter &rewriter) const {
+  VectorType opType = typeConverter->convertType(initArrayOp.getType()).cast<VectorType>();
+  rewriter.replaceOpWithNewOp<vector::BroadcastOp>(initArrayOp, opType, adaptor.init());
+  return success();
+}
+
+LogicalResult
+ReadOpLowering::matchAndRewrite(mlir::btor::ReadOp readOp, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const {
+  IntegerType resType = typeConverter->convertType(readOp.result().getType()).cast<IntegerType>();
+  rewriter.replaceOpWithNewOp<vector::ExtractElementOp>(readOp, resType, adaptor.base(), adaptor.index());
+  return success();
+}
+
+LogicalResult
+WriteOpLowering::matchAndRewrite(mlir::btor::WriteOp writeOp, OpAdaptor adaptor,
+                                 ConversionPatternRewriter &rewriter) const {
+  rewriter.replaceOpWithNewOp<vector::InsertElementOp>(
+      writeOp, typeConverter->convertType(writeOp.base().getType()), writeOp.value(),
+      writeOp.base(), writeOp.index());
+  return success();
+}
+
 //===----------------------------------------------------------------------===//
 // Pass Definition
 //===----------------------------------------------------------------------===//
@@ -827,7 +889,7 @@ struct BtorToLLVMLoweringPass
   BtorToLLVMLoweringPass() = default;
 
   void getDependentDialects(DialectRegistry &registry) const override {
-    registry.insert<LLVM::LLVMDialect>();
+    registry.insert<LLVM::LLVMDialect, vector::VectorDialect, memref::MemRefDialect>();
   }
   StringRef getArgument() const final { return PASS_NAME; }
   void runOnOperation() override;
@@ -841,6 +903,22 @@ void BtorToLLVMLoweringPass::runOnOperation() {
 
   mlir::btor::populateBtorToLLVMConversionPatterns(converter, patterns);
   mlir::populateStdToLLVMConversionPatterns(converter, patterns);
+  {
+    RewritePatternSet patterns(&getContext());
+    mlir::vector::populateVectorToVectorCanonicalizationPatterns(patterns);
+    mlir::vector::populateVectorBroadcastLoweringPatterns(patterns);
+    mlir::vector::populateVectorContractLoweringPatterns(patterns);
+    mlir::vector::populateVectorMaskOpLoweringPatterns(patterns);
+    mlir::vector::populateVectorShapeCastLoweringPatterns(patterns);
+    mlir::vector::populateVectorTransposeLoweringPatterns(patterns);
+    // Vector transfer ops with rank > 1 should be lowered with VectorToSCF.
+    mlir::vector::populateVectorTransferLoweringPatterns(patterns, /*maxTransferRank=*/1);
+    (void)applyPatternsAndFoldGreedily(getOperation(), std::move(patterns));
+  }
+  mlir::vector::populateVectorTransferLoweringPatterns(patterns);
+  mlir::populateVectorToLLVMMatrixConversionPatterns(converter, patterns);
+  mlir::populateVectorToLLVMConversionPatterns(converter, patterns);
+  mlir::populateVectorToLLVMMatrixConversionPatterns(converter, patterns);
 
   /// Configure conversion to lower out btor; Anything else is fine.
   // indexed operators
@@ -873,7 +951,8 @@ void BtorToLLVMLoweringPass::runOnOperation() {
   target.addIllegalOp<btor::IteOp>();
 
   /// array operations
-  target.addIllegalOp<btor::ArrayOp>();
+  // target.addIllegalOp<btor::ArrayOp, btor::InitArrayOp,
+  //                     btor::ReadOp, btor::WriteOp>();
 
   if (failed(applyPartialConversion(getOperation(), target,
                                     std::move(patterns)))) {
@@ -899,9 +978,9 @@ void mlir::btor::populateBtorToLLVMConversionPatterns(
       IffOpLowering, ImpliesOpLowering, XnorOpLowering, NandOpLowering,
       NorOpLowering, IncOpLowering, DecOpLowering, NegOpLowering,
       RedOrOpLowering, RedAndOpLowering, RedXorOpLowering, UExtOpLowering,
-      SExtOpLowering, SliceOpLowering, ConcatOpLowering, 
+      SExtOpLowering, SliceOpLowering, ConcatOpLowering, ConstraintOpLowering,
       // NDStateOpLowering, InputOpLowering,
-      ConstraintOpLowering, ArrayOpLowering>(converter);
+      ArrayOpLowering, InitArrayOpLowering, ReadOpLowering, WriteOpLowering>(converter);
 }
 
 /// Create a pass for lowering operations the remaining `Btor` operations

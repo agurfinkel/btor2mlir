@@ -4,6 +4,7 @@
 #include "../PassDetail.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "mlir/Conversion/LLVMCommon/ConversionTarget.h"
 
 using namespace mlir;
 using namespace mlir::btor;
@@ -36,8 +37,18 @@ struct WriteOpLowering : public OpConversionPattern<mlir::btor::WriteOp> {
 LogicalResult
 InitArrayLowering::matchAndRewrite(mlir::btor::InitArrayOp initArrayOp, OpAdaptor adaptor,
                                  ConversionPatternRewriter &rewriter) const {
-  rewriter.replaceOpWithNewOp<vector::BroadcastOp>(
-        initArrayOp, initArrayOp.getType(), initArrayOp.init());
+  btor::ArrayType type = initArrayOp.getType();
+  unsigned indexWidth = pow(2, type.getShape().getWidth());
+  auto elementType =  ::IntegerType::get(type.getContext(), type.getElement().getWidth());
+  // return MemRefType::get(ArrayRef<int64_t>{indexWidth}, elementType);
+  VectorType opType = VectorType::get(ArrayRef<int64_t>{indexWidth}, elementType);
+
+  auto callOp = rewriter.create<vector::BroadcastOp>(initArrayOp.getLoc(), opType, adaptor.init());
+  auto result = callOp.getResult();
+  initArrayOp.replaceAllUsesWith(result);
+  rewriter.replaceOp(initArrayOp, result);
+  // rewriter.replaceOpWithNewOp<vector::BroadcastOp>(
+  //       initArrayOp, opType, adaptor.init());
   return success();
 }
 
@@ -74,7 +85,7 @@ struct ConvertBtorToVectorPass
   void runOnOperation() override {
     RewritePatternSet patterns(&getContext());
     populateBtorToVectorConversionPatterns(patterns);
-    ConversionTarget target(getContext());
+    LLVMConversionTarget target(getContext());
 
     /// Configure conversion to lower out btor; Anything else is fine.
     // init operators

@@ -150,10 +150,12 @@ class Deserialize {
   // Builder wrappers
   Type getTypeOf(const Btor2Line *line) {
     if (line->sort.tag == BTOR2_TAG_SORT_array) {
-      unsigned indexWidth = pow(2, m_sorts.at(line->sort.array.index)->sort.bitvec.width);
+      // unsigned indexWidth = pow(2, m_sorts.at(line->sort.array.index)->sort.bitvec.width);
+      auto shape = btor::BitVecType::get(m_context, m_sorts.at(line->sort.array.index)->sort.bitvec.width);
       auto elementType = btor::BitVecType::get(m_context,
         m_sorts.at(line->sort.array.element)->sort.bitvec.width);
-      return VectorType::get(ArrayRef<int64_t>{indexWidth}, elementType);
+      return btor::ArrayType::get(m_context, shape, elementType);
+      // return VectorType::get(ArrayRef<int64_t>{indexWidth}, elementType);
       ;
     }
     return btor::BitVecType::get(m_context, line->sort.bitvec.width);
@@ -300,7 +302,7 @@ class Deserialize {
   Operation *buildReadOp(const Value &array,
                         const Value &index,
                         const unsigned  lineId) {
-    auto elementType = array.getType().cast<VectorType>().getElementType();
+    auto elementType = array.getType().cast<btor::ArrayType>().getElement();
     auto res =
         m_builder.create<btor::ReadOp>(
                         FileLineColLoc::get(m_sourceFile, lineId, 0),
@@ -342,7 +344,7 @@ class Deserialize {
     auto stateId = line->args[0];
     if (line->sort.tag == BTOR2_TAG_SORT_array) {
       auto initValueType = initValue.getType();
-      if (initValueType.isa<VectorType>()) {
+      if (initValueType.isa<btor::ArrayType>()) {
         setCacheWithId(stateId, initValue);
         return;
       }

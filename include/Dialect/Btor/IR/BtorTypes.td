@@ -21,4 +21,16 @@ def Btor_BitVec : Btor_BaseType<"BitVec", "bv"> {
   let genVerifyDecl = 0;
 }
 
+def Btor_Array : Btor_BaseType<"Array", "array"> {
+  let summary = "btor array";
+  let description = [{
+    A Btor array parametrized by two btor bit vectors
+  }];
+
+  let parameters = (ins "BitVecType":$shape, "BitVecType":$element);
+
+  let assemblyFormat = "`<` $shape `,` $element `>`";
+
+  let genVerifyDecl = 0;
+}
 #endif // BTOR_TYPES

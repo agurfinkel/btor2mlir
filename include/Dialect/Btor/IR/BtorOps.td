@@ -951,19 +951,19 @@ def ArrayOp : Btor_Op<"nd_array"> {
     bitvec -> bitvec. For example:
 
     ```mlir
-    %0 = btor.nd_array : vector<8,!bv<32>>
+    %0 = btor.nd_array : !array<!bv<8>,!bv<32>>
     ```
 
     This operation returns a single SSA value of a btor array type used
     by subsequent read and write operations. 
   }];
 
-  let results = (outs AnyVector:$result);
-  let assemblyFormat = "attr-dict `:` type($result)";
+  let results = (outs Btor_Array:$result);
+  let assemblyFormat = "attr-dict `:` qualified(type($result))";
   let verifier = [{ return verifyArrayOp(*this); }];
   let extraClassDeclaration = [{
-    VectorType getArrayType() {
-      return result().getType().cast<VectorType>();
+    ArrayType getArrayType() {
+      return result().getType().cast<ArrayType>();
     }
   }];
 }
@@ -977,7 +977,7 @@ def InitArrayOp : Btor_Op<"array"> {
     For example:
 
     ```mlir
-    %4 = btor.array %1 : vector<8,!bv<32>>
+    %4 = btor.array %1 : !array<!bv<8>,!bv<32>>
     ```
 
     This operation returns a single SSA value of a btor array type used
@@ -985,10 +985,10 @@ def InitArrayOp : Btor_Op<"array"> {
   }];
 
   let arguments = (ins Btor_BitVec:$init);
-  let results = (outs AnyVector:$result);
+  let results = (outs Btor_Array:$result);
   let extraClassDeclaration = [{
-    VectorType getArrayType() {
-      return result().getType().cast<VectorType>();
+    ArrayType getArrayType() {
+      return result().getType().cast<ArrayType>();
     }
   }];
   let verifier = [{ return verifyInitArrayOp(*this); }];
@@ -1010,16 +1010,16 @@ def ReadOp : Btor_Op<"read"> {
     Example:
 
     ```mlir
-    %1 = btor.read %A[%0] : vector<8,!bv<32>>, !bv<32>
+    %1 = btor.read %A[%0] : !array<!bv<8>,!bv<32>>, !bv<32>
     ```
   }];
 
-  let arguments = (ins AnyVector:$base, Btor_BitVec:$index);
+  let arguments = (ins Btor_Array:$base, Btor_BitVec:$index);
   let results = (outs Btor_BitVec:$result);
 
   let extraClassDeclaration = [{
-    VectorType getArrayType() {
-      return base().getType().cast<VectorType>();
+    ArrayType getArrayType() {
+      return base().getType().cast<ArrayType>();
     }
   }];
 
@@ -1041,17 +1041,17 @@ def WriteOp : Btor_Op<"write"> {
     Example:
 
     ```mlir
-    %4 = btor.write %2, %A[%1] : vector<8, !bv<32>>
+    %4 = btor.write %2, %A[%1] : !array<!bv<8>,!bv<32>>
     ```
   }];
 
-  let arguments = (ins Btor_BitVec:$value, AnyVector:$base,
+  let arguments = (ins Btor_BitVec:$value, Btor_Array:$base,
                        Btor_BitVec:$index);
 
-  let results = (outs AnyVector:$result);
+  let results = (outs Btor_Array:$result);
     let extraClassDeclaration = [{
-    VectorType getArrayType() {
-      return base().getType().cast<VectorType>();
+    ArrayType getArrayType() {
+      return base().getType().cast<ArrayType>();
     }
   }];
 
