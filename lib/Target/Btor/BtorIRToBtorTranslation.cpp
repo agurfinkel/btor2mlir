@@ -96,12 +96,11 @@ void Serialize::createSort(Type type) {
     setSortWithType(type, nextLine);
     m_output << nextLine << " sort bitvec " << bitWidth << '\n';
   } else {
-    assert (type.isa<VectorType>());
-    auto shape = type.cast<VectorType>().getShape().front();
-    auto elementType = type.cast<VectorType>().getElementType();
-    Type shapeType = IntegerType::get(type.getContext(), unsigned (log2(shape)));
-    assert (elementType.getIntOrFloatBitWidth() > 0);
-    assert (shapeType.getIntOrFloatBitWidth() > 0);
+    assert (type.isa<btor::ArrayType>());
+    auto shapeType = type.cast<btor::ArrayType>().getShape();
+    auto elementType = type.cast<btor::ArrayType>().getElement();
+    assert (elementType.getWidth() > 0);
+    assert (shapeType.getWidth() > 0);
 
     auto shapeSort = getOrCreateSort(shapeType);
     auto elementSort = getOrCreateSort(elementType);

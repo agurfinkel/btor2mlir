@@ -150,12 +150,10 @@ class Deserialize {
   // Builder wrappers
   Type getTypeOf(const Btor2Line *line) {
     if (line->sort.tag == BTOR2_TAG_SORT_array) {
-      // unsigned indexWidth = pow(2, m_sorts.at(line->sort.array.index)->sort.bitvec.width);
       auto shape = btor::BitVecType::get(m_context, m_sorts.at(line->sort.array.index)->sort.bitvec.width);
       auto elementType = btor::BitVecType::get(m_context,
         m_sorts.at(line->sort.array.element)->sort.bitvec.width);
       return btor::ArrayType::get(m_context, shape, elementType);
-      // return VectorType::get(ArrayRef<int64_t>{indexWidth}, elementType);
       ;
     }
     return btor::BitVecType::get(m_context, line->sort.bitvec.width);
