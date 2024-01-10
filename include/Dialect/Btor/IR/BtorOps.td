@@ -941,6 +941,41 @@ def InputOp : Btor_Op<"input"> {
 }
 
 //===----------------------------------------------------------------------===//
+// Vector using Btor arrays
+//===----------------------------------------------------------------------===//
+
+def VectorInitArrayOp : Btor_Op<"array_vec"> {
+  let summary = "btor initialized array allocation operation using vector types";
+  let description = [{
+    The `array` operation represents a btor array, using vectors,
+     that has been initialized with a value. 
+
+    For example:
+
+    ```mlir
+    %4 = btor.array_vec %1 : vector<8xi32>
+    ```
+
+    This operation returns a single SSA value of a vector type used
+    by subsequent read and write operations. 
+  }];
+
+  let arguments = (ins SignlessIntegerLike:$init);
+  let results = (outs AnyVector:$result);
+  let extraClassDeclaration = [{
+    VectorType getArrayType() {
+      return result().getType().cast<VectorType>();
+    }
+  }];
+  let verifier = [{ return verifyVectorInitArrayOp(*this); }];
+  let parser = [{
+    return parseVectorInitArrayOp(parser, result);
+  }];
+  let printer = [{
+    return printVectorInitArrayOp(p, *this);
+  }];
+}
+//===----------------------------------------------------------------------===//
 // Btor arrays
 //===----------------------------------------------------------------------===//
 

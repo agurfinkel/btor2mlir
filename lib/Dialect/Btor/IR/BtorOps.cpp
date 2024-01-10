@@ -529,6 +529,51 @@ LogicalResult verifyAssertNotOp(Op op) {
 }
 
 //===----------------------------------------------------------------------===//
+// Initialzied Array Operations using Vectors
+//===----------------------------------------------------------------------===//
+
+static void printVectorInitArrayOp(OpAsmPrinter &p, VectorInitArrayOp &op) {
+  p << " " << op.init();
+  p.printOptionalAttrDict(op->getAttrs());
+  p << " : " << op.result().getType();
+}
+
+template <typename Op>
+static LogicalResult verifyVectorInitArrayOp(Op op) {
+  auto initType = op.init().getType();
+  auto initWidth = initType.getIntOrFloatBitWidth();
+  auto elementType = op.getArrayType().getElementType();
+  if (elementType.getIntOrFloatBitWidth() != initWidth) {
+    return op.emitOpError() << "element type of the array must match "
+                         << " bitwidth of given value: " << initWidth;
+  }
+  if (op.getArrayType().getShape().size() != 1) {
+    return op.emitOpError() << "provide only one shape attribute ";
+  }
+  auto shape = op.getArrayType().getShape()[0];
+  auto indicator = shape & (shape - 1);
+  if (indicator != 0) {
+    return op.emitOpError() << "given shape: " <<  shape 
+                         << " has to be a power of two";
+  }
+  return success();
+}
+
+static ParseResult parseVectorInitArrayOp(OpAsmParser &parser, OperationState &result) {
+  OpAsmParser::OperandType init;
+  VectorType resultType;
+  if (parser.parseOperand(init) ||
+      parser.parseOptionalAttrDict(result.attributes) || 
+      parser.parseColon() || parser.parseType(resultType))
+    return failure();
+
+  result.addTypes(resultType);
+  return parser.resolveOperands({init}, 
+                                {resultType.getElementType()},
+                                parser.getNameLoc(), result.operands);
+}
+
+//===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
 
