@@ -36,15 +36,15 @@ Using the command `build/bin/btor2mlir-translate --import-btor counter.btor2 > c
 ```mlir
 module {
   func @main() {
-    %0 = btor.constant 0 : i4
-    br ^bb1(%0 : i4)
-  ^bb1(%1: i4):  // 2 preds: ^bb0, ^bb1
-    %2 = btor.constant 1 : i4
-    %3 = btor.add %1, %2 : i4
-    %4 = btor.constant -1 : i4
-    %5 = btor.cmp eq, %1, %4 : i4
-    btor.assert_not(%5)
-    br ^bb1(%3 : i4)
+    %0 = btor.constant 0 : i4 !btor.bv<4>
+    br ^bb1(%0 : !btor.bv<4>)
+  ^bb1(%1: !btor.bv<4>):  // 2 preds: ^bb0, ^bb1
+    %2 = btor.constant 1 : i4 !btor.bv<4>
+    %3 = btor.add %1, %2 : !btor.bv<4>
+    %4 = btor.constant -1 : i4 !btor.bv<4>
+    %5 = btor.cmp eq, %1, %4 : !btor.bv<4>
+    btor.assert_not(%5), 0 : i64 !btor.bv<1>
+    br ^bb1(%3 : !btor.bv<4>)
   }
 }
 ```
@@ -54,6 +54,7 @@ Then, using the command  `build/bin/btor2mlir-opt  --convert-std-to-llvm --conve
 ```mlir
 module attributes {llvm.data_layout = ""} {
   llvm.func @__VERIFIER_error()
+  llvm.func @__VERIFIER_assert(i1, i64)
   llvm.func @main() {
     %0 = llvm.mlir.constant(0 : i4) : i4
     llvm.br ^bb1(%0 : i4)
@@ -68,6 +69,8 @@ module attributes {llvm.data_layout = ""} {
   ^bb2:  // pred: ^bb1
     llvm.br ^bb1(%3 : i4)
   ^bb3:  // pred: ^bb1
+    %8 = llvm.mlir.constant(0 : i64) : i64
+    llvm.call @__VERIFIER_assert(%7, %8) : (i1, i64) -> ()
     llvm.call @__VERIFIER_error() : () -> ()
     llvm.unreachable
   }
@@ -78,6 +81,7 @@ Finally, using the command `build/bin/btor2mlir-translate --mlir-to-llvmir count
 
 ```llvm
 declare void @__VERIFIER_error()
+declare void @__VERIFIER_assert(i1, i64)
 define void @main() !dbg !3 {
   br label %1, !dbg !7
 1:                                                ; preds = %6, %0
@@ -89,8 +93,9 @@ define void @main() !dbg !3 {
 6:                                                ; preds = %1
   br label %1, !dbg !13
 7:                                                ; preds = %1
-  call void @__VERIFIER_error(), !dbg !14
-  unreachable, !dbg !15
+  call void @__VERIFIER_assert(i1 %5, i64 0), !dbg !14
+  call void @__VERIFIER_error(), !dbg !15
+  unreachable, !dbg !16
 }
 ```
 
@@ -98,7 +103,7 @@ If you have SeaHorn installed locally (a distribution is included in the Docker)
 
 ## Witness Generation
 
-Run the shell script [`./get_cex_seahorn.sh $btor2_file`](cex/witness/get_cex_seahorn.sh) to:
+Run the shell script [`./get_cex_seahorn.sh $btor2_file`](utils/cex/witness/get_cex_seahorn.sh) to:
 
 a) extract a counter example from SeaHorn \
 b) generate a Btor2 Witness \
