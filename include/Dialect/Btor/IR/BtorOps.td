@@ -1008,6 +1008,38 @@ def VectorReadOp : Btor_Op<"read_vec"> {
   }];
 }
 
+def VectorWriteOp : Btor_Op<"write_vec"> {
+  let summary = "btor write operation with vector types";
+  let description = [{
+    Copy the given array and write the given value to the provided
+    location given by index. The value stored should have the same type 
+    as the elemental type of the array. 
+    Example:
+
+    ```mlir
+    %4 = btor.write %2, %A[%1] : vector<8xi32>
+    ```
+  }];
+
+  let arguments = (ins SignlessIntegerLike:$value, AnyVector:$base,
+                       SignlessIntegerLike:$index);
+
+  let results = (outs AnyVector:$result);
+    let extraClassDeclaration = [{
+    VectorType getArrayType() {
+      return base().getType().cast<VectorType>();
+    }
+  }];
+
+  let verifier = [{ return verifyVectorWriteOp(*this); }];
+  let parser = [{
+    return parseVectorWriteOp(parser, result);
+  }];
+  let printer = [{
+    return printVectorWriteOp(p, *this);
+  }];
+}
+
 //===----------------------------------------------------------------------===//
 // Btor arrays
 //===----------------------------------------------------------------------===//
