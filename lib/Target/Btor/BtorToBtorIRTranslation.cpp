@@ -17,7 +17,9 @@
 using namespace mlir;
 using namespace mlir::btor;
 
-std::pair <int,int> Deserialize::parseModelLine(Btor2Line *l, std::pair <int,int> numberedCommands) {
+std::pair<int, int>
+Deserialize::parseModelLine(Btor2Line *l,
+                            std::pair<int, int> numberedCommands) {
   setLineWithId(l->id, l);
   switch (l->tag) {
   case BTOR2_TAG_bad:
@@ -45,12 +47,12 @@ std::pair <int,int> Deserialize::parseModelLine(Btor2Line *l, std::pair <int,int
   case BTOR2_TAG_sort:
     m_sorts[l->id] = l;
     break;
-  
+
   case BTOR2_TAG_input:
     m_inputs[l->lineno] = numberedCommands.first;
     numberedCommands.first = numberedCommands.first + 1;
     break;
-  
+
   default:
     break;
   }
@@ -66,12 +68,12 @@ bool Deserialize::parseModelIsSuccessful() {
     return false;
   }
   // register each line that has been parsed
-  auto numLines = btor2parser_max_id (m_model);
+  auto numLines = btor2parser_max_id(m_model);
   m_lines.resize(numLines + 1, nullptr);
   Btor2LineIterator it = btor2parser_iter_init(m_model);
   Btor2Line *line;
   // (inputNumber, badPropertyNumber)
-  std::pair <int,int> numberedCommands (0,0);
+  std::pair<int, int> numberedCommands(0, 0);
   while ((line = btor2parser_iter_next(&it))) {
     numberedCommands = parseModelLine(line, numberedCommands);
   }
@@ -80,64 +82,64 @@ bool Deserialize::parseModelIsSuccessful() {
 }
 
 ///===----------------------------------------------------------------------===//
-/// This function's goal is to create the MLIR Operation that corresponds to 
-/// the given Btor2Line*, cur, into the basic block designated by the class 
-/// field m_builder. Make sure that the kids have already been created before 
+/// This function's goal is to create the MLIR Operation that corresponds to
+/// the given Btor2Line*, cur, into the basic block designated by the class
+/// field m_builder. Make sure that the kids have already been created before
 /// calling this method
 ///
 /// e.x:
 ///     Operation * res = createMLIR(cur, cur->args);
 ///
 ///===----------------------------------------------------------------------===//
-Operation * Deserialize::createMLIR(const Btor2Line *line, 
-                                const SmallVector<Value> &kids,
-                                const SmallVector<unsigned> &arguments) {
+Operation *Deserialize::createMLIR(const Btor2Line *line,
+                                   const SmallVector<Value> &kids,
+                                   const SmallVector<unsigned> &arguments) {
   Operation *res = nullptr;
   auto lineId = line->lineno;
 
   switch (line->tag) {
   // binary ops
   case BTOR2_TAG_slt:
-    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::slt, 
-                                        kids[0], kids[1], lineId);
+    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::slt, kids[0],
+                                         kids[1], lineId);
     break;
   case BTOR2_TAG_slte:
-    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::sle, 
-                                        kids[0], kids[1], lineId);
+    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::sle, kids[0],
+                                         kids[1], lineId);
     break;
   case BTOR2_TAG_sgt:
-    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::sgt, 
-                                        kids[0], kids[1], lineId);
+    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::sgt, kids[0],
+                                         kids[1], lineId);
     break;
   case BTOR2_TAG_sgte:
-    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::sge, 
-                                        kids[0], kids[1], lineId);
+    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::sge, kids[0],
+                                         kids[1], lineId);
     break;
   case BTOR2_TAG_neq:
-    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::ne, 
-                                        kids[0], kids[1], lineId);
+    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::ne, kids[0],
+                                         kids[1], lineId);
     break;
   case BTOR2_TAG_eq:
-    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::eq, 
-                                        kids[0], kids[1], lineId);
+    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::eq, kids[0],
+                                         kids[1], lineId);
     break;
   case BTOR2_TAG_ugt:
-    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::ugt, 
-                                        kids[0], kids[1], lineId);
+    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::ugt, kids[0],
+                                         kids[1], lineId);
     break;
   case BTOR2_TAG_ugte:
-    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::uge, 
-                                        kids[0], kids[1], lineId);
+    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::uge, kids[0],
+                                         kids[1], lineId);
     break;
   case BTOR2_TAG_ult:
-    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::ult, 
-                                        kids[0], kids[1], lineId);
+    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::ult, kids[0],
+                                         kids[1], lineId);
     break;
   case BTOR2_TAG_ulte:
-    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::ule, 
-                                        kids[0], kids[1], lineId);
+    res = buildComparisonOp<btor::CmpOp>(btor::BtorPredicate::ule, kids[0],
+                                         kids[1], lineId);
     break;
-  
+
   case BTOR2_TAG_concat:
     res = buildConcatOp(kids[0], kids[1], lineId);
     break;
@@ -252,28 +254,28 @@ Operation * Deserialize::createMLIR(const Btor2Line *line,
     res = buildReductionOp<btor::RedXorOp>(kids[0], lineId);
     break;
   case BTOR2_TAG_const:
-    res = buildConstantOp(line->sort.bitvec.width,
-                        std::string(line->constant), 2, lineId);
+    res = buildConstantOp(line->sort.bitvec.width, std::string(line->constant),
+                          2, lineId);
     break;
   case BTOR2_TAG_constd:
-    res = buildConstantOp(line->sort.bitvec.width, 
-                        std::string(line->constant), 10, lineId);
+    res = buildConstantOp(line->sort.bitvec.width, std::string(line->constant),
+                          10, lineId);
     break;
   case BTOR2_TAG_consth:
-    res = buildConstantOp(line->sort.bitvec.width, 
-                        std::string(line->constant), 16, lineId);
+    res = buildConstantOp(line->sort.bitvec.width, std::string(line->constant),
+                          16, lineId);
     break;
   case BTOR2_TAG_one:
-    res = buildConstantOp(line->sort.bitvec.width, 
-                        std::string("one"), 10, lineId);
+    res = buildConstantOp(line->sort.bitvec.width, std::string("one"), 10,
+                          lineId);
     break;
   case BTOR2_TAG_ones:
-    res = buildConstantOp(line->sort.bitvec.width,
-                        std::string("ones"), 10, lineId);
+    res = buildConstantOp(line->sort.bitvec.width, std::string("ones"), 10,
+                          lineId);
     break;
   case BTOR2_TAG_zero:
-    res = buildConstantOp(line->sort.bitvec.width, 
-                        std::string("zero"), 10, lineId);
+    res = buildConstantOp(line->sort.bitvec.width, std::string("zero"), 10,
+                          lineId);
     break;
   case BTOR2_TAG_input:
     res = buildInputOp(line->sort.bitvec.width, lineId);
@@ -281,7 +283,6 @@ Operation * Deserialize::createMLIR(const Btor2Line *line,
   case BTOR2_TAG_constraint:
     res = buildUnaryOp<btor::ConstraintOp>(kids[0], lineId);
     break;
-
 
   // indexed ops
   case BTOR2_TAG_slice:
@@ -310,7 +311,7 @@ Operation * Deserialize::createMLIR(const Btor2Line *line,
 
   // state ops
   case BTOR2_TAG_state:
-      res = buildNDStateOp(line, lineId);
+    res = buildNDStateOp(line, lineId);
     break;
 
   case BTOR2_TAG_init:
@@ -330,14 +331,13 @@ Operation * Deserialize::createMLIR(const Btor2Line *line,
 ///===----------------------------------------------------------------------===//
 /// Some Btor lines may refer to a negated version of a prior line. This
 /// function creates a negated version of the original line, and stores it in
-/// the cache, only after the caller ensures that the original line has been 
+/// the cache, only after the caller ensures that the original line has been
 /// created and saved in the cache
 ///===----------------------------------------------------------------------===//
-void Deserialize::createNegateLine(int64_t negativeLine,
-                                  const unsigned lineId,
-                                  const Value &child) {
+void Deserialize::createNegateLine(int64_t negativeLine, const unsigned lineId,
+                                   const Value &child) {
   auto res = buildUnaryOp<btor::NotOp>(getFromCacheById(std::abs(negativeLine)),
-                                      lineId);
+                                       lineId);
   assert(res);
   assert(res->getNumResults() == 1);
   setCacheWithId(negativeLine, res->getResult(0));
@@ -346,7 +346,7 @@ void Deserialize::createNegateLine(int64_t negativeLine,
 ///===----------------------------------------------------------------------===//
 /// This method determines if a Btor2Line has a return value
 ///===----------------------------------------------------------------------===//
-bool Deserialize::hasReturnValue(Btor2Line * line) {
+bool Deserialize::hasReturnValue(Btor2Line *line) {
   bool hasReturnValue = true;
   switch (line->tag) {
   case BTOR2_TAG_constraint:
@@ -369,10 +369,12 @@ bool Deserialize::hasReturnValue(Btor2Line * line) {
 /// This method determines if we are dealing with the state argument of
 ///   a Btor2 init operation
 ///===----------------------------------------------------------------------===//
-bool Deserialize::isStateArgumentOfInitOp(Btor2Line * cur, unsigned idx) {
+bool Deserialize::isStateArgumentOfInitOp(Btor2Line *cur, unsigned idx) {
   if (BTOR2_TAG_init == cur->tag) {
     auto argumentId = cur->args[idx];
-    if (argumentId < 0) { argumentId = std::abs(argumentId); }
+    if (argumentId < 0) {
+      argumentId = std::abs(argumentId);
+    }
     return BTOR2_TAG_state == getLineById(argumentId)->tag;
   }
   return false;
@@ -382,7 +384,7 @@ bool Deserialize::isStateArgumentOfInitOp(Btor2Line * cur, unsigned idx) {
 /// We use this method to check if a line needs to have a corresponding MLIR
 /// operation created
 ///===----------------------------------------------------------------------===//
-bool Deserialize::needsMLIROp(Btor2Line * line) {
+bool Deserialize::needsMLIROp(Btor2Line *line) {
   bool isValid = true;
   switch (line->tag) {
   case BTOR2_TAG_next:
@@ -399,10 +401,10 @@ bool Deserialize::needsMLIROp(Btor2Line * line) {
 }
 
 ///===----------------------------------------------------------------------===//
-/// This function's goal is to add the MLIR Operation that corresponds to 
-/// the given Btor2Line* into the basic block designated by the class field 
+/// This function's goal is to add the MLIR Operation that corresponds to
+/// the given Btor2Line* into the basic block designated by the class field
 /// m_builder. Then, the MLIR Value of the newly minted operation is added
-/// into our cache for future reference within the basic block. 
+/// into our cache for future reference within the basic block.
 ///
 /// e.x:
 ///      for (next : m_nexts) {
@@ -434,16 +436,18 @@ void Deserialize::toOp(Btor2Line *line) {
         if (arg_i < 0) {
           // if original operation is cached, negate it on the fly
           if (valueAtIdIsInCache(std::abs(arg_i))) {
-            createNegateLine(arg_i, cur->lineno, getFromCacheById(std::abs(arg_i))); 
+            createNegateLine(arg_i, cur->lineno,
+                             getFromCacheById(std::abs(arg_i)));
           } else {
             todo.push_back(getLineById(std::abs(arg_i)));
           }
-        } else if (isStateArgumentOfInitOp(cur, i)){
-          // make sure that we check for the case that the state has an initialization!
+        } else if (isStateArgumentOfInitOp(cur, i)) {
+          // make sure that we check for the case that the state has an
+          // initialization!
           if (auto initLine = getLineById(arg_i)->init) {
             continue;
           }
-            todo.push_back(getLineById(arg_i));
+          todo.push_back(getLineById(arg_i));
         } else {
           todo.push_back(getLineById(arg_i));
         }
@@ -463,29 +467,30 @@ void Deserialize::toOp(Btor2Line *line) {
     SmallVector<unsigned> arguments;
     if (cur->tag != BTOR2_TAG_slice) {
       for (unsigned i = 0; i < cur->nargs; ++i) {
-          if (isStateArgumentOfInitOp(cur, i)) {
-              kids.push_back(nullptr);
-              continue;
-          }
-          kids.push_back(getFromCacheById(cur->args[i]));
+        if (isStateArgumentOfInitOp(cur, i)) {
+          kids.push_back(nullptr);
+          continue;
+        }
+        kids.push_back(getFromCacheById(cur->args[i]));
       }
     } else {
-        kids.push_back(getFromCacheById(cur->args[0]));
-        arguments.push_back(cur->args[1]);
-        arguments.push_back(cur->args[2]);
+      kids.push_back(getFromCacheById(cur->args[0]));
+      arguments.push_back(cur->args[1]);
+      arguments.push_back(cur->args[2]);
     }
     res = createMLIR(cur, kids, arguments);
-    // We never have to use the result of a btor line with no 
+    // We never have to use the result of a btor line with no
     // return values since btor2 doesn't allow it
     if (hasReturnValue(getLineById(cur->id))) {
-      assert (res);
+      assert(res);
       setCacheWithId(cur->id, res);
-    } 
+    }
     todo.pop_back();
   }
 }
 
-std::vector<Value> Deserialize::collectReturnValuesForInit(const std::vector<Type> &returnTypes) {
+std::vector<Value>
+Deserialize::collectReturnValuesForInit(const std::vector<Type> &returnTypes) {
   std::vector<Value> results(m_states.size(), nullptr);
   for (unsigned i = 0; i < m_states.size(); ++i) {
     results[i] = getFromCacheById(m_states.at(i)->id);
@@ -493,11 +498,12 @@ std::vector<Value> Deserialize::collectReturnValuesForInit(const std::vector<Typ
   return results;
 }
 
-std::vector<Value> Deserialize::buildInitFunction(const std::vector<Type> &returnTypes) {
+std::vector<Value>
+Deserialize::buildInitFunction(const std::vector<Type> &returnTypes) {
   // clear cache so that values are mapped to the right Basic Block
   m_cache.clear();
-  // We need to make sure that states are initialized in order of 
-  // appearance to avoid using a nd value when an initialization 
+  // We need to make sure that states are initialized in order of
+  // appearance to avoid using a nd value when an initialization
   // exists later in the btor file
   for (auto state : m_states) {
     if (int64_t initLine = state->init) {
@@ -510,8 +516,9 @@ std::vector<Value> Deserialize::buildInitFunction(const std::vector<Type> &retur
   return collectReturnValuesForInit(returnTypes);
 }
 
-std::vector<Value> Deserialize::buildNextFunction(
-    const std::vector<Type> &returnTypes, Block *body) {
+std::vector<Value>
+Deserialize::buildNextFunction(const std::vector<Type> &returnTypes,
+                               Block *body) {
   // clear cache so that values are mapped to the right Basic Block
   m_cache.clear();
   // initialize states with block arguments
@@ -521,24 +528,29 @@ std::vector<Value> Deserialize::buildNextFunction(
   }
 
   // start with nexts, then add constraints & bads, for logic sharing
-  for (auto next : m_nexts) { toOp(next); }
-  for (auto constraint : m_constraints) { toOp(constraint); }
-  for (auto bad : m_bads) { toOp(bad); }
+  for (auto next : m_nexts) {
+    toOp(next);
+  }
+  for (auto constraint : m_constraints) {
+    toOp(constraint);
+  }
+  for (auto bad : m_bads) {
+    toOp(bad);
+  }
 
   // close with a fitting returnOp
   std::vector<Value> results(m_states.size(), nullptr);
   for (unsigned i = 0; i < m_states.size(); ++i) {
     int64_t nextState = m_states.at(i)->next;
-    if (nextState == 0) { 
+    if (nextState == 0) {
       if (m_states.at(i)->init != 0) {
         results[i] = getFromCacheById(m_states.at(i)->id);
         continue;
       }
       auto stateType = getFromCacheById(m_states.at(i)->id).getType();
       auto res = m_builder.create<btor::NDStateOp>(
-        FileLineColLoc::get(m_sourceFile, m_states.at(i)->lineno, 0), 
-        stateType,
-        m_builder.getIntegerAttr(m_builder.getIntegerType(64), i));
+          FileLineColLoc::get(m_sourceFile, m_states.at(i)->lineno, 0),
+          stateType, m_builder.getIntegerAttr(m_builder.getIntegerType(64), i));
       assert(res);
       assert(res->getNumResults() == 1);
       results[i] = res->getResult(0);
@@ -559,8 +571,7 @@ OwningOpRef<FuncOp> Deserialize::buildMainFunction() {
   }
   // create main function
   OperationState state(m_unknownLoc, FuncOp::getOperationName());
-  FuncOp::build(m_builder, state, "main",
-                FunctionType::get(m_context, {}, {}));
+  FuncOp::build(m_builder, state, "main", FunctionType::get(m_context, {}, {}));
   OwningOpRef<FuncOp> funcOp = cast<FuncOp>(Operation::create(state));
   Region &region = funcOp->getBody();
   OpBuilder::InsertionGuard guard(m_builder);
@@ -571,7 +582,8 @@ OwningOpRef<FuncOp> Deserialize::buildMainFunction() {
   auto opPosition = m_builder.getInsertionPoint();
   // Create infinite loop that inlines next function
   std::vector<Location> returnLocs(m_states.size(), funcOp->getLoc());
-  Block *loopBlock = m_builder.createBlock(body->getParent(), {}, {returnTypes}, {returnLocs});
+  Block *loopBlock =
+      m_builder.createBlock(body->getParent(), {}, {returnTypes}, {returnLocs});
   auto nextResults = buildNextFunction(returnTypes, loopBlock);
   m_builder.create<BranchOp>(m_unknownLoc, loopBlock, nextResults);
   // add call to branch from original basic block
@@ -582,7 +594,7 @@ OwningOpRef<FuncOp> Deserialize::buildMainFunction() {
 }
 
 static OwningOpRef<ModuleOp> deserializeModule(const llvm::MemoryBuffer *input,
-                                         MLIRContext *context) {
+                                               MLIRContext *context) {
   context->loadDialect<btor::BtorDialect, StandardOpsDialect>();
 
   OwningOpRef<ModuleOp> owningModule(ModuleOp::create(FileLineColLoc::get(

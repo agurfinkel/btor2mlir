@@ -94,7 +94,7 @@ WriteOpLowering::matchAndRewrite(mlir::btor::WriteOp writeOp, OpAdaptor adaptor,
                                  ConversionPatternRewriter &rewriter) const {
   auto resType = typeConverter->convertType(writeOp.base().getType());
   rewriter.replaceOpWithNewOp<mlir::btor::VectorWriteOp>(
-    writeOp, resType, adaptor.value(), adaptor.base(), adaptor.index());
+      writeOp, resType, adaptor.value(), adaptor.base(), adaptor.index());
   return success();
 }
 

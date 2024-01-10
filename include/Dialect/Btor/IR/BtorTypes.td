@@ -10,11 +10,9 @@ class Btor_BaseType<string name, string typeMnemonic, list<Trait> traits = []>
 
 def Btor_BitVec : Btor_BaseType<"BitVec", "bv"> {
   let summary = "bit vector behaving similar to unsinged int";
-  let description = [{
-    Bit vectors have designated width.
-  }];
+  let description = [{Bit vectors have designated width.}];
 
-  let parameters = (ins "unsigned":$width);
+  let parameters = (ins "unsigned" : $width);
 
   let assemblyFormat = "`<` $width `>`";
 
@@ -23,11 +21,9 @@ def Btor_BitVec : Btor_BaseType<"BitVec", "bv"> {
 
 def Btor_Array : Btor_BaseType<"Array", "array"> {
   let summary = "btor array";
-  let description = [{
-    A Btor array parametrized by two btor bit vectors
-  }];
+  let description = [{A Btor array parametrized by two btor bit vectors}];
 
-  let parameters = (ins "BitVecType":$shape, "BitVecType":$element);
+  let parameters = (ins "BitVecType" : $shape, "BitVecType" : $element);
 
   let assemblyFormat = "`<` $shape `,` $element `>`";
 
