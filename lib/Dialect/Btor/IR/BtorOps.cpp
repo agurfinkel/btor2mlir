@@ -574,6 +574,53 @@ static ParseResult parseVectorInitArrayOp(OpAsmParser &parser, OperationState &r
 }
 
 //===----------------------------------------------------------------------===//
+// Read Operations using Vectors
+//===----------------------------------------------------------------------===//
+
+static void printVectorReadOp(OpAsmPrinter &p, VectorReadOp &op) {
+  p << " " << op.base() << "[" << op.index() << "]";
+  p.printOptionalAttrDict(op->getAttrs());
+  p << " : " << op.base().getType() << ", " << op.result().getType();
+}
+
+template <typename Op>
+static LogicalResult verifyVectorReadOp(Op op) {
+  auto type = op.result().getType().getIntOrFloatBitWidth();
+  // The value's type must match the return type.
+  if (op.getArrayType().getElementType().getIntOrFloatBitWidth() != type) {
+    return op.emitOpError() << "element type of the array must match "
+                         << " bitwidth of return type: " << type;
+  }
+  if (op.getArrayType().getShape().size() != 1) {
+    return op.emitOpError() << "provide only one shape attribute ";
+  }
+  auto shape = op.getArrayType().getShape()[0];
+  auto indicator = shape & (shape - 1);
+  if (indicator != 0) {
+    return op.emitOpError() << "given shape: " <<  shape 
+                         << " has to be a power of two";
+  }
+  return success();
+}
+
+static ParseResult parseVectorReadOp(OpAsmParser &parser, OperationState &result) {
+  OpAsmParser::OperandType base, index;
+  VectorType baseType; IntegerType indexType;
+  Type resultType;
+  if (parser.parseOperand(base) || parser.parseLSquare() || 
+      parser.parseOperand(index) || parser.parseRSquare() ||
+      parser.parseOptionalAttrDict(result.attributes) || 
+      parser.parseColon() || parser.parseType(baseType) ||
+      parser.parseOptionalComma() || parser.parseType(resultType))
+    return failure();
+
+  result.addTypes(resultType);
+  indexType = parser.getBuilder().getIntegerType(log2(baseType.getShape()[0]));
+  return parser.resolveOperands({base, index}, {baseType, indexType},
+                                parser.getNameLoc(), result.operands);
+}
+
+//===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
 

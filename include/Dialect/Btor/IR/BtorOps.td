@@ -975,6 +975,39 @@ def VectorInitArrayOp : Btor_Op<"array_vec"> {
     return printVectorInitArrayOp(p, *this);
   }];
 }
+
+def VectorReadOp : Btor_Op<"read_vec"> {
+  let summary = "btor read operation using vector types";
+  let description = [{
+    The `read` op reads an element from a btor array specified by an index. 
+    The output of load is a new value with the same type as the elements of the
+    btor array.
+
+    Example:
+
+    ```mlir
+    %1 = btor.read %A[%0] : vector<8xi32>, i32
+    ```
+  }];
+
+  let arguments = (ins AnyVector:$base, SignlessIntegerLike:$index);
+  let results = (outs SignlessIntegerLike:$result);
+
+  let extraClassDeclaration = [{
+    VectorType getArrayType() {
+      return base().getType().cast<VectorType>();
+    }
+  }];
+
+  let verifier = [{ return verifyVectorReadOp(*this); }];
+  let parser = [{
+    return parseVectorReadOp(parser, result);
+  }];
+  let printer = [{
+    return printVectorReadOp(p, *this);
+  }];
+}
+
 //===----------------------------------------------------------------------===//
 // Btor arrays
 //===----------------------------------------------------------------------===//

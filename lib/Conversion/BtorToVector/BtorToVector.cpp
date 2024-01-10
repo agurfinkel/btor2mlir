@@ -3,10 +3,10 @@
 
 #include "../PassDetail.h"
 #include "mlir/Conversion/LLVMCommon/ConversionTarget.h"
+#include "mlir/Conversion/LLVMCommon/VectorPattern.h"
 #include "mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/DialectConversion.h"
-#include "mlir/Conversion/LLVMCommon/VectorPattern.h"
 // #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 
 using namespace mlir;
@@ -16,7 +16,8 @@ using namespace mlir::btor;
 // Lowering Declarations
 //===----------------------------------------------------------------------===//
 
-struct InitArrayLowering : public ConvertOpToLLVMPattern<mlir::btor::InitArrayOp> {
+struct InitArrayLowering
+    : public ConvertOpToLLVMPattern<mlir::btor::InitArrayOp> {
   using ConvertOpToLLVMPattern<mlir::btor::InitArrayOp>::ConvertOpToLLVMPattern;
   LogicalResult
   matchAndRewrite(mlir::btor::InitArrayOp initArrayOp, OpAdaptor adaptor,
@@ -39,10 +40,20 @@ struct WriteOpLowering : public ConvertOpToLLVMPattern<mlir::btor::WriteOp> {
 
 struct VectorInitArrayOpLowering
     : public ConvertOpToLLVMPattern<mlir::btor::VectorInitArrayOp> {
-  using ConvertOpToLLVMPattern<mlir::btor::VectorInitArrayOp>::ConvertOpToLLVMPattern;
+  using ConvertOpToLLVMPattern<
+      mlir::btor::VectorInitArrayOp>::ConvertOpToLLVMPattern;
   LogicalResult
   matchAndRewrite(mlir::btor::VectorInitArrayOp vecInitArrayOp,
                   OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override;
+};
+
+struct VectorReadOpLowering
+    : public ConvertOpToLLVMPattern<mlir::btor::VectorReadOp> {
+  using ConvertOpToLLVMPattern<
+      mlir::btor::VectorReadOp>::ConvertOpToLLVMPattern;
+  LogicalResult
+  matchAndRewrite(mlir::btor::VectorReadOp vecReadOp, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override;
 };
 
@@ -55,12 +66,6 @@ InitArrayLowering::matchAndRewrite(mlir::btor::InitArrayOp initArrayOp,
                                    OpAdaptor adaptor,
                                    ConversionPatternRewriter &rewriter) const {
   auto arrayType = typeConverter->convertType(initArrayOp.getType());
-
-  // auto callOp =
-  // rewriter.create<btor::VectorInitArrayOp>(initArrayOp.getLoc(), typeConverter->convertType(arrayType),
-  // adaptor.init()); auto result = callOp.getResult();
-  // initArrayOp.replaceAllUsesWith(result);
-  // rewriter.replaceOp(initArrayOp, result);
   rewriter.replaceOpWithNewOp<mlir::btor::VectorInitArrayOp>(
       initArrayOp, arrayType, adaptor.init());
   return success();
@@ -69,9 +74,9 @@ InitArrayLowering::matchAndRewrite(mlir::btor::InitArrayOp initArrayOp,
 LogicalResult
 ReadOpLowering::matchAndRewrite(mlir::btor::ReadOp readOp, OpAdaptor adaptor,
                                 ConversionPatternRewriter &rewriter) const {
-  auto resType = readOp.result().getType();
-  rewriter.replaceOpWithNewOp<vector::ExtractElementOp>(
-      readOp, resType, readOp.base(), readOp.index());
+  auto resType = typeConverter->convertType(readOp.result().getType());
+  rewriter.replaceOpWithNewOp<mlir::btor::VectorReadOp>(
+      readOp, resType, adaptor.base(), adaptor.index());
   return success();
 }
 
@@ -92,6 +97,14 @@ LogicalResult VectorInitArrayOpLowering::matchAndRewrite(
   return success();
 }
 
+LogicalResult VectorReadOpLowering::matchAndRewrite(
+    mlir::btor::VectorReadOp vecReadOp, OpAdaptor adaptor,
+    ConversionPatternRewriter &rewriter) const {
+  rewriter.replaceOpWithNewOp<vector::ExtractElementOp>(
+      vecReadOp, vecReadOp.result().getType(), adaptor.base(), adaptor.index());
+  return success();
+}
+
 //===----------------------------------------------------------------------===//
 // Populate Lowering Patterns
 //===----------------------------------------------------------------------===//
@@ -99,7 +112,7 @@ LogicalResult VectorInitArrayOpLowering::matchAndRewrite(
 void mlir::btor::populateBtorToVectorConversionPatterns(
     BtorToLLVMTypeConverter &converter, RewritePatternSet &patterns) {
   patterns.add<ReadOpLowering, WriteOpLowering, InitArrayLowering,
-               VectorInitArrayOpLowering>(converter);
+               VectorInitArrayOpLowering, VectorReadOpLowering>(converter);
 }
 
 namespace {
@@ -117,7 +130,7 @@ struct ConvertBtorToVectorPass
     target.addIllegalOp<btor::InitArrayOp, btor::VectorInitArrayOp>();
 
     /// indexed operators
-    target.addIllegalOp<btor::ReadOp, btor::WriteOp>();
+    target.addIllegalOp<btor::ReadOp, btor::VectorReadOp, btor::WriteOp>();
 
     target.markUnknownOpDynamicallyLegal([](Operation *) { return true; });
     if (failed(applyPartialConversion(getOperation(), target,
