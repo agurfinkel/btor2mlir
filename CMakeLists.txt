@@ -39,3 +39,5 @@ add_subdirectory(tools/btor2mlir-opt)
 add_subdirectory(tools/btor2mlir-translate)
 add_subdirectory(tools/smt2mlir-opt)
 add_subdirectory(tools/smt2mlir-translate)
+
+add_subdirectory(play/btor_array)

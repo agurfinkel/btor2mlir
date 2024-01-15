@@ -1,0 +1,4 @@
+set(LLVM_LINK_COMPONENTS Support)
+add_llvm_executable(btor_array btor_array.cpp)
+llvm_update_compile_flags(btor_array)
+mlir_check_all_link_libraries(btor_array)
